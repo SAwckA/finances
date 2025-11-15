@@ -41,6 +41,11 @@ Dependencies
 - Async database libraries like asyncpg or aiomysql
 - SQLAlchemy 2.0 (if using ORM features)
 
+How to add new Dependencies
+
+- ALWAYS use uv
+- use uv command like uv add {dep_name}
+
 FastAPI-Specific Guidelines
 
 - Use functional components (plain functions) and Pydantic models for input validation and response schemas.
