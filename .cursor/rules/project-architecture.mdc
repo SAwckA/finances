@@ -1,0 +1,364 @@
+---
+description: Архитектура и правила разработки FastAPI проекта
+globs: **/*.py
+alwaysApply: true
+---
+
+# Архитектура FastAPI проекта
+
+## Структура проекта
+
+```
+app/
+├── config/           # Конфигурация (env, database, logging)
+├── auth/             # JWT, хеширование паролей
+├── api/
+│   ├── dependencies/ # FastAPI Depends (auth)
+│   ├── controllers/  # Роутеры (endpoints)
+│   ├── exception_handlers.py
+│   └── router.py     # Сборка роутеров
+├── services/         # Бизнес-логика + исключения
+├── repositories/     # Доступ к данным
+├── models/           # ORM модели + Pydantic схемы
+└── exceptions.py     # Базовые исключения
+migrations/           # Alembic (корень проекта)
+main.py              # Точка входа (корень проекта)
+pyproject.toml       # Конфигурация проекта и зависимости (uv)
+uv.lock              # Lock-файл зависимостей (uv)
+.python-version      # Версия Python для uv
+```
+
+## Управление зависимостями (uv)
+
+### Правила
+
+1. **Пакетный менеджер**: ТОЛЬКО `uv` (не pip, не poetry, не pipenv)
+2. **Файл зависимостей**: `pyproject.toml` (не requirements.txt)
+3. **Lock-файл**: `uv.lock` — всегда коммитить в репозиторий
+4. **Версия Python**: Указывается в `.python-version`
+
+### Основные команды
+
+```bash
+# Инициализация проекта
+uv init
+
+# Добавление зависимости
+uv add fastapi
+uv add sqlalchemy[asyncio]
+
+# Добавление dev-зависимости
+uv add --dev pytest pytest-asyncio
+
+# Удаление зависимости
+uv remove package-name
+
+# Синхронизация зависимостей (установка из lock-файла)
+uv sync
+
+# Запуск скриптов через uv
+uv run python main.py
+uv run alembic upgrade head
+uv run pytest
+```
+
+### Структура pyproject.toml
+
+```toml
+[project]
+name = "finances"
+version = "0.1.0"
+description = "Finance management API"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "sqlalchemy[asyncio]>=2.0.0",
+    "asyncpg>=0.30.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.0",
+    "alembic>=1.14.0",
+    "pyyaml>=6.0.0",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "httpx>=0.28.0",
+]
+```
+
+### Запреты для зависимостей
+
+❌ НЕ использовать `pip install` — только `uv add`
+❌ НЕ создавать `requirements.txt` — только `pyproject.toml`
+❌ НЕ игнорировать `uv.lock` в `.gitignore`
+❌ НЕ редактировать `uv.lock` вручную
+
+## Сервисы (services/)
+
+### Правила создания сервисов
+
+1. **Наследование**: Все сервисы наследуются от `BaseService`
+2. **Зависимости**: Объявляются как аннотации типов класса (НЕ в `__init__`)
+3. **Исключения**: Определяются В НАЧАЛЕ ФАЙЛА сервиса, перед классом
+4. **Транзакции**: Используется context manager (`async with`)
+5. **Логирование**: `import logging` + `logger = logging.getLogger(__name__)`
+
+### Шаблон сервиса
+
+```python
+# services/user_service.py
+import logging
+from app.services.base_service import BaseService
+from app.repositories.user_repository import UserRepository
+from app.exceptions import NotFoundException, ConflictException
+
+logger = logging.getLogger(__name__)
+
+
+# === EXCEPTIONS (в начале файла!) ===
+
+class UserNotFoundException(NotFoundException):
+    message = "Пользователь не найден"
+
+
+class EmailAlreadyExistsException(ConflictException):
+    message = "Пользователь с таким email уже существует"
+
+
+# === SERVICE ===
+
+class UserService(BaseService):
+    # Зависимости - только аннотации типов!
+    user_repository: UserRepository
+    
+    async def get_user(self, user_id: int):
+        user = await self.user_repository.get_by_id(user_id)
+        if not user:
+            raise UserNotFoundException(details={"user_id": user_id})
+        return user
+    
+    async def create_user(self, data: dict):
+        existing = await self.user_repository.get_by_email(data["email"])
+        if existing:
+            raise EmailAlreadyExistsException()
+        return await self.user_repository.create(data)
+```
+
+### Использование сервисов
+
+```python
+# В контроллере (с context manager для транзакции)
+async with UserService() as service:
+    user = await service.create_user(data)
+
+# Вне FastAPI
+service = UserService()
+async with service:
+    user = await service.get_user(1)
+
+# С инжектом зависимостей (из FastAPI)
+service = UserService(user_repository=injected_repo)
+```
+
+## Репозитории (repositories/)
+
+### Правила создания репозиториев
+
+1. **Наследование**: `class UserRepository(BaseRepository[User])`
+2. **Generic**: Модель передается как type parameter
+3. **CRUD из коробки**: `create`, `get_by_id`, `get_all`, `update`, `delete`, `count`, `exists`
+4. **Soft delete**: Автоматически если модель наследует `SoftDeleteMixin`
+5. **Сессия**: Берется из contextvars (НЕ создавать вручную!)
+
+### Шаблон репозитория
+
+```python
+# repositories/user_repository.py
+from app.repositories.base_repository import BaseRepository
+from app.models.user import User
+
+
+class UserRepository(BaseRepository[User]):
+    """CRUD методы уже есть из BaseRepository"""
+    
+    async def get_by_email(self, email: str) -> User | None:
+        return await self.get_by(email=email)
+    
+    async def get_active_users(self):
+        return await self.get_many_by(is_active=True)
+```
+
+## Модели (models/)
+
+### Правила создания моделей
+
+1. **Файл**: ORM модель + Pydantic схемы в ОДНОМ файле
+2. **Наследование ORM**: `BaseModel` (без soft delete) или `SoftDeleteModel` (с soft delete)
+3. **Схемы**: `{Entity}Base`, `{Entity}Create`, `{Entity}Update`, `{Entity}Response`
+4. **Type hints**: PEP 585 (`list`, `dict`, `|` вместо `Optional`)
+
+### Шаблон модели
+
+```python
+# models/user.py
+from datetime import datetime
+from sqlalchemy import String
+from sqlalchemy.orm import Mapped, mapped_column
+from pydantic import BaseModel, EmailStr, Field
+from app.models.base import SoftDeleteModel
+
+
+# === PYDANTIC SCHEMAS ===
+
+class UserBase(BaseModel):
+    email: EmailStr
+    name: str = Field(min_length=2, max_length=100)
+
+
+class UserCreate(UserBase):
+    password: str = Field(min_length=8)
+
+
+class UserUpdate(BaseModel):
+    email: EmailStr | None = None
+    name: str | None = None
+
+
+class UserResponse(UserBase):
+    id: int
+    is_active: bool
+    created_at: datetime
+    
+    model_config = {"from_attributes": True}
+
+
+# === ORM MODEL ===
+
+class User(SoftDeleteModel):
+    __tablename__ = "users"
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(100))
+    hashed_password: Mapped[str] = mapped_column(String(255))
+    is_active: Mapped[bool] = mapped_column(default=True)
+```
+
+## Исключения (exceptions.py + в сервисах)
+
+### Базовые исключения (app/exceptions.py)
+
+- `AppException` — базовый класс
+- `NotFoundException` (404)
+- `ValidationException` (400)
+- `ConflictException` (409)
+- `AuthException` (401)
+- `ForbiddenException` (403)
+- `BusinessLogicException` (422)
+
+### Правила создания исключений
+
+1. **Расположение**: В начале файла сервиса, который их выбрасывает
+2. **Наследование**: От базовых категорий из `app/exceptions.py`
+3. **Именование**: `{Entity}{Problem}Exception`
+4. **Message**: Всегда указывать понятный `message` по умолчанию
+
+```python
+class UserNotFoundException(NotFoundException):
+    message = "Пользователь не найден"
+
+class InsufficientBalanceException(BusinessLogicException):
+    message = "Недостаточно средств на счёте"
+```
+
+## Контроллеры (api/controllers/)
+
+### Правила создания контроллеров
+
+1. **Тонкие**: Минимум логики, только вызов сервиса
+2. **Транзакции**: `async with Service() as service:`
+3. **Зависимости**: Через `Depends()` для auth
+4. **Response model**: Всегда указывать Pydantic схему ответа
+
+```python
+# api/controllers/users.py
+from fastapi import APIRouter, Depends
+from app.api.dependencies.auth import get_current_active_user
+from app.services.user_service import UserService
+from app.models.user import UserResponse, UserUpdate
+
+router = APIRouter(prefix="/users", tags=["users"])
+
+
+@router.get("/me", response_model=UserResponse)
+async def get_me(current_user = Depends(get_current_active_user)):
+    return current_user
+
+
+@router.get("/{user_id}", response_model=UserResponse)
+async def get_user(user_id: int):
+    async with UserService() as service:
+        return await service.get_user(user_id)
+```
+
+## Логирование
+
+### Правила
+
+1. **Настройка**: ТОЛЬКО через `dictConfig` из YAML файла
+2. **Использование**: `import logging` + `logger = logging.getLogger(__name__)`
+3. **Уровни**: DEBUG для отладки, INFO для событий, WARNING для проблем, ERROR для ошибок
+
+```python
+import logging
+
+logger = logging.getLogger(__name__)
+
+class UserService(BaseService):
+    async def create_user(self, data):
+        logger.debug(f"Creating user: {data['email']}")
+        # ...
+        logger.info(f"User created: {user.id}")
+```
+
+## Конфигурация (config/)
+
+### env.py — Pydantic Settings
+
+```python
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env")
+    
+    database_url: str
+    jwt_secret_key: str
+    debug: bool = False
+
+settings = Settings()
+```
+
+### database.py — Подключение к БД
+
+- `engine` — SQLAlchemy async engine
+- `SessionLocal` — async sessionmaker
+- `Base` — declarative base
+- `_current_session` — contextvars для текущей сессии
+
+## Запреты
+
+❌ НЕ создавать `__init__` в сервисах для объявления зависимостей
+❌ НЕ использовать sync SQLAlchemy
+❌ НЕ размещать бизнес-логику в контроллерах
+❌ НЕ создавать сессию БД вручную в репозиториях
+❌ НЕ использовать `Optional[]` — использовать `| None`
+❌ НЕ использовать `List[]`, `Dict[]` — использовать `list[]`, `dict[]`
+❌ НЕ запускать проект автоматически (запуск только пользователем!)
+❌ НЕ использовать `pip` — только `uv`
+❌ НЕ создавать `requirements.txt` — только `pyproject.toml`
