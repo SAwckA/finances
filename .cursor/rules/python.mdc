@@ -28,11 +28,25 @@ If the implementation is hard to explain, it's a bad idea.
 If the implementation is easy to explain, it may be a good idea.
 Namespaces are one honking great idea -- let's do more of those!
 
-Always follow linter/formatter
-Use full sqlalchemy 2.0 syntax, mapped_cloumn
+## Линтер
 
-NEVER: create nested, maximum nested MUST be 3-4, not more
-NEVER: write comments, use ONLY docstrings
+ВСЕГДА следовать линтеру. Ошибки линтера должны быть исправлены изменением кода, а НЕ подавлением.
 
-Do not check is method already exists by `hasattr`, follow linter and documentation instead
-Perfer dataclasses and Pydantic instead of dicts
+КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО:
+
+- `# type: ignore` — НИКОГДА не использовать
+- `# noqa` — НИКОГДА не использовать
+- `# pylint: disable` — НИКОГДА не использовать
+- `# pyright: ignore` — НИКОГДА не использовать
+- Любые другие комментарии для подавления ошибок линтера
+
+Если линтер выдаёт ошибку — нужно исправить код, а не заглушить предупреждение.
+
+## Прочие правила
+
+- Always follow linter/formatter
+- Use full sqlalchemy 2.0 syntax, mapped_column
+- NEVER: create nested, maximum nested MUST be 3-4, not more
+- NEVER: write comments, use ONLY docstrings
+- Do not check is method already exists by `hasattr`, follow linter and documentation instead
+- Prefer dataclasses and Pydantic instead of dicts
