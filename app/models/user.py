@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import SoftDeleteModel
 
@@ -47,3 +47,6 @@ class User(SoftDeleteModel):
     name: Mapped[str] = mapped_column(String(100))
     hashed_password: Mapped[str] = mapped_column(String(255))
     is_active: Mapped[bool] = mapped_column(default=True)
+
+    accounts = relationship("Account", back_populates="user")
+    categories = relationship("Category", back_populates="user")

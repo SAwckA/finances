@@ -8,6 +8,13 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.config.env import settings
 from app.models.base import Base
+from app.models.account import Account
+from app.models.category import Category
+from app.models.currency import Currency
+from app.models.recurring_transaction import RecurringTransaction
+from app.models.shopping_list import ShoppingItem, ShoppingList
+from app.models.shopping_template import ShoppingTemplate, ShoppingTemplateItem
+from app.models.transaction import Transaction
 from app.models.user import User
 
 config = context.config
