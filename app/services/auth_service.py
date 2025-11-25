@@ -8,7 +8,7 @@ from app.auth.jwt import (
 )
 from app.auth.password import hash_password, verify_password
 from app.exceptions import AuthException, ConflictException
-from app.models.user import User, UserCreate, UserResponse
+from app.models.user import UserCreate, UserResponse
 from app.repositories.user_repository import UserRepository
 from app.services.base_service import BaseService
 
@@ -89,4 +89,3 @@ class AuthService(BaseService):
             access_token=create_access_token(user.id),
             refresh_token=create_refresh_token(user.id),
         )
-

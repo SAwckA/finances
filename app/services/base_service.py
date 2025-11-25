@@ -1,11 +1,10 @@
 import contextvars
 from types import TracebackType
-from typing import get_type_hints
+from typing import Any, Self, get_type_hints
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.database import SessionLocal, _current_session
-from app.repositories.base_repository import BaseRepository
 
 
 class BaseService:
@@ -13,7 +12,7 @@ class BaseService:
     Базовый класс для всех сервисов.
 
     Особенности:
-    - Ленивая инициализация зависимостей через аннотации типов
+    - Автоматическая инициализация зависимостей через аннотации типов
     - Поддержка инжекта зависимостей через kwargs
     - Context manager для автоматической очистки ресурсов
     - Множественные зависимости (репозитории, другие сервисы)
@@ -21,33 +20,30 @@ class BaseService:
 
     _session: AsyncSession | None = None
     _owns_session: bool = False
-    _token: contextvars.Token | None = None
+    _token: contextvars.Token[AsyncSession | None] | None = None
+    _created_dependencies: list[Any]
 
-    def __init__(self, **kwargs: object) -> None:
-        self._injected_dependencies = kwargs
-        self._created_dependencies: list = []
+    def __init__(self, **kwargs: Any) -> None:
+        self._created_dependencies = []
 
         if "session" in kwargs:
-            self._session = kwargs.pop("session")
-
-    def __getattr__(self, name: str) -> object:
-        if name.startswith("_"):
-            raise AttributeError(f"'{self.__class__.__name__}' has no attribute '{name}'")
-
-        if name in self._injected_dependencies:
-            return self._injected_dependencies[name]
+            session = kwargs.pop("session")
+            if isinstance(session, AsyncSession):
+                self._session = session
 
         hints = get_type_hints(self.__class__)
-        if name in hints:
-            dependency_class = hints[name]
-            instance = dependency_class()
-            self._created_dependencies.append(instance)
-            setattr(self, name, instance)
-            return instance
+        for name, hint_type in hints.items():
+            if name.startswith("_"):
+                continue
 
-        raise AttributeError(f"'{self.__class__.__name__}' has no attribute '{name}'")
+            if name in kwargs:
+                setattr(self, name, kwargs[name])
+            elif not hasattr(self, name) or getattr(self, name) is None:
+                instance = hint_type()
+                self._created_dependencies.append(instance)
+                setattr(self, name, instance)
 
-    async def __aenter__(self) -> "BaseService":
+    async def __aenter__(self) -> Self:
         if self._session is None:
             self._session = SessionLocal()
             self._owns_session = True
@@ -80,4 +76,3 @@ class BaseService:
     async def rollback(self) -> None:
         if self._session:
             await self._session.rollback()
-

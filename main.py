@@ -1,6 +1,7 @@
+from contextlib import asynccontextmanager
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 
 from app.api.exception_handlers import (
     app_exception_handler,
@@ -15,14 +16,31 @@ setup_logging()
 
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Application started")
+    yield
+    logger.info("Application stopped")
+
+
 app = FastAPI(
     title="Finance API",
     version="0.1.0",
     debug=settings.debug,
+    lifespan=lifespan,
 )
 
-app.add_exception_handler(AppException, app_exception_handler)
-app.add_exception_handler(Exception, unhandled_exception_handler)
+
+@app.exception_handler(AppException)
+async def handle_app_exception(request: Request, exc: AppException) -> Response:
+    return await app_exception_handler(request, exc)
+
+
+@app.exception_handler(Exception)
+async def handle_exception(request: Request, exc: Exception) -> Response:
+    return await unhandled_exception_handler(request, exc)
+
 
 app.include_router(router)
 
@@ -31,14 +49,3 @@ app.include_router(router)
 async def health_check():
     """Проверка работоспособности сервиса."""
     return {"status": "ok"}
-
-
-@app.on_event("startup")
-async def startup():
-    logger.info("Application started")
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    logger.info("Application stopped")
-

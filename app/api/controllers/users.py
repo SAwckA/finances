@@ -48,4 +48,3 @@ async def delete_user(
     """Удаление пользователя."""
     async with UserService() as service:
         await service.delete_user(user_id)
-

@@ -48,4 +48,3 @@ async def get_current_active_user(
     if not user.is_active:
         raise ForbiddenException(message="Аккаунт деактивирован")
     return user
-

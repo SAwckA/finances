@@ -2,7 +2,9 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
-from jose import JWTError, jwt
+from jose import JWTError
+from jose import jwt as jose_jwt
+from jose.exceptions import ExpiredSignatureError
 
 from app.config.env import settings
 from app.exceptions import AuthException
@@ -37,7 +39,7 @@ def create_access_token(user_id: int) -> str:
         "exp": expire,
         "type": "access",
     }
-    return jwt.encode(
+    return jose_jwt.encode(
         payload,
         settings.jwt_secret_key,
         algorithm=settings.jwt_algorithm,
@@ -54,7 +56,7 @@ def create_refresh_token(user_id: int) -> str:
         "exp": expire,
         "type": "refresh",
     }
-    return jwt.encode(
+    return jose_jwt.encode(
         payload,
         settings.jwt_secret_key,
         algorithm=settings.jwt_algorithm,
@@ -64,14 +66,20 @@ def create_refresh_token(user_id: int) -> str:
 def decode_token(token: str, expected_type: str = "access") -> TokenPayload:
     """Декодирование и валидация токена."""
     try:
-        payload = jwt.decode(
+        payload = jose_jwt.decode(
             token,
             settings.jwt_secret_key,
             algorithms=[settings.jwt_algorithm],
         )
 
-        user_id = int(payload.get("sub"))
-        exp = datetime.fromtimestamp(payload.get("exp"), tz=timezone.utc)
+        sub = payload.get("sub")
+        exp_value = payload.get("exp")
+
+        if sub is None or exp_value is None:
+            raise InvalidTokenException()
+
+        user_id = int(sub)
+        exp = datetime.fromtimestamp(float(exp_value), tz=timezone.utc)
         token_type = payload.get("type", "access")
 
         if token_type != expected_type:
@@ -82,10 +90,9 @@ def decode_token(token: str, expected_type: str = "access") -> TokenPayload:
 
         return TokenPayload(user_id=user_id, exp=exp, token_type=token_type)
 
-    except jwt.ExpiredSignatureError:
+    except ExpiredSignatureError:
         logger.debug("Token expired")
         raise TokenExpiredException()
     except JWTError as e:
         logger.warning(f"Invalid token: {e}")
         raise InvalidTokenException()
-

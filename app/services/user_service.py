@@ -81,4 +81,3 @@ class UserService(BaseService):
         """Получение списка пользователей."""
         users = await self.user_repository.get_all(skip=skip, limit=limit)
         return list(users)
-

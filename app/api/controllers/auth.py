@@ -2,7 +2,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, EmailStr, Field
 
 from app.models.user import UserCreate, UserResponse
-from app.services.auth_service import AuthService, TokenResponse
+from app.services.auth_service import AuthService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -57,4 +57,3 @@ async def refresh_tokens(data: RefreshRequest):
             refresh_token=result.refresh_token,
             token_type=result.token_type,
         )
-

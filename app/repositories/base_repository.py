@@ -1,13 +1,13 @@
 from datetime import datetime, timezone
-from typing import Generic, Sequence, TypeVar
+from typing import Any, Generic, Sequence, TypeVar
 
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.database import _current_session
-from app.models.base import Base, SoftDeleteMixin
+from app.models.base import SoftDeleteMixin
 
-ModelType = TypeVar("ModelType", bound=Base)
+ModelType = TypeVar("ModelType", bound=Any)
 
 
 class BaseRepository(Generic[ModelType]):
@@ -138,12 +138,12 @@ class BaseRepository(Generic[ModelType]):
             .values(deleted_at=datetime.now(timezone.utc))
         )
         result = await self.session.execute(query)
-        return result.rowcount > 0
+        return result.rowcount > 0  # type: ignore[union-attr]
 
     async def hard_delete(self, id: int) -> bool:
         query = delete(self.model).where(self.model.id == id)
         result = await self.session.execute(query)
-        return result.rowcount > 0
+        return result.rowcount > 0  # type: ignore[union-attr]
 
     async def restore(self, id: int) -> ModelType | None:
         if not self._supports_soft_delete:
