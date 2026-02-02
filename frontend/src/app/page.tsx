@@ -1,11 +1,30 @@
-import { FinanceWorkbench } from "../components/finance-workbench";
+"use client";
 
-export default function Home() {
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Spinner } from "@heroui/react";
+import { useAuth } from "../features/auth/auth-context";
+
+export default function HomePage() {
+  const { status } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.replace("/dashboard");
+      return;
+    }
+
+    if (status === "unauthenticated") {
+      router.replace("/auth/login");
+    }
+  }, [router, status]);
+
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(165deg,#f4f7fb_0%,#ebf1fa_35%,#f8f5ef_100%)] px-4 py-6 sm:px-6">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,#0f766e22,transparent_50%),radial-gradient(circle_at_bottom_right,#b4530917,transparent_45%)]" />
-      <div className="relative mx-auto w-full max-w-7xl">
-        <FinanceWorkbench />
+    <main className="flex min-h-screen items-center justify-center bg-slate-50">
+      <div className="flex items-center gap-2 text-slate-600">
+        <Spinner size="sm" />
+        <span className="text-sm">Перенаправляем...</span>
       </div>
     </main>
   );
