@@ -42,6 +42,8 @@ Namespaces are one honking great idea -- let's do more of those!
 
 Если линтер выдаёт ошибку — нужно исправить код, а не заглушить предупреждение.
 
+Всегда форматируй код по окончанию редактирования, используя uv format
+
 ## Прочие правила
 
 - Always follow linter/formatter
