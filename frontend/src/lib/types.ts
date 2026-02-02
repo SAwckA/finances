@@ -71,3 +71,38 @@ export type CategoryCreate = {
 };
 
 export type CategoryUpdate = Partial<CategoryCreate>;
+
+export type TransactionType = "income" | "expense" | "transfer";
+
+export type TransactionResponse = {
+  id: number;
+  user_id: number;
+  type: TransactionType;
+  account_id: number;
+  target_account_id: number | null;
+  category_id: number | null;
+  amount: string;
+  converted_amount: string | null;
+  exchange_rate: string | null;
+  description: string | null;
+  transaction_date: string;
+  shopping_list_id: number | null;
+  created_at: string;
+};
+
+export type TransactionCreate = {
+  type: TransactionType;
+  account_id: number;
+  amount: number;
+  description?: string | null;
+  transaction_date?: string;
+  target_account_id?: number | null;
+  category_id?: number | null;
+};
+
+export type TransactionUpdate = {
+  amount?: number | null;
+  description?: string | null;
+  transaction_date?: string | null;
+  category_id?: number | null;
+};

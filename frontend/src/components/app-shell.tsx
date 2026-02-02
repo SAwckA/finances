@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@heroui/react";
+import { CirclePlus } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-context";
 
 type NavItem = {
@@ -12,7 +13,6 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Обзор" },
-  { href: "/transactions", label: "Операции" },
   { href: "/shopping-lists", label: "Покупки" },
   { href: "/recurring", label: "Повторяемые" },
   { href: "/profile", label: "Профиль" },
@@ -25,9 +25,10 @@ function isActive(pathname: string, href: string): boolean {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const quickAddActive = pathname === "/transactions";
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
+    <div className="min-h-screen bg-slate-50 pb-24">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-3">
           <div>
@@ -43,7 +44,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <main className="mx-auto w-full max-w-5xl px-4 py-5">{children}</main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.35rem)] pt-2 backdrop-blur sm:px-4">
-        <ul className="mx-auto grid w-full max-w-5xl grid-cols-5 gap-1">
+        <Link
+          href="/transactions?create=1"
+          className={`absolute left-1/2 top-0 inline-flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-4 border-white shadow-lg transition ${
+            quickAddActive
+              ? "bg-slate-900 text-white"
+              : "bg-emerald-600 text-white hover:bg-emerald-700"
+          }`}
+          aria-label="Быстро добавить операцию"
+          title="Быстро добавить операцию"
+        >
+          <CirclePlus className="h-7 w-7" />
+        </Link>
+
+        <ul className="mx-auto grid w-full max-w-5xl grid-cols-4 gap-1">
           {NAV_ITEMS.map((item) => {
             const active = isActive(pathname, item.href);
             return (
