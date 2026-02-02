@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Spinner } from "@heroui/react";
-import { useAuth } from "../features/auth/auth-context";
+import { useAuth } from "@/features/auth/auth-context";
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { status } = useAuth();

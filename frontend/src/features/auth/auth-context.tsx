@@ -9,9 +9,9 @@ import {
   useRef,
   useState,
 } from "react";
-import { apiRequest, ApiError } from "../../lib/api-client";
-import { clearStoredTokens, readStoredTokens, writeStoredTokens } from "../../lib/auth-storage";
-import type { LoginRequest, TokenResponseSchema, UserCreate, UserResponse } from "../../lib/types";
+import { apiRequest, ApiError } from "@/lib/api-client";
+import { clearStoredTokens, readStoredTokens, writeStoredTokens } from "@/lib/auth-storage";
+import type { LoginRequest, TokenResponseSchema, UserCreate, UserResponse } from "@/lib/types";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 

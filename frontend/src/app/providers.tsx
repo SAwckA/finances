@@ -1,7 +1,7 @@
 "use client";
 
 import { HeroUIProvider } from "@heroui/react";
-import { AuthProvider } from "../features/auth/auth-context";
+import { AuthProvider } from "@/features/auth/auth-context";
 
 type ProvidersProps = {
   children: React.ReactNode;

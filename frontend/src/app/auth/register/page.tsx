@@ -4,8 +4,8 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card, CardBody, CardHeader, Input } from "@heroui/react";
-import { ApiError } from "../../../lib/api-client";
-import { useAuth } from "../../../features/auth/auth-context";
+import { ApiError } from "@/lib/api-client";
+import { useAuth } from "@/features/auth/auth-context";
 
 export default function RegisterPage() {
   const { register, status } = useAuth();

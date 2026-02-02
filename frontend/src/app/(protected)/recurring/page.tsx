@@ -1,7 +1,7 @@
 "use client";
 
-import { PlaceholderCard } from "../../../components/placeholder-card";
-import { ScreenHeader } from "../../../components/screen-header";
+import { PlaceholderCard } from "@/components/placeholder-card";
+import { ScreenHeader } from "@/components/screen-header";
 
 export default function RecurringPage() {
   return (

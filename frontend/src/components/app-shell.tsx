@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@heroui/react";
-import { useAuth } from "../features/auth/auth-context";
+import { useAuth } from "@/features/auth/auth-context";
 
 type NavItem = {
   href: string;

@@ -1,8 +1,8 @@
 "use client";
 
-import { PlaceholderCard } from "../../../components/placeholder-card";
-import { ScreenHeader } from "../../../components/screen-header";
-import { useAuth } from "../../../features/auth/auth-context";
+import { PlaceholderCard } from "@/components/placeholder-card";
+import { ScreenHeader } from "@/components/screen-header";
+import { useAuth } from "@/features/auth/auth-context";
 
 export default function ProfilePage() {
   const { user } = useAuth();
