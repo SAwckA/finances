@@ -1,10 +1,12 @@
-import { HeroDemo } from "../components/hero-demo";
+import { FinanceWorkbench } from "../components/finance-workbench";
 
 export default function Home() {
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-950 px-6 py-12">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,#0ea5e922,transparent_50%),radial-gradient(circle_at_bottom_right,#22d3ee1a,transparent_45%)]" />
-      <HeroDemo />
+    <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(165deg,#f4f7fb_0%,#ebf1fa_35%,#f8f5ef_100%)] px-4 py-6 sm:px-6">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,#0f766e22,transparent_50%),radial-gradient(circle_at_bottom_right,#b4530917,transparent_45%)]" />
+      <div className="relative mx-auto w-full max-w-7xl">
+        <FinanceWorkbench />
+      </div>
     </main>
   );
 }

@@ -22,6 +22,6 @@ npm run dev
 ## Где что лежит
 
 - `src/app/layout.tsx` — корневой layout и провайдеры
-- `src/app/providers.tsx` — `HeroUIProvider`
-- `src/app/page.tsx` — тестовая стартовая страница
-- `src/components/hero-demo.tsx` — демо-компоненты HeroUI
+- `src/app/page.tsx` — главная страница приложения
+- `src/components/finance-workbench.tsx` — рабочее пространство для вызова всех endpoint из OpenAPI
+- `public/openapi.json` — копия backend OpenAPI спецификации для фронтенда
