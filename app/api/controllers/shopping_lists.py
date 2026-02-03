@@ -58,9 +58,7 @@ async def update_shopping_list(
 ):
     """Обновить список покупок."""
     async with ShoppingListService() as service:
-        return await service.update(
-            list_id=list_id, user_id=current_user.id, data=data
-        )
+        return await service.update(list_id=list_id, user_id=current_user.id, data=data)
 
 
 @router.delete("/{list_id}", status_code=204)
@@ -137,4 +135,3 @@ async def complete_shopping_list(
     """
     async with ShoppingListService() as service:
         return await service.complete(list_id=list_id, user_id=current_user.id)
-

@@ -81,7 +81,9 @@ class ShoppingTemplateService(BaseService):
             user_id=user_id, template_id=template_id
         )
         if not template:
-            raise ShoppingTemplateNotFoundException(details={"template_id": template_id})
+            raise ShoppingTemplateNotFoundException(
+                details={"template_id": template_id}
+            )
         return template
 
     async def create(self, user_id: int, data: ShoppingTemplateCreate):
@@ -109,7 +111,9 @@ class ShoppingTemplateService(BaseService):
         logger.info(f"Created shopping template '{data.name}' for user {user_id}")
         return await self.template_repository.get_by_id_with_items(template.id)
 
-    async def update(self, template_id: int, user_id: int, data: ShoppingTemplateUpdate):
+    async def update(
+        self, template_id: int, user_id: int, data: ShoppingTemplateUpdate
+    ):
         """Обновить шаблон."""
         await self.get_by_id(template_id, user_id)
 
@@ -153,7 +157,9 @@ class ShoppingTemplateService(BaseService):
         """Обновить товар в шаблоне."""
         await self.get_by_id(template_id, user_id)
 
-        item = await self.template_item_repository.get_template_item(template_id, item_id)
+        item = await self.template_item_repository.get_template_item(
+            template_id, item_id
+        )
         if not item:
             raise ShoppingTemplateItemNotFoundException(details={"item_id": item_id})
 
@@ -166,7 +172,9 @@ class ShoppingTemplateService(BaseService):
         """Удалить товар из шаблона."""
         await self.get_by_id(template_id, user_id)
 
-        item = await self.template_item_repository.get_template_item(template_id, item_id)
+        item = await self.template_item_repository.get_template_item(
+            template_id, item_id
+        )
         if not item:
             raise ShoppingTemplateItemNotFoundException(details={"item_id": item_id})
 
@@ -225,12 +233,16 @@ class ShoppingTemplateService(BaseService):
                 }
                 for item in template.items
             ]
-            await self.shopping_item_repository.bulk_create(shopping_list.id, items_data)
+            await self.shopping_item_repository.bulk_create(
+                shopping_list.id, items_data
+            )
 
         logger.info(
             f"Created shopping list {shopping_list.id} from template {template_id}"
         )
-        return await self.shopping_list_repository.get_by_id_with_items(shopping_list.id)
+        return await self.shopping_list_repository.get_by_id_with_items(
+            shopping_list.id
+        )
 
     async def _validate_account(self, user_id: int, account_id: int) -> None:
         """Проверить существование и доступ к счёту."""
@@ -243,4 +255,3 @@ class ShoppingTemplateService(BaseService):
         category = await self.category_repository.get_by_id(category_id)
         if not category or category.user_id != user_id:
             raise DefaultCategoryNotFoundException(details={"category_id": category_id})
-

@@ -106,3 +106,136 @@ export type TransactionUpdate = {
   transaction_date?: string | null;
   category_id?: number | null;
 };
+
+export type AccountBalanceResponse = {
+  account_id: number;
+  account_name: string;
+  currency_code: string;
+  currency_symbol: string;
+  balance: string;
+};
+
+export type TotalBalanceResponse = {
+  total_balance: string;
+  currency_code: string;
+};
+
+export type CategorySummaryResponse = {
+  category_id: number;
+  category_name: string;
+  category_icon: string;
+  category_color: string;
+  amount: string;
+};
+
+export type PeriodStatisticsResponse = {
+  start_date: string;
+  end_date: string;
+  total_income: string;
+  total_expense: string;
+  net_change: string;
+  income_by_category: CategorySummaryResponse[];
+  expense_by_category: CategorySummaryResponse[];
+};
+
+export type ShoppingListStatus = "draft" | "confirmed" | "completed";
+
+export type ShoppingItemResponse = {
+  id: number;
+  shopping_list_id: number;
+  name: string;
+  quantity: number;
+  price: string | null;
+  is_checked: boolean;
+  total_price: string | null;
+};
+
+export type ShoppingItemCreate = {
+  name: string;
+  quantity?: number;
+  price?: number | null;
+};
+
+export type ShoppingItemUpdate = {
+  name?: string | null;
+  quantity?: number | null;
+  price?: number | null;
+  is_checked?: boolean | null;
+};
+
+export type ShoppingListResponse = {
+  id: number;
+  user_id: number;
+  name: string;
+  account_id: number;
+  category_id: number;
+  status: ShoppingListStatus;
+  total_amount: string | null;
+  confirmed_at: string | null;
+  completed_at: string | null;
+  transaction_id: number | null;
+  created_at: string;
+  items: ShoppingItemResponse[];
+};
+
+export type ShoppingListCreate = {
+  name: string;
+  account_id: number;
+  category_id: number;
+  items?: ShoppingItemCreate[];
+};
+
+export type ShoppingListUpdate = {
+  name?: string | null;
+  account_id?: number | null;
+  category_id?: number | null;
+};
+
+export type ShoppingTemplateItemResponse = {
+  id: number;
+  template_id: number;
+  name: string;
+  default_quantity: number;
+  default_price: string | null;
+};
+
+export type ShoppingTemplateItemCreate = {
+  name: string;
+  default_quantity?: number;
+  default_price?: number | null;
+};
+
+export type ShoppingTemplateItemUpdate = {
+  name?: string | null;
+  default_quantity?: number | null;
+  default_price?: number | null;
+};
+
+export type ShoppingTemplateResponse = {
+  id: number;
+  user_id: number;
+  name: string;
+  color: string;
+  icon: string;
+  default_account_id: number | null;
+  default_category_id: number | null;
+  created_at: string;
+  items: ShoppingTemplateItemResponse[];
+};
+
+export type ShoppingTemplateCreate = {
+  name: string;
+  color: string;
+  icon: string;
+  default_account_id?: number | null;
+  default_category_id?: number | null;
+  items?: ShoppingTemplateItemCreate[];
+};
+
+export type ShoppingTemplateUpdate = {
+  name?: string | null;
+  color?: string | null;
+  icon?: string | null;
+  default_account_id?: number | null;
+  default_category_id?: number | null;
+};

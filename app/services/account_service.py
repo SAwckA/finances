@@ -73,7 +73,9 @@ class AccountService(BaseService):
 
         update_data = data.model_dump(exclude_unset=True)
         if "currency_id" in update_data:
-            currency = await self.currency_repository.get_by_id(update_data["currency_id"])
+            currency = await self.currency_repository.get_by_id(
+                update_data["currency_id"]
+            )
             if not currency:
                 raise CurrencyNotFoundForAccountException(
                     details={"currency_id": update_data["currency_id"]}
@@ -89,4 +91,3 @@ class AccountService(BaseService):
         result = await self.account_repository.delete(account_id)
         logger.info(f"Deleted account {account_id}")
         return result
-

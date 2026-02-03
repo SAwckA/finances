@@ -3,8 +3,9 @@ from decimal import Decimal
 from enum import Enum
 
 from pydantic import BaseModel, Field
-from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Text, inspect
 from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.orm.attributes import NO_VALUE
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import SoftDeleteModel
@@ -129,12 +130,18 @@ class ShoppingList(SoftDeleteModel):
     items = relationship(
         "ShoppingItem", back_populates="shopping_list", cascade="all, delete-orphan"
     )
-    transaction = relationship("Transaction", back_populates="shopping_list", uselist=False)
+    transaction = relationship(
+        "Transaction", back_populates="shopping_list", uselist=False
+    )
 
     @property
     def transaction_id(self) -> int | None:
         """ID связанной транзакции."""
-        return self.transaction.id if self.transaction else None
+        state = inspect(self)
+        transaction = state.attrs.transaction.loaded_value
+        if transaction is NO_VALUE or transaction is None:
+            return None
+        return transaction.id
 
 
 class ShoppingItem(SoftDeleteModel):
@@ -160,4 +167,3 @@ class ShoppingItem(SoftDeleteModel):
         if self.price is None:
             return None
         return self.price * self.quantity
-

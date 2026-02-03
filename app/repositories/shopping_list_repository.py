@@ -15,7 +15,10 @@ class ShoppingListRepository(BaseRepository[ShoppingList]):
         query = (
             self._base_query()
             .where(ShoppingList.id == list_id)
-            .options(selectinload(ShoppingList.items))
+            .options(
+                selectinload(ShoppingList.items),
+                selectinload(ShoppingList.transaction),
+            )
         )
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
@@ -31,7 +34,10 @@ class ShoppingListRepository(BaseRepository[ShoppingList]):
         query = (
             self._base_query()
             .where(ShoppingList.user_id == user_id)
-            .options(selectinload(ShoppingList.items))
+            .options(
+                selectinload(ShoppingList.items),
+                selectinload(ShoppingList.transaction),
+            )
         )
         if status:
             query = query.where(ShoppingList.status == status)
@@ -45,7 +51,10 @@ class ShoppingListRepository(BaseRepository[ShoppingList]):
             self._base_query()
             .where(ShoppingList.user_id == user_id)
             .where(ShoppingList.id == list_id)
-            .options(selectinload(ShoppingList.items))
+            .options(
+                selectinload(ShoppingList.items),
+                selectinload(ShoppingList.transaction),
+            )
         )
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
@@ -62,7 +71,9 @@ class ShoppingItemRepository(BaseRepository[ShoppingItem]):
         """Получить конкретный товар из списка."""
         return await self.get_by(shopping_list_id=list_id, id=item_id)
 
-    async def bulk_create(self, list_id: int, items: list[dict]) -> Sequence[ShoppingItem]:
+    async def bulk_create(
+        self, list_id: int, items: list[dict]
+    ) -> Sequence[ShoppingItem]:
         """Создать несколько товаров сразу."""
         created_items = []
         for item_data in items:
@@ -70,4 +81,3 @@ class ShoppingItemRepository(BaseRepository[ShoppingItem]):
             item = await self.create(item_data)
             created_items.append(item)
         return created_items
-

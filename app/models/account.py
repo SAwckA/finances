@@ -39,7 +39,9 @@ class AccountUpdate(BaseModel):
     """Схема для обновления счёта."""
 
     name: str | None = Field(None, min_length=1, max_length=100)
-    color: str | None = Field(None, min_length=4, max_length=7, pattern=r"^#[0-9A-Fa-f]{3,6}$")
+    color: str | None = Field(
+        None, min_length=4, max_length=7, pattern=r"^#[0-9A-Fa-f]{3,6}$"
+    )
     icon: str | None = Field(None, min_length=1, max_length=50)
     currency_id: int | None = None
     short_identifier: str | None = Field(None, max_length=20)
@@ -73,4 +75,3 @@ class Account(SoftDeleteModel):
 
     user = relationship("User", back_populates="accounts")
     currency = relationship("Currency")
-

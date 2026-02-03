@@ -130,10 +130,14 @@ class ShoppingListService(BaseService):
 
         if data.items:
             items_data = [item.model_dump() for item in data.items]
-            await self.shopping_item_repository.bulk_create(shopping_list.id, items_data)
+            await self.shopping_item_repository.bulk_create(
+                shopping_list.id, items_data
+            )
 
         logger.info(f"Created shopping list '{data.name}' for user {user_id}")
-        return await self.shopping_list_repository.get_by_id_with_items(shopping_list.id)
+        return await self.shopping_list_repository.get_by_id_with_items(
+            shopping_list.id
+        )
 
     async def update(self, list_id: int, user_id: int, data: ShoppingListUpdate):
         """Обновить список покупок."""
@@ -277,7 +281,9 @@ class ShoppingListService(BaseService):
         """Проверить существование и доступ к счёту."""
         account = await self.account_repository.get_by_id(account_id)
         if not account or account.user_id != user_id:
-            raise AccountNotFoundForShoppingListException(details={"account_id": account_id})
+            raise AccountNotFoundForShoppingListException(
+                details={"account_id": account_id}
+            )
 
     async def _validate_category(self, user_id: int, category_id: int) -> None:
         """Проверить существование и доступ к категории."""
@@ -286,4 +292,3 @@ class ShoppingListService(BaseService):
             raise CategoryNotFoundForShoppingListException(
                 details={"category_id": category_id}
             )
-

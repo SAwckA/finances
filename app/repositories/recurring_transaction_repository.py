@@ -63,4 +63,3 @@ class RecurringTransactionRepository(BaseRepository[RecurringTransaction]):
         )
         result = await self.session.execute(query)
         return result.scalars().all()
-

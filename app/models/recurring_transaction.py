@@ -115,4 +115,3 @@ class RecurringTransaction(SoftDeleteModel):
     user = relationship("User")
     account = relationship("Account")
     category = relationship("Category")
-

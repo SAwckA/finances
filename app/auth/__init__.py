@@ -18,4 +18,3 @@ __all__ = [
     "hash_password",
     "verify_password",
 ]
-

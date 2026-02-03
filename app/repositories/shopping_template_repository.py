@@ -54,7 +54,9 @@ class ShoppingTemplateRepository(BaseRepository[ShoppingTemplate]):
 class ShoppingTemplateItemRepository(BaseRepository[ShoppingTemplateItem]):
     """Репозиторий для работы с товарами в шаблонах."""
 
-    async def get_by_template_id(self, template_id: int) -> Sequence[ShoppingTemplateItem]:
+    async def get_by_template_id(
+        self, template_id: int
+    ) -> Sequence[ShoppingTemplateItem]:
         """Получить все товары шаблона."""
         return await self.get_many_by(template_id=template_id)
 
@@ -74,4 +76,3 @@ class ShoppingTemplateItemRepository(BaseRepository[ShoppingTemplateItem]):
             item = await self.create(item_data)
             created_items.append(item)
         return created_items
-

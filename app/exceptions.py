@@ -57,4 +57,3 @@ class BusinessLogicException(AppException):
 
     message = "Операция невозможна"
     status_code = 422
-

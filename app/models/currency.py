@@ -53,4 +53,3 @@ class Currency(ORMBaseModel):
     code: Mapped[str] = mapped_column(String(10), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(100))
     symbol: Mapped[str] = mapped_column(String(5))
-

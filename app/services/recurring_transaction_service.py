@@ -120,7 +120,9 @@ class RecurringTransactionService(BaseService):
 
         await self._validate_account(user_id, data.account_id)
         await self._validate_category(user_id, data.category_id, data.type)
-        self._validate_frequency_config(data.frequency, data.day_of_week, data.day_of_month)
+        self._validate_frequency_config(
+            data.frequency, data.day_of_week, data.day_of_month
+        )
 
         next_execution = self._calculate_next_execution(
             frequency=data.frequency,
@@ -162,7 +164,11 @@ class RecurringTransactionService(BaseService):
                 user_id, update_data["category_id"], recurring.type
             )
 
-        if "frequency" in update_data or "day_of_week" in update_data or "day_of_month" in update_data:
+        if (
+            "frequency" in update_data
+            or "day_of_week" in update_data
+            or "day_of_month" in update_data
+        ):
             freq = update_data.get("frequency", recurring.frequency)
             dow = update_data.get("day_of_week", recurring.day_of_week)
             dom = update_data.get("day_of_month", recurring.day_of_month)
@@ -275,7 +281,9 @@ class RecurringTransactionService(BaseService):
         """Проверить существование и доступ к счёту."""
         account = await self.account_repository.get_by_id(account_id)
         if not account or account.user_id != user_id:
-            raise AccountNotFoundForRecurringException(details={"account_id": account_id})
+            raise AccountNotFoundForRecurringException(
+                details={"account_id": account_id}
+            )
 
     async def _validate_category(
         self, user_id: int, category_id: int, transaction_type: TransactionType
@@ -287,7 +295,9 @@ class RecurringTransactionService(BaseService):
                 details={"category_id": category_id}
             )
 
-        expected_type = "income" if transaction_type == TransactionType.INCOME else "expense"
+        expected_type = (
+            "income" if transaction_type == TransactionType.INCOME else "expense"
+        )
         if category.type.value != expected_type:
             raise InvalidFrequencyConfigException(
                 message="Тип категории не соответствует типу транзакции"
@@ -341,4 +351,3 @@ class RecurringTransactionService(BaseService):
             return result.replace(day=target_day)
 
         return result
-

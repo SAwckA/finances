@@ -173,4 +173,3 @@ class ExchangeRateService(BaseService):
         """
         rate = await self.get_rate(from_currency, to_currency)
         return amount * rate
-

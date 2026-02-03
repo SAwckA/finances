@@ -31,7 +31,9 @@ async def get_recurring_transactions(
 
 @router.get("/pending", response_model=list[RecurringTransactionResponse])
 async def get_pending_recurring_transactions(
-    as_of_date: date | None = Query(None, description="Дата для проверки (по умолчанию сегодня)"),
+    as_of_date: date | None = Query(
+        None, description="Дата для проверки (по умолчанию сегодня)"
+    ),
     current_user: User = Depends(get_current_active_user),
 ):
     """Получить периодические транзакции, ожидающие выполнения."""
@@ -119,7 +121,4 @@ async def execute_recurring_transaction(
     Создаёт реальную транзакцию и обновляет дату следующего выполнения.
     """
     async with RecurringTransactionService() as service:
-        return await service.execute(
-            recurring_id=recurring_id, user_id=current_user.id
-        )
-
+        return await service.execute(recurring_id=recurring_id, user_id=current_user.id)

@@ -52,4 +52,3 @@ def setup_logging() -> None:
     logger = logging.getLogger(__name__)
     log_level = "DEBUG" if settings.debug else "INFO"
     logger.info(f"Logging configured via dictConfig. Level: {log_level}")
-

@@ -32,4 +32,3 @@ _current_session: contextvars.ContextVar[AsyncSession | None] = contextvars.Cont
     "current_session",
     default=None,
 )
-

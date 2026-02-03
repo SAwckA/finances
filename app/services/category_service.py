@@ -77,4 +77,3 @@ class CategoryService(BaseService):
         result = await self.category_repository.delete(category_id)
         logger.info(f"Deleted category {category_id}")
         return result
-

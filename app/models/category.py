@@ -46,7 +46,9 @@ class CategoryUpdate(BaseModel):
     """Схема для обновления категории."""
 
     name: str | None = Field(None, min_length=1, max_length=100)
-    color: str | None = Field(None, min_length=4, max_length=7, pattern=r"^#[0-9A-Fa-f]{3,6}$")
+    color: str | None = Field(
+        None, min_length=4, max_length=7, pattern=r"^#[0-9A-Fa-f]{3,6}$"
+    )
     icon: str | None = Field(None, min_length=1, max_length=50)
     type: CategoryType | None = None
 
@@ -77,4 +79,3 @@ class Category(SoftDeleteModel):
     type: Mapped[CategoryType] = mapped_column(SQLEnum(CategoryType))
 
     user = relationship("User", back_populates="categories")
-

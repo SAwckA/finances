@@ -25,4 +25,3 @@ router.include_router(statistics.router)
 router.include_router(shopping_lists.router)
 router.include_router(shopping_templates.router)
 router.include_router(recurring_transactions.router)
-

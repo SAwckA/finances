@@ -15,7 +15,9 @@ class ShoppingTemplateItemBase(BaseModel):
     """Базовая схема товара в шаблоне."""
 
     name: str = Field(min_length=1, max_length=200, description="Название товара")
-    default_quantity: int = Field(default=1, ge=1, description="Количество по умолчанию")
+    default_quantity: int = Field(
+        default=1, ge=1, description="Количество по умолчанию"
+    )
     default_price: Decimal | None = Field(None, ge=0, description="Цена по умолчанию")
 
 
@@ -54,7 +56,9 @@ class ShoppingTemplateBase(BaseModel):
     )
     icon: str = Field(min_length=1, max_length=50, description="Название иконки")
     default_account_id: int | None = Field(None, description="ID счёта по умолчанию")
-    default_category_id: int | None = Field(None, description="ID категории по умолчанию")
+    default_category_id: int | None = Field(
+        None, description="ID категории по умолчанию"
+    )
 
 
 class ShoppingTemplateCreate(ShoppingTemplateBase):
@@ -67,7 +71,9 @@ class ShoppingTemplateUpdate(BaseModel):
     """Схема для обновления шаблона."""
 
     name: str | None = Field(None, min_length=1, max_length=100)
-    color: str | None = Field(None, min_length=4, max_length=7, pattern=r"^#[0-9A-Fa-f]{3,6}$")
+    color: str | None = Field(
+        None, min_length=4, max_length=7, pattern=r"^#[0-9A-Fa-f]{3,6}$"
+    )
     icon: str | None = Field(None, min_length=1, max_length=50)
     default_account_id: int | None = None
     default_category_id: int | None = None
@@ -131,4 +137,3 @@ class ShoppingTemplateItem(SoftDeleteModel):
     default_price: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
 
     template = relationship("ShoppingTemplate", back_populates="items")
-

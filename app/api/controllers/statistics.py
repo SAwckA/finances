@@ -145,4 +145,3 @@ async def get_period_statistics(
                 for c in stats.expense_by_category
             ],
         )
-

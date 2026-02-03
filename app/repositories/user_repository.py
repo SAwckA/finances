@@ -12,4 +12,3 @@ class UserRepository(BaseRepository[User]):
     async def get_active_users(self, skip: int = 0, limit: int = 100):
         """Получение списка активных пользователей."""
         return await self.get_many_by(skip=skip, limit=limit, is_active=True)
-

@@ -140,4 +140,3 @@ async def create_list_from_template(
             account_id=account_id,
             category_id=category_id,
         )
-

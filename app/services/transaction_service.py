@@ -99,7 +99,9 @@ class TransactionService(BaseService):
         """Получить транзакции по счёту."""
         account = await self.account_repository.get_by_id(account_id)
         if not account:
-            raise AccountNotFoundForTransactionException(details={"account_id": account_id})
+            raise AccountNotFoundForTransactionException(
+                details={"account_id": account_id}
+            )
         if account.user_id != user_id:
             raise TransactionAccessDeniedException(details={"account_id": account_id})
 
@@ -126,9 +128,13 @@ class TransactionService(BaseService):
         """Получить транзакцию по ID с проверкой доступа."""
         transaction = await self.transaction_repository.get_by_id(transaction_id)
         if not transaction:
-            raise TransactionNotFoundException(details={"transaction_id": transaction_id})
+            raise TransactionNotFoundException(
+                details={"transaction_id": transaction_id}
+            )
         if transaction.user_id != user_id:
-            raise TransactionAccessDeniedException(details={"transaction_id": transaction_id})
+            raise TransactionAccessDeniedException(
+                details={"transaction_id": transaction_id}
+            )
         return transaction
 
     async def create(
@@ -140,7 +146,9 @@ class TransactionService(BaseService):
         """Создать новую транзакцию."""
         account = await self.account_repository.get_by_id(data.account_id)
         if not account or account.user_id != user_id:
-            raise AccountNotFoundForTransactionException(details={"account_id": data.account_id})
+            raise AccountNotFoundForTransactionException(
+                details={"account_id": data.account_id}
+            )
 
         transaction_data = {
             "user_id": user_id,
@@ -157,7 +165,9 @@ class TransactionService(BaseService):
 
             target_account = None
             if data.target_account_id:
-                target_account = await self.account_repository.get_by_id(data.target_account_id)
+                target_account = await self.account_repository.get_by_id(
+                    data.target_account_id
+                )
             if target_account and account.currency_id != target_account.currency_id:
                 if exchange_rate is None:
                     raise ValidationException(
@@ -192,7 +202,9 @@ class TransactionService(BaseService):
                 details={"target_account_id": data.target_account_id}
             )
 
-    async def _validate_income_expense(self, user_id: int, data: TransactionCreate) -> None:
+    async def _validate_income_expense(
+        self, user_id: int, data: TransactionCreate
+    ) -> None:
         """Валидация данных для дохода/расхода."""
         if data.category_id:
             category = await self.category_repository.get_by_id(data.category_id)
@@ -201,7 +213,9 @@ class TransactionService(BaseService):
                     details={"category_id": data.category_id}
                 )
 
-            expected_type = "income" if data.type == TransactionType.INCOME else "expense"
+            expected_type = (
+                "income" if data.type == TransactionType.INCOME else "expense"
+            )
             if category.type.value != expected_type:
                 raise InvalidCategoryTypeException(
                     details={
@@ -220,7 +234,9 @@ class TransactionService(BaseService):
             if transaction.type == TransactionType.TRANSFER:
                 raise CategoryNotAllowedForTransferException()
 
-            category = await self.category_repository.get_by_id(update_data["category_id"])
+            category = await self.category_repository.get_by_id(
+                update_data["category_id"]
+            )
             if not category or category.user_id != user_id:
                 raise CategoryNotFoundForTransactionException(
                     details={"category_id": update_data["category_id"]}
@@ -236,4 +252,3 @@ class TransactionService(BaseService):
         result = await self.transaction_repository.delete(transaction_id)
         logger.info(f"Deleted transaction {transaction_id}")
         return result
-
