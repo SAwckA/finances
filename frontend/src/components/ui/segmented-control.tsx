@@ -17,7 +17,10 @@ export function SegmentedControl<T extends string>({
   onChange,
 }: SegmentedControlProps<T>) {
   return (
-    <div className="mobile-card grid grid-cols-3 gap-1.5 p-1.5">
+    <div
+      className="mobile-card grid gap-1.5 p-1.5"
+      style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+    >
       {options.map((option) => {
         const active = option.key === value;
         return (
