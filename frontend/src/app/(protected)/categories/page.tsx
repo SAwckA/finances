@@ -1,13 +1,11 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Button, Input } from "@heroui/react";
+import { Minus, Pencil, Plus, Trash2 } from "lucide-react";
 import { EmptyState, LoadingState } from "@/components/async-state";
-import { ColorPickerField } from "@/components/color-picker-field";
-import { IconPickerField } from "@/components/icon-picker-field";
-import { ScreenHeader } from "@/components/screen-header";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { ApiError } from "@/lib/api-client";
-import { getIconOption } from "@/lib/icon-catalog";
+import { getIconOption, ICON_OPTIONS } from "@/lib/icon-catalog";
 import { useAuth } from "@/features/auth/auth-context";
 import type { CategoryCreate, CategoryResponse, CategoryType, CategoryUpdate } from "@/lib/types";
 
@@ -20,10 +18,42 @@ type CategoryFormState = {
   type: CategoryType;
 };
 
+const ICON_TILE_COLORS = [
+  "#F7ECD9",
+  "#E7EEFF",
+  "#DDF3E5",
+  "#F9E4E4",
+  "#EDE5FB",
+  "#F8E5F2",
+  "#F8F0D8",
+  "#DCF2E8",
+  "#DFF3FB",
+  "#FAF0CA",
+  "#DCD9FB",
+  "#D9E8F7",
+  "#EDE9FA",
+  "#F8DDE4",
+  "#E7F4CF",
+  "#FBEEDC",
+  "#DDF3EE",
+  "#E8ECF3",
+];
+
+const TYPE_DEFAULT_COLOR: Record<CategoryType, string> = {
+  expense: "#E0534A",
+  income: "#1FA66A",
+};
+
+const DEFAULT_FORM: CategoryFormState = {
+  name: "",
+  color: TYPE_DEFAULT_COLOR.expense,
+  icon: "utensils",
+  type: "expense",
+};
+
 function toSoftBackground(hexColor: string, alpha: number): string {
   const hex = hexColor.replace("#", "");
   const normalized = hex.length === 3 ? hex.split("").map((char) => `${char}${char}`).join("") : hex;
-
   if (normalized.length !== 6) {
     return "rgba(148, 163, 184, 0.08)";
   }
@@ -38,13 +68,6 @@ function toSoftBackground(hexColor: string, alpha: number): string {
   const blue = value & 255;
   return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
-
-const DEFAULT_FORM: CategoryFormState = {
-  name: "",
-  color: "#DC2626",
-  icon: "credit-card",
-  type: "expense",
-};
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
@@ -72,14 +95,16 @@ export default function CategoriesPage() {
     if (filter === "all") {
       return categories;
     }
-
     return categories.filter((category) => category.type === filter);
   }, [categories, filter]);
 
-  const resetForm = () => {
-    setForm(DEFAULT_FORM);
+  const formIconOptions = useMemo(() => ICON_OPTIONS.slice(4, 22), []);
+  const PreviewIcon = getIconOption(form.icon).icon;
+
+  const resetForm = useCallback(() => {
     setEditingId(null);
-  };
+    setForm(DEFAULT_FORM);
+  }, []);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -103,7 +128,7 @@ export default function CategoriesPage() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!form.name || !form.color || !form.icon) {
+    if (!form.name.trim() || !form.icon || !form.color) {
       setErrorMessage("Заполните обязательные поля.");
       return;
     }
@@ -113,8 +138,8 @@ export default function CategoriesPage() {
 
     const payload: CategoryCreate | CategoryUpdate = {
       name: form.name.trim(),
-      color: form.color.trim(),
-      icon: form.icon.trim(),
+      color: form.color,
+      icon: form.icon,
       type: form.type,
     };
 
@@ -145,6 +170,7 @@ export default function CategoriesPage() {
       icon: category.icon,
       type: category.type,
     });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleDelete = async (categoryId: number) => {
@@ -167,139 +193,214 @@ export default function CategoriesPage() {
   };
 
   return (
-    <>
-      <ScreenHeader
-        title="Категории"
-        description="Категории доходов и расходов для аналитики и контроля бюджета."
-      />
-      <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-4">
-        <h2 className="mb-3 text-base font-semibold text-slate-900">
-          {editingId ? "Редактировать категорию" : "Новая категория"}
-        </h2>
-        <form className="space-y-2.5" onSubmit={handleSubmit}>
-          <Input
-            label="Название"
-            isRequired
-            value={form.name}
-            onValueChange={(value) => setForm((prev) => ({ ...prev, name: value }))}
+    <section className="space-y-3">
+      <form className="mobile-card space-y-3 p-3" onSubmit={handleSubmit}>
+        <div className="flex items-center justify-between">
+          <h1 className="section-title text-[1.35rem]">{editingId ? "Edit Category" : "New Category"}</h1>
+          {editingId ? (
+            <button
+              type="button"
+              className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-700"
+              onClick={resetForm}
+            >
+              Cancel
+            </button>
+          ) : null}
+        </div>
+
+        <section>
+          <p className="mb-1.5 text-base font-semibold text-slate-700">Category Type</p>
+          <SegmentedControl
+            options={[
+              { key: "expense", label: "Expense" },
+              { key: "income", label: "Income" },
+            ]}
+            value={form.type}
+            onChange={(nextType) =>
+              setForm((prev) => ({
+                ...prev,
+                type: nextType,
+                color: TYPE_DEFAULT_COLOR[nextType],
+              }))
+            }
           />
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-            <ColorPickerField
-              label="Цвет"
-              value={form.color}
-              onChange={(value) => setForm((prev) => ({ ...prev, color: value }))}
-            />
-            <IconPickerField
-              label="Иконка"
-              value={form.icon}
-              onChange={(value) => setForm((prev) => ({ ...prev, icon: value }))}
-            />
+        </section>
+
+        <label className="block text-sm text-slate-700">
+          Category Name
+          <input
+            className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+            value={form.name}
+            onChange={(event) =>
+              setForm((prev) => ({
+                ...prev,
+                name: event.target.value,
+              }))
+            }
+            placeholder="Enter category name"
+            required
+          />
+        </label>
+
+        <section>
+          <p className="mb-1.5 text-base font-semibold text-slate-700">Choose Icon</p>
+          <div className="grid grid-cols-6 gap-2">
+            {formIconOptions.map((option, index) => {
+              const Icon = option.icon;
+              const active = option.value === form.icon;
+              const tileColor = ICON_TILE_COLORS[index % ICON_TILE_COLORS.length];
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`rounded-xl border p-2 ${active ? "border-[var(--accent-primary)]" : "border-slate-200"}`}
+                  style={{ backgroundColor: tileColor }}
+                  onClick={() =>
+                    setForm((prev) => ({
+                      ...prev,
+                      icon: option.value,
+                    }))
+                  }
+                  aria-label={option.label}
+                >
+                  <Icon className="mx-auto h-4.5 w-4.5 text-slate-700" />
+                </button>
+              );
+            })}
           </div>
-          <label className="block text-sm text-slate-700">
-            Тип *
-            <select
-              className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-              value={form.type}
-              onChange={(event) =>
-                setForm((prev) => ({
-                  ...prev,
-                  type: event.target.value as CategoryType,
-                }))
-              }
-            >
-              <option value="expense">Расход</option>
-              <option value="income">Доход</option>
-            </select>
-          </label>
-          {errorMessage ? <p className="text-sm text-danger">{errorMessage}</p> : null}
-          <div className="flex gap-2">
-            <Button color="primary" type="submit" isLoading={isSubmitting}>
-              {editingId ? "Сохранить" : "Создать"}
-            </Button>
-            {editingId ? (
-              <Button variant="flat" type="button" onPress={resetForm}>
-                Отмена
-              </Button>
-            ) : null}
+        </section>
+
+        <section>
+          <p className="mb-1.5 text-base font-semibold text-slate-700">Accent Color</p>
+          <div className="grid grid-cols-6 gap-2">
+            {["#E0534A", "#1FA66A", "#4F7EF6", "#8E5BE8", "#E77F2E", "#D65497"].map((color) => {
+              const active = color === form.color;
+              return (
+                <button
+                  key={color}
+                  type="button"
+                  className={`h-8 rounded-lg border-2 ${active ? "border-slate-700" : "border-transparent"}`}
+                  style={{ backgroundColor: color }}
+                  onClick={() => setForm((prev) => ({ ...prev, color }))}
+                  aria-label={color}
+                />
+              );
+            })}
           </div>
-        </form>
+        </section>
+
+        <section className="mobile-card p-3">
+          <p className="mb-2 text-sm font-semibold text-slate-600">Preview</p>
+          <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl"
+                  style={{ backgroundColor: toSoftBackground(form.color, 0.2), color: form.color }}
+                >
+                  <PreviewIcon className="h-4.5 w-4.5" />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-slate-800">
+                    {form.name.trim() || "Custom Category"}
+                  </p>
+                  <p className="truncate text-xs text-slate-500">New category</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className={`text-2xl font-bold ${form.type === "expense" ? "text-rose-600" : "text-emerald-600"}`}>
+                  $0.00
+                </p>
+                <p className="text-xs text-slate-500">0 transactions</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {errorMessage ? <p className="text-sm font-medium text-rose-700">{errorMessage}</p> : null}
+
+        <button
+          type="submit"
+          className="w-full rounded-xl bg-[var(--accent-primary)] px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-primary-strong)] disabled:cursor-not-allowed disabled:opacity-70"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? "Saving..." : editingId ? "Save" : "Create Category"}
+        </button>
+      </form>
+
+      <section className="mobile-card p-3">
+        <p className="mb-1.5 text-sm font-semibold text-slate-600">Filter</p>
+        <SegmentedControl
+          options={[
+            { key: "all", label: "All" },
+            { key: "expense", label: "Expense" },
+            { key: "income", label: "Income" },
+          ]}
+          value={filter}
+          onChange={setFilter}
+        />
       </section>
 
-      <section className="mb-3 flex gap-2">
-        {(["all", "expense", "income"] as CategoryFilter[]).map((item) => {
-          const active = filter === item;
-          const label = item === "all" ? "Все" : item === "expense" ? "Расходы" : "Доходы";
-          return (
-            <Button
-              key={item}
-              size="sm"
-              variant={active ? "solid" : "flat"}
-              color={active ? "primary" : "default"}
-              onPress={() => setFilter(item)}
-            >
-              {label}
-            </Button>
-          );
-        })}
-      </section>
-
-      <section className="space-y-3">
-        {isLoading ? (
-          <LoadingState message="Загружаем категории..." />
-        ) : null}
-
-        {!isLoading && filteredCategories.length === 0 ? (
-          <EmptyState message="Категории не найдены." />
-        ) : null}
+      <section className="space-y-2">
+        {isLoading ? <LoadingState message="Загружаем категории..." /> : null}
+        {!isLoading && filteredCategories.length === 0 ? <EmptyState message="Категории не найдены." /> : null}
 
         {!isLoading
           ? filteredCategories.map((category) => {
               const iconOption = getIconOption(category.icon);
               const CategoryIcon = iconOption.icon;
-
               return (
                 <article
                   key={category.id}
-                  className="rounded-2xl border p-4"
-                  style={{
-                    borderColor: category.color,
-                    backgroundColor: toSoftBackground(category.color, 0.1),
-                  }}
+                  className="mobile-card p-3"
+                  style={{ backgroundColor: toSoftBackground(category.color, 0.1) }}
                 >
-                  <div className="mb-2 flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="flex items-center gap-2 text-base font-semibold text-slate-900">
-                        <CategoryIcon className="h-5 w-5 shrink-0" />
-                        {category.name}
-                      </h3>
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <span
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl"
+                        style={{ backgroundColor: `${category.color}33`, color: category.color }}
+                      >
+                        <CategoryIcon className="h-4.5 w-4.5" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-800">{category.name}</p>
+                        <p className="text-xs text-slate-500">{category.type === "expense" ? "Expense" : "Income"}</p>
+                      </div>
                     </div>
-                    <span className="rounded-lg border border-black/10 bg-white/70 px-2 py-1 text-xs font-medium text-slate-700">
-                      {category.type === "expense" ? "Расход" : "Доход"}
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${
+                        category.type === "expense" ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700"
+                      }`}
+                    >
+                      {category.type === "expense" ? <Minus className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                      {category.type}
                     </span>
                   </div>
-                  <div className="mt-3 flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="flat"
-                      className="border border-black/10 bg-white/85 text-slate-900 hover:bg-white"
-                      onPress={() => handleEdit(category)}
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 rounded-lg bg-white/80 px-2.5 py-1.5 text-xs font-semibold text-slate-700"
+                      onClick={() => handleEdit(category)}
                     >
-                      Изменить
-                    </Button>
-                    <Button
-                      size="sm"
-                      color="danger"
-                      variant="flat"
-                      onPress={() => handleDelete(category.id)}
+                      <Pencil className="h-3.5 w-3.5" />
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-2.5 py-1.5 text-xs font-semibold text-rose-700"
+                      onClick={() => void handleDelete(category.id)}
                     >
-                      Удалить
-                    </Button>
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Delete
+                    </button>
                   </div>
                 </article>
               );
             })
           : null}
       </section>
-    </>
+    </section>
   );
 }
