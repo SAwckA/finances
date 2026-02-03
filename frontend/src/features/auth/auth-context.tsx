@@ -22,6 +22,7 @@ type AuthContextValue = {
   login: (payload: LoginRequest) => Promise<void>;
   register: (payload: UserCreate) => Promise<void>;
   logout: () => void;
+  refreshProfile: () => Promise<UserResponse>;
   authenticatedRequest: <T>(
     path: string,
     options?: { method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; body?: unknown },
@@ -127,6 +128,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     resetSession();
   }, [resetSession]);
 
+  const refreshProfile = useCallback(async (): Promise<UserResponse> => {
+    if (!tokens?.access_token) {
+      throw new Error("Not authenticated");
+    }
+
+    const profile = await authenticatedRequest<UserResponse>("/api/users/me");
+    setUser(profile);
+    return profile;
+  }, [authenticatedRequest, tokens?.access_token]);
+
   useEffect(() => {
     const hydrate = async () => {
       const stored = readStoredTokens();
@@ -168,9 +179,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       register,
       logout,
+      refreshProfile,
       authenticatedRequest,
     }),
-    [authenticatedRequest, login, logout, register, status, tokens, user],
+    [authenticatedRequest, login, logout, refreshProfile, register, status, tokens, user],
   );
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;

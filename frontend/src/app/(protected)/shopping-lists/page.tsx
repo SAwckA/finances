@@ -11,10 +11,10 @@ import {
   ModalContent,
   ModalFooter,
   ModalHeader,
-  Spinner,
   useDisclosure,
 } from "@heroui/react";
 import { Check, Plus, Trash2 } from "lucide-react";
+import { EmptyState, ErrorState, LoadingState } from "@/components/async-state";
 import { ScreenHeader } from "@/components/screen-header";
 import { useAuth } from "@/features/auth/auth-context";
 import { ApiError } from "@/lib/api-client";
@@ -380,26 +380,15 @@ export default function ShoppingListsPage() {
         </div>
       </section>
 
-      {errorMessage ? (
-        <div className="mb-3 rounded-xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger">
-          {errorMessage}
-        </div>
-      ) : null}
+      {errorMessage ? <ErrorState className="mb-3" message={errorMessage} /> : null}
 
       <section>
         {isLoading ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <div className="flex items-center gap-2">
-              <Spinner size="sm" />
-              <p className="text-sm text-slate-700">Загружаем списки...</p>
-            </div>
-          </div>
+          <LoadingState message="Загружаем списки..." />
         ) : null}
 
         {!isLoading && lists.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-600">
-            Списков пока нет.
-          </div>
+          <EmptyState message="Списков пока нет." />
         ) : null}
 
         {!isLoading && lists.length > 0 ? (

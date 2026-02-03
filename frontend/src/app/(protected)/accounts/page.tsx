@@ -1,7 +1,8 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Button, Input, Spinner } from "@heroui/react";
+import { Button, Input } from "@heroui/react";
+import { EmptyState, LoadingState } from "@/components/async-state";
 import { ColorPickerField } from "@/components/color-picker-field";
 import { IconPickerField } from "@/components/icon-picker-field";
 import { ScreenHeader } from "@/components/screen-header";
@@ -246,16 +247,11 @@ export default function AccountsPage() {
 
       <section className="space-y-3">
         {isLoading ? (
-          <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white p-4">
-            <Spinner size="sm" />
-            <p className="text-sm text-slate-700">Загружаем счета...</p>
-          </div>
+          <LoadingState message="Загружаем счета..." />
         ) : null}
 
         {!isLoading && accounts.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-600">
-            Счета еще не добавлены.
-          </div>
+          <EmptyState message="Счета еще не добавлены." />
         ) : null}
 
         {!isLoading

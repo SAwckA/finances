@@ -13,7 +13,6 @@ import {
   ModalContent,
   ModalFooter,
   ModalHeader,
-  Spinner,
   useDisclosure,
 } from "@heroui/react";
 import {
@@ -26,6 +25,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { ScreenHeader } from "@/components/screen-header";
+import { EmptyState, ErrorState, LoadingState } from "@/components/async-state";
 import { useAuth } from "@/features/auth/auth-context";
 import { ApiError } from "@/lib/api-client";
 import { getIconOption } from "@/lib/icon-catalog";
@@ -459,24 +459,17 @@ export default function RecurringPage() {
         </div>
       </section>
 
-      {errorMessage ? (
-        <div className="mb-3 rounded-xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger">
-          {errorMessage}
-        </div>
-      ) : null}
+      {errorMessage ? <ErrorState className="mb-3" message={errorMessage} /> : null}
 
       <section className="space-y-3">
         {isLoading ? (
-          <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white p-4">
-            <Spinner size="sm" />
-            <p className="text-sm text-slate-700">Загружаем регулярные операции...</p>
-          </div>
+          <LoadingState message="Загружаем регулярные операции..." />
         ) : null}
 
         {!isLoading && selectedItems.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-600">
-            {view === "pending" ? "Нет операций, готовых к исполнению." : "Операции не найдены."}
-          </div>
+          <EmptyState
+            message={view === "pending" ? "Нет операций, готовых к исполнению." : "Операции не найдены."}
+          />
         ) : null}
 
         {!isLoading

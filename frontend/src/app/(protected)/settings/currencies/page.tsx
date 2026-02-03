@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Input, Spinner } from "@heroui/react";
+import { Input } from "@heroui/react";
+import { EmptyState, ErrorState, LoadingState } from "@/components/async-state";
 import { ScreenHeader } from "@/components/screen-header";
 import { ApiError } from "@/lib/api-client";
 import { useAuth } from "@/features/auth/auth-context";
@@ -75,23 +76,14 @@ export default function CurrenciesSettingsPage() {
       </section>
 
       <section className="space-y-3">
-        {errorMessage ? (
-          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-            {errorMessage}
-          </div>
-        ) : null}
+        {errorMessage ? <ErrorState message={errorMessage} /> : null}
 
         {isLoading ? (
-          <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white p-4">
-            <Spinner size="sm" />
-            <p className="text-sm text-slate-700">Загружаем валюты...</p>
-          </div>
+          <LoadingState message="Загружаем валюты..." />
         ) : null}
 
         {!isLoading && filteredCurrencies.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-600">
-            Валюты не найдены.
-          </div>
+          <EmptyState message="Валюты не найдены." />
         ) : null}
 
         {!isLoading

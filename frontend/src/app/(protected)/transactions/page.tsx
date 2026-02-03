@@ -14,7 +14,6 @@ import {
   ModalContent,
   ModalFooter,
   ModalHeader,
-  Spinner,
   useDisclosure,
 } from "@heroui/react";
 import {
@@ -27,6 +26,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { ScreenHeader } from "@/components/screen-header";
+import { EmptyState, ErrorState, LoadingState } from "@/components/async-state";
 import { useAuth } from "@/features/auth/auth-context";
 import { ApiError } from "@/lib/api-client";
 import { getIconOption } from "@/lib/icon-catalog";
@@ -310,15 +310,10 @@ export default function TransactionsPage() {
 
   useEffect(() => {
     const bootstrap = async () => {
-      setIsLoading(true);
-      setErrorMessage(null);
-
       try {
         await loadReferenceData();
       } catch (error) {
         setErrorMessage(getErrorMessage(error));
-      } finally {
-        setIsLoading(false);
       }
     };
 
@@ -339,12 +334,8 @@ export default function TransactionsPage() {
   }, [accounts, form.accountId]);
 
   useEffect(() => {
-    if (accounts.length === 0) {
-      return;
-    }
-
     void loadTransactions();
-  }, [accounts.length, loadTransactions]);
+  }, [loadTransactions]);
 
   useEffect(() => {
     setPage(1);
@@ -586,24 +577,15 @@ export default function TransactionsPage() {
         ) : null}
       </section>
 
-      {errorMessage ? (
-        <div className="mb-3 rounded-xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger">
-          {errorMessage}
-        </div>
-      ) : null}
+      {errorMessage ? <ErrorState className="mb-3" message={errorMessage} /> : null}
 
       <section className="space-y-3">
         {isLoading ? (
-          <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white p-4">
-            <Spinner size="sm" />
-            <p className="text-sm text-slate-700">Загружаем операции...</p>
-          </div>
+          <LoadingState message="Загружаем операции..." />
         ) : null}
 
         {!isLoading && transactions.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-600">
-            Операции не найдены.
-          </div>
+          <EmptyState message="Операции не найдены." />
         ) : null}
 
         {!isLoading

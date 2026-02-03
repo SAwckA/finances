@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { Button, Spinner } from "@heroui/react";
-import { ArrowDown, ArrowUp, Landmark, RefreshCcw } from "lucide-react";
+import { ArrowDown, ArrowUp, RefreshCcw } from "lucide-react";
+import { ErrorState, LoadingState } from "@/components/async-state";
 import { ScreenHeader } from "@/components/screen-header";
 import { useAuth } from "@/features/auth/auth-context";
 import { ApiError } from "@/lib/api-client";
-import { getIconOption } from "@/lib/icon-catalog";
 import type {
   AccountBalanceResponse,
   CurrencyResponse,
@@ -68,15 +69,27 @@ function formatAmount(value: string, currencyCode: string): string {
   }).format(numeric);
 }
 
-function percent(part: string, total: string): number {
-  const partValue = Number(part);
-  const totalValue = Number(total);
-  if (Number.isNaN(partValue) || Number.isNaN(totalValue) || totalValue <= 0) {
-    return 0;
-  }
+const AccountBalancesCard = dynamic(() => import("@/components/dashboard/account-balances-card"), {
+  loading: () => (
+    <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="flex items-center gap-2">
+        <Spinner size="sm" />
+        <p className="text-sm text-slate-700">Загружаем балансы...</p>
+      </div>
+    </section>
+  ),
+});
 
-  return Math.min(100, Math.round((partValue / totalValue) * 100));
-}
+const CategoryBreakdowns = dynamic(() => import("@/components/dashboard/category-breakdowns"), {
+  loading: () => (
+    <section className="rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="flex items-center gap-2">
+        <Spinner size="sm" />
+        <p className="text-sm text-slate-700">Загружаем категории...</p>
+      </div>
+    </section>
+  ),
+});
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
@@ -251,19 +264,10 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {errorMessage ? (
-        <div className="mb-3 rounded-xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger">
-          {errorMessage}
-        </div>
-      ) : null}
+      {errorMessage ? <ErrorState className="mb-3" message={errorMessage} /> : null}
 
       {isLoading ? (
-        <section className="rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="flex items-center gap-2">
-            <Spinner size="sm" />
-            <p className="text-sm text-slate-700">Загружаем аналитику...</p>
-          </div>
-        </section>
+        <LoadingState message="Загружаем аналитику..." />
       ) : (
         <>
           <section className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -306,105 +310,8 @@ export default function DashboardPage() {
             </article>
           </section>
 
-          <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-4">
-            <div className="mb-3 flex items-center gap-2">
-              <Landmark className="h-4 w-4 text-slate-600" />
-              <h2 className="text-base font-semibold text-slate-900">Балансы по счетам</h2>
-            </div>
-
-            <div className="space-y-2.5">
-              {accountBalances.length === 0 ? (
-                <p className="text-sm text-slate-600">Счета не найдены.</p>
-              ) : (
-                accountBalances.map((account) => (
-                  <article
-                    key={account.account_id}
-                    className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5"
-                  >
-                    <p className="min-w-0 truncate text-sm font-medium text-slate-900">{account.account_name}</p>
-                    <p className="text-sm font-semibold text-slate-800">
-                      {formatAmount(account.balance, account.currency_code)}
-                    </p>
-                  </article>
-                ))
-              )}
-            </div>
-          </section>
-
-          <section className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-            <article className="rounded-2xl border border-slate-200 bg-white p-4">
-              <h3 className="mb-3 text-base font-semibold text-slate-900">Доходы по категориям</h3>
-              <div className="space-y-2.5">
-                {summary?.income_by_category.length ? (
-                  summary.income_by_category.map((item) => {
-                    const CategoryIcon = getIconOption(item.category_icon).icon;
-                    const share = percent(item.amount, summary.total_income);
-                    return (
-                      <div key={item.category_id}>
-                        <div className="mb-1 flex items-center justify-between gap-2">
-                          <div className="flex min-w-0 items-center gap-2">
-                            <span
-                              className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-black/10"
-                              style={{ backgroundColor: `${item.category_color}20`, color: item.category_color }}
-                            >
-                              <CategoryIcon className="h-3.5 w-3.5" />
-                            </span>
-                            <span className="truncate text-sm text-slate-800">{item.category_name}</span>
-                          </div>
-                          <span className="text-xs font-semibold text-slate-700">
-                            {formatAmount(item.amount, selectedCurrency)}
-                          </span>
-                        </div>
-                        <div className="h-2 rounded-full bg-slate-100">
-                          <div
-                            className="h-2 rounded-full bg-emerald-500"
-                            style={{ width: `${share}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <p className="text-sm text-slate-600">Нет доходов за выбранный период.</p>
-                )}
-              </div>
-            </article>
-
-            <article className="rounded-2xl border border-slate-200 bg-white p-4">
-              <h3 className="mb-3 text-base font-semibold text-slate-900">Расходы по категориям</h3>
-              <div className="space-y-2.5">
-                {summary?.expense_by_category.length ? (
-                  summary.expense_by_category.map((item) => {
-                    const CategoryIcon = getIconOption(item.category_icon).icon;
-                    const share = percent(item.amount, summary.total_expense);
-                    return (
-                      <div key={item.category_id}>
-                        <div className="mb-1 flex items-center justify-between gap-2">
-                          <div className="flex min-w-0 items-center gap-2">
-                            <span
-                              className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-black/10"
-                              style={{ backgroundColor: `${item.category_color}20`, color: item.category_color }}
-                            >
-                              <CategoryIcon className="h-3.5 w-3.5" />
-                            </span>
-                            <span className="truncate text-sm text-slate-800">{item.category_name}</span>
-                          </div>
-                          <span className="text-xs font-semibold text-slate-700">
-                            {formatAmount(item.amount, selectedCurrency)}
-                          </span>
-                        </div>
-                        <div className="h-2 rounded-full bg-slate-100">
-                          <div className="h-2 rounded-full bg-rose-500" style={{ width: `${share}%` }} />
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <p className="text-sm text-slate-600">Нет расходов за выбранный период.</p>
-                )}
-              </div>
-            </article>
-          </section>
+          <AccountBalancesCard balances={accountBalances} />
+          <CategoryBreakdowns summary={summary} currencyCode={selectedCurrency} />
         </>
       )}
     </>

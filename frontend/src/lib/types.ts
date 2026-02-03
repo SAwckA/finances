@@ -21,7 +21,13 @@ export type UserResponse = {
   id: number;
   email: string;
   name: string;
+  is_active: boolean;
   created_at: string;
+};
+
+export type UserUpdate = {
+  email?: string;
+  name?: string;
 };
 
 export type CurrencyResponse = {
