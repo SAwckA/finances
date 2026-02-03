@@ -1,171 +1,354 @@
-# План реализации frontend-приложения (mobile-first + SPA)
+# План миграции проекта на новый дизайн
 
-## Источники
-- OpenAPI: `docs/openapi.json`
-- Backend-сервисы: `app/services/*`
-- Context7:
-  - Next.js App Router: клиентская навигация через `Link` и `useRouter` для SPA-переходов
-  - Tailwind CSS: mobile-first подход (базовые классы для mobile, `sm/md/lg` для расширений)
+## 1) Цель
 
-## Ключевые требования
-1. **Полностью SPA**
-   - Все бизнес-данные загружаются на клиенте через API backend.
-   - Переходы между экранами только клиентские (`Link`, `router.push`), без full page reload.
-   - Не использовать server actions/SSR как источник бизнес-данных финансового кабинета.
-2. **Mobile-first**
-   - Сначала UX для 360-430px, затем адаптация на `sm/md/lg`.
-   - Основные сценарии (добавить транзакцию, подтвердить список покупок) доступны одной рукой на телефоне.
-3. **Единый стандарт импортов**
-   - Во всем frontend использовать только alias-импорты через `@/*`.
-   - Относительные импорты (`../`, `./`) для внутренних модулей приложения не использовать.
+Полностью перевести frontend на новый визуальный язык из референсов в `docs/design/`:
 
-## Текущий статус реализации
-- Завершено: **CP0 — Foundation SPA**, **CP1 — Auth и сессия**
-- Завершено: миграция импортов на alias `@/*` во всем `frontend/src`
-- Завершено: **CP2 — Справочники (счета, категории, валюты)**
-- Завершено: **CP3 — Транзакции (ядро учета)**
-- Завершено: **CP6 — Регулярные транзакции**
-- Завершено: базовый профиль `GET/PUT /api/users/me` (без отдельного чекпоинта)
-- Следующий: **CP7 — Mobile-first hardening и релизная готовность**
+- `docs/design/main page.png`
+- `docs/design/analytics.png`
+- `docs/design/transactions.png`
+- `docs/design/accounts.png`
+- `docs/design/categories.png`
+- `docs/design/settings.png`
 
-## Основные страницы (маршруты SPA)
+Сохранить текущую бизнес-логику и API-контракты, а недостающие данные для новых экранов добавить отдельными backend-задачами.
 
-### Публичные
-- `/auth/login`
-  - `POST /api/auth/login`
-  - `POST /api/auth/refresh`
-- `/auth/register`
-  - `POST /api/auth/register`
+---
 
-### Приватные
-- `/dashboard`
-  - `GET /api/statistics/total`
-  - `GET /api/statistics/balance`
-  - `GET /api/statistics/summary`
-- `/transactions`
-  - `GET /api/transactions`
-  - `GET /api/transactions/period`
-  - `GET /api/transactions/account/{account_id}`
-  - `POST /api/transactions`
-  - `PATCH /api/transactions/{transaction_id}`
-  - `DELETE /api/transactions/{transaction_id}`
-- `/accounts`
-  - `GET /api/accounts`
-  - `POST /api/accounts`
-  - `PATCH /api/accounts/{account_id}`
-  - `DELETE /api/accounts/{account_id}`
-- `/categories`
-  - `GET /api/categories`
-  - `POST /api/categories`
-  - `PATCH /api/categories/{category_id}`
-  - `DELETE /api/categories/{category_id}`
-- `/shopping-lists`
-  - `GET /api/shopping-lists`
-  - `POST /api/shopping-lists`
-  - `PATCH /api/shopping-lists/{list_id}`
-  - `DELETE /api/shopping-lists/{list_id}`
-  - `POST /api/shopping-lists/{list_id}/items`
-  - `PATCH /api/shopping-lists/{list_id}/items/{item_id}`
-  - `DELETE /api/shopping-lists/{list_id}/items/{item_id}`
-  - `POST /api/shopping-lists/{list_id}/confirm`
-  - `POST /api/shopping-lists/{list_id}/complete`
-- `/shopping-templates`
-  - `GET /api/shopping-templates`
-  - `POST /api/shopping-templates`
-  - `PATCH /api/shopping-templates/{template_id}`
-  - `DELETE /api/shopping-templates/{template_id}`
-  - `POST /api/shopping-templates/{template_id}/items`
-  - `PATCH /api/shopping-templates/{template_id}/items/{item_id}`
-  - `DELETE /api/shopping-templates/{template_id}/items/{item_id}`
-  - `POST /api/shopping-templates/{template_id}/create-list`
-- `/recurring`
-  - `GET /api/recurring-transactions`
-  - `GET /api/recurring-transactions/pending`
-  - `POST /api/recurring-transactions`
-  - `PATCH /api/recurring-transactions/{recurring_id}`
-  - `DELETE /api/recurring-transactions/{recurring_id}`
-  - `POST /api/recurring-transactions/{recurring_id}/activate`
-  - `POST /api/recurring-transactions/{recurring_id}/deactivate`
-  - `POST /api/recurring-transactions/{recurring_id}/execute`
-- `/profile`
-  - `GET /api/users/me`
-  - `PUT /api/users/me`
-- `/settings/currencies`
-  - `GET /api/currencies`
-  - `GET /api/currencies/code/{code}`
+## 2) Что есть сейчас (база для миграции)
 
-## Архитектурный каркас SPA
-- `frontend/src/app/auth/*` (публичные auth-страницы) и `frontend/src/app/(protected)/*` (приватные экраны) как клиентские маршруты.
-- Глобальный `AppShell`: верхняя панель + bottom navigation (mobile-first).
-- API-слой: typed client по OpenAPI + централизованный auth refresh + единый error handler.
-- Состояние:
-  - auth/session
-  - справочники (счета, категории, валюты)
-  - экранные данные (транзакции, статистика, списки покупок)
-- Все формы в модальных/slide-over сценариях, оптимизированных под мобильный viewport.
+- App Router + React 19 + Next 16 + Tailwind v4 + HeroUI.
+- Текущий shell: `frontend/src/components/app-shell.tsx`.
+- Основные экраны: `dashboard`, `transactions`, `accounts`, `categories`, `profile`, `recurring`, `shopping-*`, `settings/currencies`.
+- Общие UI-элементы: `screen-header`, `color-picker-field`, `icon-picker-field`, `async-state`.
+- Нет отдельного экрана `analytics` и нет `frontend/src/app/(protected)/settings/page.tsx`.
 
-## Чекпоинты (с четкими критериями)
+---
 
-### CP0 — Foundation SPA
-**Результат:** каркас приложения и навигации готов.
-- [x] Настроены маршруты `auth/*` и `(protected)/*`.
-- [x] Client-side навигация работает без full reload.
-- [x] Реализован route guard для приватных страниц.
-- [x] Есть AppShell с mobile bottom-nav.
-**DoD:** пользователь может войти и перейти по основным разделам только клиентскими переходами.
+## 3) Архитектурный подход миграции
 
-### CP1 — Auth и сессия
-**Результат:** стабильная авторизация.
-- [x] Login/Register формы и валидация.
-- [x] Access/refresh токены, авто-refresh.
-- [x] Logout с полной очисткой сессии.
-**DoD:** после истечения access токена приложение продолжает работать без ручного перелогина.
+1. **Mobile-first как основа** (референс — мобильный UI), затем desktop-адаптация.
+2. **Сначала дизайн-система**, потом экраны (чтобы не дублировать стили).
+3. **Инкрементально по маршрутам**: каждый экран переводится в новом стиле и сразу стабилизируется.
+4. **Без слома API**: где данных не хватает — добавить endpoint/расширение схемы, а не хардкодить.
 
-### CP2 — Справочники (счета, категории, валюты)
-**Результат:** базовые сущности для учета готовы.
-- [x] CRUD экран для счетов.
-- [x] CRUD экран для категорий.
-- [x] Подключен справочник валют в формах счетов.
-**DoD:** можно полностью подготовить данные для ввода транзакций через UI.
+---
 
-### CP3 — Транзакции (ядро учета)
-**Результат:** полноценный журнал операций.
-- [x] CRUD транзакций (income/expense/transfer).
-- [x] Фильтры по периоду, типу, счету.
-- [x] Пагинация и быстрые действия в мобильной таблице/списке.
-**DoD:** пользователь ведет ежедневный учет без обращения к БД/админке.
+## 4) Этапы работ
 
-### CP4 — Dashboard и аналитика
-**Результат:** прозрачная картина финансов.
-- [x] Общий баланс и балансы по счетам.
-- [x] Статистика доход/расход за период.
-- [x] Категорийные breakdown-блоки.
-**DoD:** после добавления транзакции виджеты обновляются корректно.
+## Этап 0. Подготовка и декомпозиция
 
-### CP5 — Списки покупок и шаблоны
-**Результат:** планирование покупок в рабочем процессе.
-- [x] CRUD shopping lists + items.
-- [x] Статусы `draft -> confirmed -> completed`.
-- [x] CRUD шаблонов + создание списка из шаблона.
-**DoD:** пользователь может создать список из шаблона и завершить его через UI.
+- Зафиксировать feature-ветку: `feat/redesign-2026`.
+- Составить UI-карту экранов:
+  - Covered by reference: dashboard/main, analytics, transactions, accounts, categories, settings.
+  - Not covered: recurring, shopping-lists, shopping-templates, auth.
+- Разбить на PR-пакеты (см. этап 11).
 
-### CP6 — Регулярные транзакции
-**Результат:** автоматизация повторяющихся операций.
-- [x] CRUD recurring-транзакций.
-- [x] Activate/deactivate/execute.
-- [x] Экран pending операций.
-**DoD:** ежемесячные/еженедельные операции настраиваются и исполняются без ручного ввода каждой транзакции.
+### Артефакты этапа
 
-### CP7 — Mobile-first hardening и релизная готовность
-**Результат:** production-ready UX на телефонах.
-- [ ] Все ключевые сценарии проверены на 360px, 390px, 430px.
-- [x] Пустые состояния, loaders, единая обработка ошибок.
-- [x] Оптимизация: устранены waterfall-запросы, lazy для тяжелых блоков.
-- [ ] Smoke E2E: `login -> account/category -> transaction -> dashboard -> shopping list -> recurring`.
-**DoD:** MVP стабилен на mobile и desktop, без критических UX блокеров.
+- Обновленный `plan.md` (этот файл).
+- Чеклист маршрутов и компонентов в задаче/issue tracker.
 
-## Критерии готовности MVP
-- Пользователь регистрируется/логинится и не теряет сессию.
-- Все основные сценарии учета личных финансов закрыты в SPA-интерфейсе.
-- Мобильный UX является основным: все критические действия доступны и удобны на телефоне.
-- Данные UI согласованы с backend API и корректно обновляются после CRUD-операций.
+---
+
+## Этап 1. Дизайн-токены и базовые стили
+
+### Что сделать
+
+- В `frontend/src/app/globals.css` добавить CSS variables:
+  - Цвета (dark surface, card, accent violet, semantic green/red/orange, muted backgrounds).
+  - Радиусы (12/16/20), отступы, тени, border tokens.
+  - Типографика (размеры для title/subtitle/body/caption).
+- Привести к единому scale spacing и corner radius (под референс).
+- Настроить utility-классы/слой компонентов для повторяемых паттернов:
+  - `mobile-card`, `section-title`, `chip`, `stat-tile`, `action-tile`, `list-row`.
+
+### Файлы
+
+- `frontend/src/app/globals.css`
+- при необходимости: `frontend/tailwind.config.ts`
+
+### Критерии готовности
+
+- Все новые экраны используют токены, а не точечные hex-коды.
+- Не больше 1-2 исключений inline-style на экран.
+
+---
+
+## Этап 2. Новый App Shell и навигация
+
+### Что сделать
+
+- Пересобрать `frontend/src/components/app-shell.tsx` под новый паттерн:
+  - Верхний компактный header (аватар/приветствие/иконки).
+  - Нижняя tab-nav с центральной кнопкой Add (как в `main page.png`).
+  - Корректный safe area для iOS.
+- Обновить набор маршрутов в нижнем меню:
+  - Home (`/dashboard`)
+  - Analytics (`/analytics`)
+  - Add (`/transactions?create=1`)
+  - Settings (`/settings`)
+  - Profile (`/profile`)
+
+### Критерии готовности
+
+- Навигация визуально и по структуре совпадает с референсом.
+- Все переходы работают без full reload.
+
+---
+
+## Этап 3. Библиотека новых UI-компонентов
+
+### Что сделать
+
+- Создать слой переиспользуемых компонентов в `frontend/src/components/ui/`:
+  - `mobile-header.tsx`
+  - `bottom-tabbar.tsx`
+  - `balance-hero-card.tsx`
+  - `stat-card.tsx`
+  - `source-card.tsx`
+  - `transaction-row.tsx`
+  - `icon-grid-picker.tsx`
+  - `color-grid-picker.tsx`
+  - `segmented-control.tsx`
+- Адаптировать существующие `color-picker-field` и `icon-picker-field` к grid-формату из макетов.
+
+### Критерии готовности
+
+- Новые экраны собираются из UI-блоков, а не из повторяемой разметки.
+- Компоненты принимают data-only props (минимум бизнес-логики внутри).
+
+---
+
+## Этап 4. Dashboard (main page) — полный редизайн
+
+### Целевой маршрут
+
+- `frontend/src/app/(protected)/dashboard/page.tsx`
+
+### Что сделать
+
+- Перенести в dark-gradient стиль:
+  - Hero с Total Balance.
+  - Income/Expenses summary tiles.
+  - Список payment sources.
+  - Быстрые действия (Add/Send/Transfer/Budget).
+  - Recent transactions.
+- Разделить page на блоки и лениво подгружать тяжелые (списки, графика) через dynamic import там, где оправдано.
+
+### Данные
+
+- Переиспользовать текущие `statistics` и `transactions`.
+- Добавить ограниченный запрос последних транзакций (если не хватает в текущем endpoint).
+
+### Критерии готовности
+
+- Визуально: максимально близко к `main page.png`.
+- Функционально: баланс/списки/переходы работают как и раньше.
+
+---
+
+## Этап 5. Analytics экран (новый маршрут)
+
+### Целевой маршрут
+
+- Новый файл: `frontend/src/app/(protected)/analytics/page.tsx`
+
+### Что сделать
+
+- Собрать экран как в `analytics.png`:
+  - Insight card.
+  - Donut chart spending overview.
+  - Category breakdown list.
+  - Monthly trends line chart.
+  - Smart predictions card.
+- Добавить chart-библиотеку (легковесную) только при необходимости и подключить динамически.
+
+### Backend задачи (если данных нет)
+
+- Расширить API статистики:
+  - Тренд по месяцам (доход/расход/нетто).
+  - Breakdown по категориям за период в удобном формате для графиков.
+
+### Критерии готовности
+
+- Экран открывается из tabbar.
+- Все виджеты заполняются реальными данными API.
+
+---
+
+## Этап 6. Transactions (новый UX добавления)
+
+### Целевой маршрут
+
+- `frontend/src/app/(protected)/transactions/page.tsx`
+
+### Что сделать
+
+- Перестроить форму на flow из `transactions.png`:
+  - Segmented Expense/Income.
+  - Большой amount input.
+  - Выбор payment source карточками.
+  - Выбор category плитками с иконками.
+  - Description optional.
+- Оставить edit/delete/list операций, но визуально привести к новой системе.
+- Сценарий `?create=1` должен открывать создание сразу.
+
+### Критерии готовности
+
+- Добавление транзакции делается с минимальным числом кликов.
+- Валидации и API payload остаются корректными.
+
+---
+
+## Этап 7. Accounts (New Payment Source)
+
+### Целевой маршрут
+
+- `frontend/src/app/(protected)/accounts/page.tsx`
+
+### Что сделать
+
+- Пересобрать форму под `accounts.png`:
+  - Source Type (Bank/Card/Cash).
+  - Source Name.
+  - Account Number (optional / masked preview).
+  - Initial Balance.
+  - Выбор цвета grid’ом.
+  - Preview card внизу.
+- Добавить mapping Source Type -> icon preset.
+
+### Backend задачи (опционально)
+
+- Если нужен `initial_balance` как отдельное поле, расширить модель/endpoint.
+- Иначе документировать, что стартовый баланс создается стартовой транзакцией.
+
+### Критерии готовности
+
+- Экран совпадает по структуре с `accounts.png`.
+- Создание/редактирование счета не ломает старые данные.
+
+---
+
+## Этап 8. Categories (New Category)
+
+### Целевой маршрут
+
+- `frontend/src/app/(protected)/categories/page.tsx`
+
+### Что сделать
+
+- Перевести форму в стиль `categories.png`:
+  - Segmented Expense/Income.
+  - Name input.
+  - Icon grid picker (готовые пресеты).
+  - Preview row.
+- Список существующих категорий стилизовать под новые карточки.
+
+### Критерии готовности
+
+- Создание категории интуитивно и быстро.
+- Пикер иконок повторяет референсную сетку.
+
+---
+
+## Этап 9. Settings (Workspace Settings)
+
+### Целевой маршрут
+
+- Новый файл: `frontend/src/app/(protected)/settings/page.tsx`
+
+### Что сделать
+
+- Создать hub-экран как в `settings.png`:
+  - Workspace hero (название, статус, counters).
+  - Пункты: Categories, Payment Sources, API Keys, Budget Settings, Notifications, Data Export, Privacy & Security.
+- Настроить маршрутизацию:
+  - `Categories` -> `/categories`
+  - `Payment Sources` -> `/accounts`
+  - `Settings/Currencies` оставить как вложенный раздел.
+- Для разделов без реализации — оформить как disabled/coming soon с единым паттерном.
+
+### Критерии готовности
+
+- Экран доступен по `/settings`.
+- Переходы на существующие модули работают.
+
+---
+
+## Этап 10. Экраны без референса (приведение к общему стилю)
+
+- `frontend/src/app/(protected)/recurring/page.tsx`
+- `frontend/src/app/(protected)/shopping-lists/page.tsx`
+- `frontend/src/app/(protected)/shopping-templates/page.tsx`
+- `frontend/src/app/auth/login/page.tsx`
+- `frontend/src/app/auth/register/page.tsx`
+- `frontend/src/app/auth/layout.tsx`
+
+### Что сделать
+
+- Привести в новый токенизированный стиль без изменения логики.
+- Использовать те же form controls, cards, button hierarchy.
+
+---
+
+## Этап 11. Бэкенд-доработки под новый UI (если потребуются)
+
+### Приоритет A (вероятно нужно)
+
+- Endpoint трендов для analytics (по месяцам/неделям).
+- Endpoint/параметры для компактного recent transactions блока.
+
+### Приоритет B (опционально)
+
+- Workspace summary для settings header.
+- Поддержка initial balance/типа источника в accounts.
+
+### Файлы-кандидаты
+
+- `app/api/controllers/statistics.py`
+- `app/services/statistics_service.py`
+- `app/repositories/transaction_repository.py`
+- `app/models/account.py` (только при расширении модели)
+- новые migration-файлы в `migrations/versions/` (если изменяется схема БД)
+
+---
+
+## Этап 12. Качество, доступность, производительность
+
+### QA-checklist
+
+- Адаптив: 360px, 390px, 768px, 1024px+.
+- keyboard/focus states для кнопок, tabbar, picker’ов.
+- Контраст текста на gradient/dark поверхностях.
+- Состояния loading/empty/error на каждом экране.
+- Проверка safe-area и нижнего меню на iOS/Android.
+
+### Perf-checklist
+
+- Динамический импорт для графиков и тяжелых секций.
+- Избегать barrel import для крупных пакетов.
+- Не тащить большие зависимости в initial bundle.
+
+---
+
+## Этап 13. План PR-ов (рекомендуемый)
+
+1. PR-1: токены + base styles + shell/navigation.
+2. PR-2: dashboard + reusable widgets.
+3. PR-3: analytics + backend stats extension.
+4. PR-4: transactions redesign.
+5. PR-5: accounts + categories redesign.
+6. PR-6: settings hub + routing cleanup.
+7. PR-7: recurring/shopping/auth visual alignment + final polish.
+
+---
+
+## 5) Definition of Done
+
+- Все ключевые маршруты визуально соответствуют референсам из `docs/design/`.
+- Нет регрессий CRUD-сценариев (accounts/categories/transactions).
+- Новый маршрут `/analytics` и `/settings` полностью рабочие.
+- Нет явных UX-разрывов между референсными и нереференсными экранами.
+- Код разделен на переиспользуемые компоненты, без копипаста больших кусков разметки.
+
