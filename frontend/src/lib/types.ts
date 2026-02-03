@@ -239,3 +239,48 @@ export type ShoppingTemplateUpdate = {
   default_account_id?: number | null;
   default_category_id?: number | null;
 };
+
+export type RecurringFrequency = "daily" | "weekly" | "monthly";
+
+export type RecurringTransactionResponse = {
+  id: number;
+  user_id: number;
+  type: "income" | "expense";
+  account_id: number;
+  category_id: number;
+  amount: string;
+  description: string | null;
+  frequency: RecurringFrequency;
+  day_of_week: number | null;
+  day_of_month: number | null;
+  start_date: string;
+  end_date: string | null;
+  is_active: boolean;
+  next_execution_date: string;
+  last_executed_at: string | null;
+  created_at: string;
+};
+
+export type RecurringTransactionCreate = {
+  type: "income" | "expense";
+  account_id: number;
+  category_id: number;
+  amount: number;
+  description?: string | null;
+  frequency: RecurringFrequency;
+  day_of_week?: number | null;
+  day_of_month?: number | null;
+  start_date: string;
+  end_date?: string | null;
+};
+
+export type RecurringTransactionUpdate = {
+  amount?: number | null;
+  description?: string | null;
+  category_id?: number | null;
+  frequency?: RecurringFrequency | null;
+  day_of_week?: number | null;
+  day_of_month?: number | null;
+  end_date?: string | null;
+  is_active?: boolean | null;
+};
