@@ -1,6 +1,71 @@
 @config "../../tailwind.config.ts";
 @import "tailwindcss";
 
+:root {
+  --bg-app: #f4f6fb;
+  --bg-card: #ffffff;
+  --bg-surface-dark: #1b2335;
+  --bg-surface-dark-soft: #27324a;
+  --text-primary: #1f2430;
+  --text-secondary: #6a7282;
+  --text-on-dark: #f5f7ff;
+  --accent-primary: #6366f1;
+  --accent-primary-strong: #5558e6;
+  --accent-success: #22a06b;
+  --accent-danger: #e5484d;
+  --accent-warning: #ed8a19;
+  --border-soft: #e8ebf2;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 22px;
+  --shadow-soft: 0 8px 24px rgba(30, 36, 52, 0.08);
+  --shadow-strong: 0 18px 40px rgba(30, 36, 52, 0.2);
+}
+
 body {
+  background: var(--bg-app);
   font-family: "Manrope", "Inter", sans-serif;
+  color: var(--text-primary);
+}
+
+@layer utilities {
+  .mobile-page {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 430px;
+    min-height: 100vh;
+    background: var(--bg-app);
+  }
+
+  .mobile-card {
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-lg);
+    background: var(--bg-card);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .section-title {
+    font-size: 1.125rem;
+    line-height: 1.4;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .section-caption {
+    font-size: 0.875rem;
+    line-height: 1.35;
+    color: var(--text-secondary);
+  }
+
+  .dark-hero {
+    color: var(--text-on-dark);
+    background:
+      radial-gradient(circle at 20% 0%, #716df4 0%, transparent 45%),
+      radial-gradient(circle at 100% 100%, #4b3ecf 0%, transparent 40%),
+      linear-gradient(180deg, var(--bg-surface-dark) 0%, #141c2f 100%);
+  }
+
+  .tap-highlight-none {
+    -webkit-tap-highlight-color: transparent;
+  }
 }
