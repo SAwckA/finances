@@ -1,18 +1,25 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import dynamic from "next/dynamic";
-import { Button, Spinner } from "@heroui/react";
-import { ArrowDown, ArrowUp, RefreshCcw } from "lucide-react";
+import { ArrowRightLeft, Plus, Send, WalletCards } from "lucide-react";
 import { ErrorState, LoadingState } from "@/components/async-state";
-import { ScreenHeader } from "@/components/screen-header";
+import { ActionTile } from "@/components/ui/action-tile";
+import { BalanceHeroCard } from "@/components/ui/balance-hero-card";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { SourceCard } from "@/components/ui/source-card";
+import { TransactionRow } from "@/components/ui/transaction-row";
 import { useAuth } from "@/features/auth/auth-context";
 import { ApiError } from "@/lib/api-client";
 import type {
   AccountBalanceResponse,
+  AccountResponse,
+  CategoryResponse,
   CurrencyResponse,
   PeriodStatisticsResponse,
   TotalBalanceResponse,
+  TransactionResponse,
 } from "@/lib/types";
 
 type PeriodPreset = "7d" | "30d" | "month";
@@ -61,35 +68,13 @@ function formatAmount(value: string, currencyCode: string): string {
     return value;
   }
 
-  return new Intl.NumberFormat("ru-RU", {
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: currencyCode,
-    minimumFractionDigits: 0,
+    minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(numeric);
 }
-
-const AccountBalancesCard = dynamic(() => import("@/components/dashboard/account-balances-card"), {
-  loading: () => (
-    <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-4">
-      <div className="flex items-center gap-2">
-        <Spinner size="sm" />
-        <p className="text-sm text-slate-700">Загружаем балансы...</p>
-      </div>
-    </section>
-  ),
-});
-
-const CategoryBreakdowns = dynamic(() => import("@/components/dashboard/category-breakdowns"), {
-  loading: () => (
-    <section className="rounded-2xl border border-slate-200 bg-white p-4">
-      <div className="flex items-center gap-2">
-        <Spinner size="sm" />
-        <p className="text-sm text-slate-700">Загружаем категории...</p>
-      </div>
-    </section>
-  ),
-});
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
@@ -103,10 +88,42 @@ function getErrorMessage(error: unknown): string {
   return "Что-то пошло не так. Попробуйте снова.";
 }
 
+function formatDateLabel(isoValue: string): string {
+  const date = new Date(isoValue);
+  if (Number.isNaN(date.getTime())) {
+    return "Unknown";
+  }
+
+  const today = new Date();
+  const startToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  const startDate = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const diffDays = Math.round((startToday - startDate) / 86_400_000);
+
+  if (diffDays <= 0) {
+    return "Today";
+  }
+  if (diffDays === 1) {
+    return "Yesterday";
+  }
+  if (diffDays <= 6) {
+    return `${diffDays} days ago`;
+  }
+
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date);
+}
+
+function sortByNewest(items: TransactionResponse[]): TransactionResponse[] {
+  return [...items].sort(
+    (first, second) =>
+      new Date(second.transaction_date).getTime() - new Date(first.transaction_date).getTime(),
+  );
+}
+
 export default function DashboardPage() {
+  const router = useRouter();
   const { authenticatedRequest } = useAuth();
   const initialRange = useMemo(() => getDefaultRange(), []);
-  const [selectedCurrency, setSelectedCurrency] = useState("RUB");
+  const [selectedCurrency, setSelectedCurrency] = useState("USD");
   const [preset, setPreset] = useState<PeriodPreset>("30d");
   const [startDate, setStartDate] = useState(initialRange.start);
   const [endDate, setEndDate] = useState(initialRange.end);
@@ -114,16 +131,12 @@ export default function DashboardPage() {
   const [totalBalance, setTotalBalance] = useState<TotalBalanceResponse | null>(null);
   const [accountBalances, setAccountBalances] = useState<AccountBalanceResponse[]>([]);
   const [summary, setSummary] = useState<PeriodStatisticsResponse | null>(null);
+  const [accounts, setAccounts] = useState<AccountResponse[]>([]);
+  const [categories, setCategories] = useState<CategoryResponse[]>([]);
+  const [recentTransactions, setRecentTransactions] = useState<TransactionResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const loadCurrencies = useCallback(async () => {
-    const currenciesData = await authenticatedRequest<CurrencyResponse[]>(
-      "/api/currencies?skip=0&limit=300",
-    );
-    setCurrencies(currenciesData);
-  }, [authenticatedRequest]);
 
   const loadDashboard = useCallback(async () => {
     if (!startDate || !endDate) {
@@ -139,17 +152,36 @@ export default function DashboardPage() {
         end_date: toApiDate(endDate, true),
       });
 
-      const [totalData, balancesData, summaryData] = await Promise.all([
+      const [
+        totalData,
+        balancesData,
+        summaryData,
+        transactionsData,
+        accountsData,
+        categoriesData,
+        currenciesData,
+      ] = await Promise.all([
         authenticatedRequest<TotalBalanceResponse>(
           `/api/statistics/total?currency=${encodeURIComponent(selectedCurrency)}`,
         ),
         authenticatedRequest<AccountBalanceResponse[]>("/api/statistics/balance"),
         authenticatedRequest<PeriodStatisticsResponse>(`/api/statistics/summary?${query.toString()}`),
+        authenticatedRequest<TransactionResponse[]>("/api/transactions?skip=0&limit=20"),
+        authenticatedRequest<AccountResponse[]>("/api/accounts?skip=0&limit=300"),
+        authenticatedRequest<CategoryResponse[]>("/api/categories?skip=0&limit=300"),
+        authenticatedRequest<CurrencyResponse[]>("/api/currencies?skip=0&limit=300"),
       ]);
 
       setTotalBalance(totalData);
       setAccountBalances(balancesData);
       setSummary(summaryData);
+      setRecentTransactions(sortByNewest(transactionsData).slice(0, 5));
+      setAccounts(accountsData);
+      setCategories(categoriesData);
+      setCurrencies(currenciesData);
+      if (currenciesData.length && !currenciesData.some((currency) => currency.code === selectedCurrency)) {
+        setSelectedCurrency(currenciesData[0].code);
+      }
     } catch (error) {
       setErrorMessage(getErrorMessage(error));
     } finally {
@@ -159,20 +191,14 @@ export default function DashboardPage() {
   }, [authenticatedRequest, endDate, selectedCurrency, startDate]);
 
   useEffect(() => {
-    const fetchCurrencies = async () => {
-      try {
-        await loadCurrencies();
-      } catch (error) {
-        setErrorMessage(getErrorMessage(error));
-      }
-    };
-
-    void fetchCurrencies();
-  }, [loadCurrencies]);
-
-  useEffect(() => {
     void loadDashboard();
   }, [loadDashboard]);
+
+  const accountById = useMemo(() => new Map(accounts.map((account) => [account.id, account])), [accounts]);
+  const categoryById = useMemo(
+    () => new Map(categories.map((category) => [category.id, category])),
+    [categories],
+  );
 
   const applyPreset = (nextPreset: PeriodPreset) => {
     setPreset(nextPreset);
@@ -182,138 +208,170 @@ export default function DashboardPage() {
   };
 
   return (
-    <>
-      <ScreenHeader
-        title="Обзор финансов"
-        description="Баланс, динамика доходов/расходов и категории за выбранный период."
+    <section className="space-y-3 pb-1">
+      <SegmentedControl
+        options={[
+          { key: "7d", label: "7D" },
+          { key: "30d", label: "30D" },
+          { key: "month", label: "Month" },
+        ]}
+        value={preset}
+        onChange={applyPreset}
       />
 
-      <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-4">
-        <div className="flex flex-wrap gap-2">
-          {([
-            { key: "7d", label: "7 дней" },
-            { key: "30d", label: "30 дней" },
-            { key: "month", label: "Этот месяц" },
-          ] as const).map((option) => (
-            <Button
-              key={option.key}
-              size="sm"
-              variant={preset === option.key ? "solid" : "flat"}
-              color={preset === option.key ? "primary" : "default"}
-              onPress={() => applyPreset(option.key)}
-            >
-              {option.label}
-            </Button>
-          ))}
-        </div>
+      <section className="mobile-card grid grid-cols-2 gap-2.5 p-3">
+        <label className="text-xs font-semibold text-slate-600">
+          From
+          <input
+            className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-2.5 py-2 text-sm"
+            type="date"
+            value={startDate}
+            onChange={(event) => {
+              setPreset("30d");
+              setStartDate(event.target.value);
+            }}
+          />
+        </label>
+        <label className="text-xs font-semibold text-slate-600">
+          To
+          <input
+            className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-2.5 py-2 text-sm"
+            type="date"
+            value={endDate}
+            onChange={(event) => {
+              setPreset("30d");
+              setEndDate(event.target.value);
+            }}
+          />
+        </label>
 
-        <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-          <label className="block text-sm text-slate-700">
-            Дата от
-            <input
-              className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-              type="date"
-              value={startDate}
-              onChange={(event) => {
-                setPreset("30d");
-                setStartDate(event.target.value);
-              }}
-            />
-          </label>
-
-          <label className="block text-sm text-slate-700">
-            Дата до
-            <input
-              className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-              type="date"
-              value={endDate}
-              onChange={(event) => {
-                setPreset("30d");
-                setEndDate(event.target.value);
-              }}
-            />
-          </label>
-
-          <label className="block text-sm text-slate-700">
-            Валюта итога
-            <select
-              className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-              value={selectedCurrency}
-              onChange={(event) => setSelectedCurrency(event.target.value)}
-            >
-              {currencies.map((currency) => (
-                <option key={currency.id} value={currency.code}>
-                  {currency.code} ({currency.symbol})
-                </option>
-              ))}
-              {currencies.length === 0 ? <option value="RUB">RUB (₽)</option> : null}
-            </select>
-          </label>
-        </div>
-
-        <div className="mt-3 flex justify-end">
-          <Button
-            size="sm"
-            variant="flat"
-            startContent={<RefreshCcw className="h-4 w-4" />}
-            isLoading={isRefreshing}
-            onPress={() => void loadDashboard()}
+        <label className="col-span-2 text-xs font-semibold text-slate-600">
+          Currency
+          <select
+            className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-2.5 py-2 text-sm"
+            value={selectedCurrency}
+            onChange={(event) => setSelectedCurrency(event.target.value)}
           >
-            Обновить
-          </Button>
-        </div>
+            {currencies.map((currency) => (
+              <option key={currency.id} value={currency.code}>
+                {currency.code} ({currency.symbol})
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <button
+          type="button"
+          className="col-span-2 rounded-xl bg-[var(--accent-primary)] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[var(--accent-primary-strong)]"
+          onClick={() => void loadDashboard()}
+          disabled={isRefreshing}
+        >
+          {isRefreshing ? "Refreshing..." : "Refresh data"}
+        </button>
       </section>
 
-      {errorMessage ? <ErrorState className="mb-3" message={errorMessage} /> : null}
+      {errorMessage ? <ErrorState message={errorMessage} /> : null}
+      {isLoading ? <LoadingState message="Загружаем dashboard..." /> : null}
 
-      {isLoading ? (
-        <LoadingState message="Загружаем аналитику..." />
-      ) : (
-        <>
-          <section className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <article className="rounded-2xl border border-slate-200 bg-white p-4">
-              <p className="text-sm text-slate-600">Общий баланс</p>
-              <p className="mt-1 text-2xl font-semibold text-slate-900">
-                {totalBalance ? formatAmount(totalBalance.total_balance, totalBalance.currency_code) : "—"}
-              </p>
-            </article>
+      {!isLoading ? (
+        <section className="space-y-3 rounded-[24px] bg-[#172338] p-3">
+          <BalanceHeroCard
+            totalBalance={
+              totalBalance
+                ? formatAmount(totalBalance.total_balance, totalBalance.currency_code)
+                : "$0.00"
+            }
+            income={summary ? formatAmount(summary.total_income, selectedCurrency) : "$0.00"}
+            expenses={summary ? formatAmount(summary.total_expense, selectedCurrency) : "$0.00"}
+          />
 
-            <article className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
-              <div className="flex items-center gap-1 text-sm text-emerald-700">
-                <ArrowUp className="h-4 w-4" />
-                Доходы
-              </div>
-              <p className="mt-1 text-xl font-semibold text-emerald-800">
-                {summary ? formatAmount(summary.total_income, selectedCurrency) : "—"}
-              </p>
-            </article>
-
-            <article className="rounded-2xl border border-rose-200 bg-rose-50/70 p-4">
-              <div className="flex items-center gap-1 text-sm text-rose-700">
-                <ArrowDown className="h-4 w-4" />
-                Расходы
-              </div>
-              <p className="mt-1 text-xl font-semibold text-rose-800">
-                {summary ? formatAmount(summary.total_expense, selectedCurrency) : "—"}
-              </p>
-            </article>
-
-            <article className="rounded-2xl border border-slate-200 bg-white p-4">
-              <p className="text-sm text-slate-600">Изменение периода</p>
-              <p
-                className={`mt-1 text-xl font-semibold ${
-                  summary && Number(summary.net_change) >= 0 ? "text-emerald-700" : "text-rose-700"
-                }`}
-              >
-                {summary ? formatAmount(summary.net_change, selectedCurrency) : "—"}
-              </p>
-            </article>
+          <section>
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-white/95">Payment Sources</h2>
+              <Link href="/accounts" className="text-xs font-semibold text-indigo-300">
+                View All
+              </Link>
+            </div>
+            <div className="space-y-2">
+              {accountBalances.slice(0, 2).map((account) => {
+                const accountDetails = accountById.get(account.account_id);
+                const suffix = accountDetails?.short_identifier
+                  ? `****${accountDetails.short_identifier}`
+                  : account.account_name;
+                return (
+                  <SourceCard
+                    key={account.account_id}
+                    name={account.account_name}
+                    identifier={suffix}
+                    amount={formatAmount(account.balance, account.currency_code)}
+                  />
+                );
+              })}
+            </div>
           </section>
 
-          <AccountBalancesCard balances={accountBalances} />
-          <CategoryBreakdowns summary={summary} currencyCode={selectedCurrency} />
-        </>
-      )}
-    </>
+          <section className="grid grid-cols-4 gap-2">
+            <ActionTile
+              label="Add"
+              icon={Plus}
+              iconClassName="bg-emerald-500/20 text-emerald-300"
+              onClick={() => router.push("/transactions?create=1")}
+            />
+            <ActionTile
+              label="Send"
+              icon={Send}
+              iconClassName="bg-rose-500/20 text-rose-300"
+              onClick={() => router.push("/transactions?create=1")}
+            />
+            <ActionTile
+              label="Transfer"
+              icon={ArrowRightLeft}
+              iconClassName="bg-indigo-500/20 text-indigo-300"
+              onClick={() => router.push("/transactions?create=1")}
+            />
+            <ActionTile
+              label="Budget"
+              icon={WalletCards}
+              iconClassName="bg-orange-500/20 text-orange-300"
+              onClick={() => router.push("/analytics")}
+            />
+          </section>
+
+          <section>
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-white/95">Recent Transactions</h2>
+              <Link href="/transactions" className="text-xs font-semibold text-indigo-300">
+                See All
+              </Link>
+            </div>
+            <div className="space-y-2">
+              {recentTransactions.length ? (
+                recentTransactions.map((transaction) => {
+                  const account = accountById.get(transaction.account_id);
+                  const category = transaction.category_id
+                    ? categoryById.get(transaction.category_id)
+                    : null;
+                  return (
+                    <TransactionRow
+                      key={transaction.id}
+                      name={category?.name ?? account?.name ?? "Transaction"}
+                      subtitle={`${transaction.type} • ${account?.name ?? "Unknown source"}`}
+                      amount={formatAmount(transaction.amount, selectedCurrency)}
+                      dateLabel={formatDateLabel(transaction.transaction_date)}
+                      type={transaction.type}
+                      categoryIcon={category?.icon ?? null}
+                    />
+                  );
+                })
+              ) : (
+                <p className="rounded-2xl border border-white/10 bg-[#1f2a40] px-3 py-3 text-sm text-white/70">
+                  No transactions yet.
+                </p>
+              )}
+            </div>
+          </section>
+        </section>
+      ) : null}
+    </section>
   );
 }
