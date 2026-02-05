@@ -11,7 +11,7 @@ export function ActionTile({ label, icon: Icon, iconClassName, onClick }: Action
   return (
     <button
       type="button"
-      className="rounded-2xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-2 py-2.5 text-center transition hover:bg-slate-50/80"
+      className="surface-hover rounded-2xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-2 py-2.5 text-center transition"
       onClick={onClick}
     >
       <span className={`mx-auto inline-flex h-8 w-8 items-center justify-center rounded-lg ${iconClassName}`}>

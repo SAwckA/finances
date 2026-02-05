@@ -12,6 +12,8 @@ from app.models.transaction import TransactionCreate, TransactionType, Transacti
 from app.repositories.account_repository import AccountRepository
 from app.repositories.category_repository import CategoryRepository
 from app.repositories.transaction_repository import TransactionRepository
+from app.repositories.currency_repository import CurrencyRepository
+from app.services.exchange_rate_service import ExchangeRateService
 from app.services.base_service import BaseService
 
 logger = logging.getLogger(__name__)
@@ -77,6 +79,7 @@ class TransactionService(BaseService):
     transaction_repository: TransactionRepository
     account_repository: AccountRepository
     category_repository: CategoryRepository
+    currency_repository: CurrencyRepository
 
     async def get_user_transactions(
         self,
@@ -230,6 +233,32 @@ class TransactionService(BaseService):
 
         update_data = data.model_dump(exclude_unset=True)
 
+        if "account_id" in update_data:
+            if update_data["account_id"] is None:
+                raise AccountNotFoundForTransactionException(
+                    details={"account_id": None}
+                )
+            account = await self.account_repository.get_by_id(update_data["account_id"])
+            if not account or account.user_id != user_id:
+                raise AccountNotFoundForTransactionException(
+                    details={"account_id": update_data["account_id"]}
+                )
+
+        if "target_account_id" in update_data:
+            if (
+                update_data["target_account_id"] is None
+                and transaction.type == TransactionType.TRANSFER
+            ):
+                raise TransferRequiresTargetAccountException()
+            if update_data["target_account_id"] is not None:
+                target = await self.account_repository.get_by_id(
+                    update_data["target_account_id"]
+                )
+                if not target or target.user_id != user_id:
+                    raise AccountNotFoundForTransactionException(
+                        details={"target_account_id": update_data["target_account_id"]}
+                    )
+
         if "category_id" in update_data and update_data["category_id"]:
             if transaction.type == TransactionType.TRANSFER:
                 raise CategoryNotAllowedForTransferException()
@@ -241,6 +270,53 @@ class TransactionService(BaseService):
                 raise CategoryNotFoundForTransactionException(
                     details={"category_id": update_data["category_id"]}
                 )
+
+        if transaction.type == TransactionType.TRANSFER and (
+            "account_id" in update_data
+            or "target_account_id" in update_data
+            or "amount" in update_data
+        ):
+            source_account_id = update_data.get("account_id", transaction.account_id)
+            target_account_id = update_data.get(
+                "target_account_id", transaction.target_account_id
+            )
+
+            if not target_account_id:
+                raise TransferRequiresTargetAccountException()
+            if source_account_id == target_account_id:
+                raise TransferToSameAccountException()
+
+            source_account = await self.account_repository.get_by_id(source_account_id)
+            target_account = await self.account_repository.get_by_id(target_account_id)
+            if not source_account or source_account.user_id != user_id:
+                raise AccountNotFoundForTransactionException(
+                    details={"account_id": source_account_id}
+                )
+            if not target_account or target_account.user_id != user_id:
+                raise AccountNotFoundForTransactionException(
+                    details={"target_account_id": target_account_id}
+                )
+
+            amount = update_data.get("amount", transaction.amount)
+            if source_account.currency_id != target_account.currency_id:
+                source_currency = await self.currency_repository.get_by_id(
+                    source_account.currency_id
+                )
+                target_currency = await self.currency_repository.get_by_id(
+                    target_account.currency_id
+                )
+                if not source_currency or not target_currency:
+                    raise ValidationException(
+                        message="Не удалось определить валюты для перевода"
+                    )
+                exchange_rate = await ExchangeRateService().get_rate(
+                    source_currency.code, target_currency.code
+                )
+                update_data["exchange_rate"] = exchange_rate
+                update_data["converted_amount"] = amount * exchange_rate
+            else:
+                update_data["exchange_rate"] = None
+                update_data["converted_amount"] = amount
 
         updated = await self.transaction_repository.update(transaction.id, update_data)
         logger.info(f"Updated transaction {transaction_id}")

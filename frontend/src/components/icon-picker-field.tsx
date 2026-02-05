@@ -40,7 +40,7 @@ export function IconPickerField({ label, value, onChange }: IconPickerFieldProps
               className={`flex h-11 items-center justify-center rounded-xl border transition ${
                 active
                   ? "border-slate-900 bg-slate-900 text-white"
-                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                  : "surface-hover border-slate-300 bg-white text-slate-700"
               }`}
               onClick={() => onChange(option.value)}
               aria-label={option.label}

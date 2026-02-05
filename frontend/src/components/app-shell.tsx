@@ -63,7 +63,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     className={`tap-highlight-none flex min-h-11 flex-col items-center justify-center rounded-xl px-1 text-center text-[11px] font-semibold transition ${
                       active
                         ? "bg-[var(--accent-primary)]/12 text-[var(--accent-primary)]"
-                        : "text-[var(--text-secondary)] hover:bg-[color:color-mix(in_srgb,var(--bg-card)_70%,#cbd5e1_30%)]"
+                        : "surface-hover text-[var(--text-secondary)]"
                     }`}
                   >
                     <Icon className="mb-0.5 h-4 w-4" />

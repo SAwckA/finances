@@ -1,8 +1,10 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 type SegmentOption<T extends string> = {
   key: T;
-  label: string;
+  label: ReactNode;
 };
 
 type SegmentedControlProps<T extends string> = {
@@ -30,7 +32,7 @@ export function SegmentedControl<T extends string>({
             className={`rounded-xl px-2.5 py-2 text-sm font-semibold transition ${
               active
                 ? "bg-[var(--accent-primary)] text-white"
-                : "bg-transparent text-[var(--text-secondary)] hover:bg-slate-100/85"
+                : "surface-hover bg-transparent text-[var(--text-secondary)]"
             }`}
             onClick={() => onChange(option.key)}
           >

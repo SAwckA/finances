@@ -23,7 +23,7 @@ export function EditScreenHeader({
         <button
           type="button"
           onClick={onBack}
-          className="tap-highlight-none inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--border-soft)] bg-white text-[var(--text-secondary)] transition hover:bg-slate-50"
+          className="surface-hover tap-highlight-none inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--border-soft)] bg-white text-[var(--text-secondary)] transition"
           aria-label="Back"
         >
           <ChevronLeft className="h-5 w-5" />

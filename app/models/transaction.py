@@ -48,6 +48,8 @@ class TransactionCreate(TransactionBase):
 class TransactionUpdate(BaseModel):
     """Схема для обновления транзакции."""
 
+    account_id: int | None = Field(None, description="ID счёта")
+    target_account_id: int | None = Field(None, description="ID целевого счёта")
     amount: Decimal | None = Field(None, gt=0)
     description: str | None = Field(None, max_length=500)
     transaction_date: datetime | None = None

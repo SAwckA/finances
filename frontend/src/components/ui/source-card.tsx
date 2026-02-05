@@ -1,8 +1,9 @@
+import type { ReactNode } from "react";
 import { Landmark } from "lucide-react";
 
 type SourceCardProps = {
   name: string;
-  identifier: string;
+  identifier: ReactNode;
   amount: string;
 };
 
@@ -16,7 +17,7 @@ export function SourceCard({ name, identifier, amount }: SourceCardProps) {
           </span>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{name}</p>
-            <p className="truncate text-xs text-[var(--text-secondary)]">{identifier}</p>
+            <div className="truncate text-xs text-[var(--text-secondary)]">{identifier}</div>
           </div>
         </div>
         <p className="text-sm font-bold text-[var(--text-primary)]">{amount}</p>

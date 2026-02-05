@@ -3,7 +3,16 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRightLeft, ChevronLeft, Plus, Save, Send, WalletCards } from "lucide-react";
+import {
+  ArrowRightLeft,
+  CalendarDays,
+  ChevronLeft,
+  ListChecks,
+  Plus,
+  Save,
+  Send,
+  WalletCards,
+} from "lucide-react";
 import { ErrorState, LoadingState } from "@/components/async-state";
 import { ActionTile } from "@/components/ui/action-tile";
 import { BalanceHeroCard } from "@/components/ui/balance-hero-card";
@@ -23,9 +32,10 @@ import type {
   TransactionUpdate,
 } from "@/lib/types";
 
-type PeriodPreset = "7d" | "30d" | "month";
+type PeriodPreset = "7d" | "30d" | "custom";
 
 type EditTransactionForm = {
+  accountId: string;
   amount: string;
   description: string;
   transactionDate: string;
@@ -39,7 +49,7 @@ function toDateInputValue(date: Date): string {
   return new Date(date.getTime() - offset).toISOString().slice(0, 10);
 }
 
-function getPresetRange(preset: PeriodPreset): { start: string; end: string } {
+function getPresetRange(preset: Exclude<PeriodPreset, "custom">): { start: string; end: string } {
   const now = new Date();
   const end = toDateInputValue(now);
 
@@ -133,12 +143,44 @@ function sortByNewest(items: TransactionResponse[]): TransactionResponse[] {
   );
 }
 
-function shortAccountLabel(account: AccountResponse | undefined): string {
-  if (!account) {
-    return "Unknown account";
+function shortAccountBadge(account: AccountResponse | undefined): string | null {
+  if (!account?.short_identifier) {
+    return null;
   }
 
-  return account.short_identifier ? `***${account.short_identifier}` : account.name;
+  return account.short_identifier;
+}
+
+function badgeStyle(color: string | undefined): React.CSSProperties | undefined {
+  if (!color) {
+    return undefined;
+  }
+
+  return {
+    backgroundColor: `${color}1a`,
+    borderColor: `${color}55`,
+    color,
+  };
+}
+
+function typeBadgeClass(type: TransactionResponse["type"]): string {
+  if (type === "income") {
+    return "border-emerald-400/30 bg-emerald-500/15 text-emerald-200";
+  }
+  if (type === "expense") {
+    return "border-rose-400/30 bg-rose-500/15 text-rose-200";
+  }
+  return "border-sky-400/30 bg-sky-500/15 text-sky-200";
+}
+
+function typeBadgeStyle(type: TransactionResponse["type"]): React.CSSProperties {
+  if (type === "income") {
+    return { backgroundColor: "rgba(16,185,129,0.18)", borderColor: "rgba(16,185,129,0.4)", color: "#bbf7d0" };
+  }
+  if (type === "expense") {
+    return { backgroundColor: "rgba(244,63,94,0.18)", borderColor: "rgba(244,63,94,0.4)", color: "#fecdd3" };
+  }
+  return { backgroundColor: "rgba(14,165,233,0.18)", borderColor: "rgba(14,165,233,0.4)", color: "#bae6fd" };
 }
 
 export default function DashboardPage() {
@@ -146,6 +188,10 @@ export default function DashboardPage() {
   const { authenticatedRequest } = useAuth();
   const [selectedCurrency, setSelectedCurrency] = useState("USD");
   const [preset, setPreset] = useState<PeriodPreset>("30d");
+  const [showDateFilters, setShowDateFilters] = useState(false);
+  const defaultRange = useMemo(() => getPresetRange("30d"), []);
+  const [startDate, setStartDate] = useState(defaultRange.start);
+  const [endDate, setEndDate] = useState(defaultRange.end);
   const [currencies, setCurrencies] = useState<CurrencyResponse[]>([]);
   const [totalBalance, setTotalBalance] = useState<TotalBalanceResponse | null>(null);
   const [accountBalances, setAccountBalances] = useState<AccountBalanceResponse[]>([]);
@@ -167,7 +213,17 @@ export default function DashboardPage() {
 
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const transactionOffsetRef = useRef(0);
-  const range = useMemo(() => getPresetRange(preset), [preset]);
+  const range = useMemo(() => {
+    if (preset !== "custom") {
+      return getPresetRange(preset);
+    }
+
+    if (!startDate || !endDate) {
+      return defaultRange;
+    }
+
+    return { start: startDate, end: endDate };
+  }, [defaultRange, endDate, preset, startDate]);
 
   const accountById = useMemo(() => new Map(accounts.map((account) => [account.id, account])), [accounts]);
   const categoryById = useMemo(
@@ -285,6 +341,12 @@ export default function DashboardPage() {
   }, [loadTransactionsPage, preset]);
 
   useEffect(() => {
+    if (preset !== "custom") {
+      setShowDateFilters(false);
+    }
+  }, [preset]);
+
+  useEffect(() => {
     if (!hasMoreTransactions || isTransactionsLoading || isLoadingMoreTransactions) {
       return;
     }
@@ -315,6 +377,7 @@ export default function DashboardPage() {
     setEditingTransactionId(transaction.id);
     setEditErrorMessage(null);
     setEditForm({
+      accountId: String(transaction.account_id),
       amount: transaction.amount,
       description: transaction.description ?? "",
       transactionDate: toLocalDateTimeValue(transaction.transaction_date),
@@ -333,6 +396,11 @@ export default function DashboardPage() {
       return;
     }
 
+    if (!editForm.accountId) {
+      setEditErrorMessage("Выберите счет.");
+      return;
+    }
+
     if (!editForm.amount || Number(editForm.amount) <= 0) {
       setEditErrorMessage("Укажите корректную сумму.");
       return;
@@ -343,6 +411,7 @@ export default function DashboardPage() {
 
     try {
       const payload: TransactionUpdate = {
+        account_id: Number(editForm.accountId),
         amount: Number(editForm.amount),
         description: editForm.description.trim() || null,
         transaction_date: new Date(editForm.transactionDate).toISOString(),
@@ -359,6 +428,29 @@ export default function DashboardPage() {
         body: payload,
       });
 
+      closeEditor();
+      await Promise.all([loadDashboardData(), loadTransactionsPage(true)]);
+    } catch (error) {
+      setEditErrorMessage(getErrorMessage(error));
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const deleteEditedTransaction = async () => {
+    if (!editingTransaction) {
+      return;
+    }
+
+    const confirmed = window.confirm("Удалить транзакцию?");
+    if (!confirmed) {
+      return;
+    }
+
+    setIsSavingEdit(true);
+    setEditErrorMessage(null);
+    try {
+      await authenticatedRequest(`/api/transactions/${editingTransaction.id}`, { method: "DELETE" });
       closeEditor();
       await Promise.all([loadDashboardData(), loadTransactionsPage(true)]);
     } catch (error) {
@@ -423,14 +515,20 @@ export default function DashboardPage() {
             <div className="space-y-2">
               {accountBalances.slice(0, 2).map((account) => {
                 const accountDetails = accountById.get(account.account_id);
-                const suffix = accountDetails?.short_identifier
-                  ? `****${accountDetails.short_identifier}`
-                  : account.account_name;
+                const badge = shortAccountBadge(accountDetails);
                 return (
                   <SourceCard
                     key={account.account_id}
                     name={account.account_name}
-                    identifier={suffix}
+                    identifier={
+                      badge ? (
+                        <span className="badge" style={badgeStyle(accountDetails?.color)}>
+                          {badge}
+                        </span>
+                      ) : (
+                        <span>No short id</span>
+                      )
+                    }
                     amount={formatAmount(account.balance, account.currency_code)}
                   />
                 );
@@ -468,18 +566,62 @@ export default function DashboardPage() {
           <section>
             <div className="mb-2 flex items-center justify-between gap-2">
               <h2 className="text-lg font-bold text-[var(--text-primary)]">Recent Transactions</h2>
-              <div className="w-[180px]">
+              <div className="w-[200px]">
                 <SegmentedControl
                   options={[
                     { key: "7d", label: "7D" },
                     { key: "30d", label: "30D" },
-                    { key: "month", label: "Month" },
+                    {
+                      key: "custom",
+                      label: (
+                        <span className="inline-flex items-center justify-center">
+                          <CalendarDays className="h-4 w-4" />
+                          <span className="sr-only">Dates</span>
+                        </span>
+                      ),
+                    },
                   ]}
                   value={preset}
-                  onChange={setPreset}
+                  onChange={(nextPreset) => {
+                    if (nextPreset === "custom") {
+                      setShowDateFilters((prev) => (preset === "custom" ? !prev : true));
+                    } else {
+                      setShowDateFilters(false);
+                    }
+                    setPreset(nextPreset);
+                  }}
                 />
               </div>
             </div>
+
+            {showDateFilters ? (
+              <section className="mb-2 grid grid-cols-2 gap-2 rounded-2xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] p-2.5">
+                <label className="text-xs font-semibold text-[var(--text-secondary)]">
+                  From
+                  <input
+                    className="mt-1 block w-full px-2.5 py-2 text-sm"
+                    type="date"
+                    value={startDate}
+                    onChange={(event) => {
+                      setPreset("custom");
+                      setStartDate(event.target.value);
+                    }}
+                  />
+                </label>
+                <label className="text-xs font-semibold text-[var(--text-secondary)]">
+                  To
+                  <input
+                    className="mt-1 block w-full px-2.5 py-2 text-sm"
+                    type="date"
+                    value={endDate}
+                    onChange={(event) => {
+                      setPreset("custom");
+                      setEndDate(event.target.value);
+                    }}
+                  />
+                </label>
+              </section>
+            ) : null}
 
             <div className="space-y-2">
               {isTransactionsLoading ? <LoadingState message="Загружаем операции..." /> : null}
@@ -501,10 +643,34 @@ export default function DashboardPage() {
                 const accountCurrency = account
                   ? currencyById.get(account.currency_id)?.code ?? selectedCurrency
                   : selectedCurrency;
+                const fromBadge = shortAccountBadge(account);
+                const toBadge = shortAccountBadge(targetAccount);
                 const subtitle =
-                  transaction.type === "transfer"
-                    ? `${shortAccountLabel(account)} -> ${shortAccountLabel(targetAccount)}`
-                    : shortAccountLabel(account);
+                  transaction.type === "transfer" ? (
+                    <>
+                      {fromBadge ? (
+                        <span className="badge" style={badgeStyle(account?.color)}>
+                          {fromBadge}
+                        </span>
+                      ) : null}
+                      <span className="text-[var(--text-secondary)]">→</span>
+                      {toBadge ? (
+                        <span className="badge" style={badgeStyle(targetAccount?.color)}>
+                          {toBadge}
+                        </span>
+                      ) : null}
+                    </>
+                  ) : fromBadge ? (
+                    <span className="badge" style={badgeStyle(account?.color)}>
+                      {fromBadge}
+                    </span>
+                  ) : null;
+                const shoppingBadge = transaction.shopping_list_id ? (
+                  <span className="badge">
+                    <ListChecks className="h-3 w-3" />
+                    List
+                  </span>
+                ) : null;
 
                 return (
                   <button
@@ -520,6 +686,8 @@ export default function DashboardPage() {
                       dateLabel={formatDateLabel(transaction.transaction_date)}
                       type={transaction.type}
                       categoryIcon={category?.icon ?? null}
+                      metaBadge={shoppingBadge}
+                      className="surface-hover"
                     />
                   </button>
                 );
@@ -562,97 +730,196 @@ export default function DashboardPage() {
             </header>
 
             <div className="flex-1 overflow-y-auto px-3 py-3">
-              <section className="mobile-card space-y-3 p-3">
-                <p className="text-xs font-semibold text-[var(--text-secondary)]">
-                  Account: {shortAccountLabel(accountById.get(editingTransaction.account_id))}
-                </p>
+              <section className="space-y-3">
+                <div className="mobile-card space-y-3 p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-semibold text-[var(--text-primary)]">Details</div>
+                    <span
+                      className={`badge ${typeBadgeClass(editingTransaction.type)}`}
+                      style={typeBadgeStyle(editingTransaction.type)}
+                    >
+                      {editingTransaction.type === "income"
+                        ? "Income"
+                        : editingTransaction.type === "expense"
+                          ? "Expense"
+                          : "Transfer"}
+                    </span>
+                  </div>
 
-                <label className="block text-sm text-[var(--text-secondary)]">
-                  Amount
-                  <input
-                    className="mt-1 block w-full px-3 py-2 text-sm"
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    value={editForm.amount}
-                    onChange={(event) =>
-                      setEditForm((prev) =>
-                        prev
-                          ? {
-                              ...prev,
-                              amount: event.target.value,
-                            }
-                          : prev,
-                      )
-                    }
-                  />
-                </label>
-
-                {editingTransaction.type !== "transfer" ? (
                   <label className="block text-sm text-[var(--text-secondary)]">
-                    Category
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Account</span>
+                      {(() => {
+                        const selectedAccount = accounts.find(
+                          (account) => String(account.id) === editForm.accountId,
+                        );
+                        const currency = selectedAccount
+                          ? currencyById.get(selectedAccount.currency_id)
+                          : null;
+                        const badge = shortAccountBadge(selectedAccount);
+                        return (
+                          <div className="flex items-center gap-2">
+                            {selectedAccount?.color ? (
+                              <span
+                                className="h-2.5 w-2.5 rounded-full border"
+                                style={{
+                                  backgroundColor: selectedAccount.color,
+                                  borderColor: selectedAccount.color,
+                                }}
+                              />
+                            ) : null}
+                            {badge ? (
+                              <span className="badge" style={badgeStyle(selectedAccount?.color)}>
+                                {badge}
+                              </span>
+                            ) : null}
+                            <span className="text-xs text-[var(--text-secondary)]">
+                              {currency ? `${currency.code} · ${currency.symbol}` : "Currency unknown"}
+                            </span>
+                          </div>
+                        );
+                      })()}
+                    </div>
                     <select
                       className="mt-1 block w-full px-3 py-2 text-sm"
-                      value={editForm.categoryId}
+                      value={editForm.accountId}
                       onChange={(event) =>
                         setEditForm((prev) =>
                           prev
                             ? {
                                 ...prev,
-                                categoryId: event.target.value,
+                                accountId: event.target.value,
                               }
                             : prev,
                         )
                       }
                     >
-                      <option value="">Without category</option>
-                      {editingCategories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
+                      <option value="">Select account</option>
+                      {accounts.map((account) => (
+                        <option key={account.id} value={account.id}>
+                          {account.name}
+                          {account.short_identifier ? ` · ${account.short_identifier}` : ""}
                         </option>
                       ))}
                     </select>
                   </label>
+
+                  <label className="block text-sm text-[var(--text-secondary)]">
+                    Amount
+                    <input
+                      className="mt-1 block w-full px-3 py-2 text-sm"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={editForm.amount}
+                      onChange={(event) =>
+                        setEditForm((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                amount: event.target.value,
+                              }
+                            : prev,
+                        )
+                      }
+                    />
+                  </label>
+
+                  {editingTransaction.type !== "transfer" ? (
+                    <label className="block text-sm text-[var(--text-secondary)]">
+                      Category
+                      <select
+                        className="mt-1 block w-full px-3 py-2 text-sm"
+                        value={editForm.categoryId}
+                        onChange={(event) =>
+                          setEditForm((prev) =>
+                            prev
+                              ? {
+                                  ...prev,
+                                  categoryId: event.target.value,
+                                }
+                              : prev,
+                          )
+                        }
+                      >
+                        <option value="">Without category</option>
+                        {editingCategories.map((category) => (
+                          <option key={category.id} value={category.id}>
+                            {category.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : null}
+
+                  <label className="block text-sm text-[var(--text-secondary)]">
+                    Description
+                    <input
+                      className="mt-1 block w-full px-3 py-2 text-sm"
+                      value={editForm.description}
+                      onChange={(event) =>
+                        setEditForm((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                description: event.target.value,
+                              }
+                            : prev,
+                        )
+                      }
+                    />
+                  </label>
+
+                  <label className="block text-sm text-[var(--text-secondary)]">
+                    Date and time
+                    <input
+                      className="mt-1 block w-full px-3 py-2 text-sm"
+                      type="datetime-local"
+                      value={editForm.transactionDate}
+                      onChange={(event) =>
+                        setEditForm((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                transactionDate: event.target.value,
+                              }
+                            : prev,
+                        )
+                      }
+                    />
+                  </label>
+
+                  {editErrorMessage ? <ErrorState message={editErrorMessage} /> : null}
+                </div>
+
+                {editingTransaction.shopping_list_id ? (
+                  <section className="mobile-card flex items-center justify-between gap-3 p-3">
+                    <div>
+                      <p className="text-sm font-semibold text-[var(--text-primary)]">Shopping list</p>
+                      <p className="text-xs text-[var(--text-secondary)]">
+                        List ID: {editingTransaction.shopping_list_id}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]"
+                      onClick={() => router.push(`/shopping-lists?open=${editingTransaction.shopping_list_id}`)}
+                    >
+                      Open
+                    </button>
+                  </section>
                 ) : null}
 
-                <label className="block text-sm text-[var(--text-secondary)]">
-                  Description
-                  <input
-                    className="mt-1 block w-full px-3 py-2 text-sm"
-                    value={editForm.description}
-                    onChange={(event) =>
-                      setEditForm((prev) =>
-                        prev
-                          ? {
-                              ...prev,
-                              description: event.target.value,
-                            }
-                          : prev,
-                      )
-                    }
-                  />
-                </label>
-
-                <label className="block text-sm text-[var(--text-secondary)]">
-                  Date and time
-                  <input
-                    className="mt-1 block w-full px-3 py-2 text-sm"
-                    type="datetime-local"
-                    value={editForm.transactionDate}
-                    onChange={(event) =>
-                      setEditForm((prev) =>
-                        prev
-                          ? {
-                              ...prev,
-                              transactionDate: event.target.value,
-                            }
-                          : prev,
-                      )
-                    }
-                  />
-                </label>
-
-                {editErrorMessage ? <ErrorState message={editErrorMessage} /> : null}
+                <section className="mobile-card p-3">
+                  <button
+                    type="button"
+                    className="w-full rounded-xl bg-rose-50 px-3 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 dark:bg-rose-500/15 dark:text-rose-200 dark:hover:bg-rose-500/25"
+                    onClick={() => void deleteEditedTransaction()}
+                    disabled={isSavingEdit}
+                  >
+                    Delete transaction
+                  </button>
+                </section>
               </section>
             </div>
           </div>

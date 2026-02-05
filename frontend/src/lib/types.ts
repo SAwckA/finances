@@ -107,6 +107,8 @@ export type TransactionCreate = {
 };
 
 export type TransactionUpdate = {
+  account_id?: number | null;
+  target_account_id?: number | null;
   amount?: number | null;
   description?: string | null;
   transaction_date?: string | null;

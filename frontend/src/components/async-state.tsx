@@ -1,4 +1,4 @@
-import { Spinner } from "@heroui/react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type AsyncStateProps = {
   message: string;
@@ -8,9 +8,12 @@ type AsyncStateProps = {
 export function LoadingState({ message, className }: AsyncStateProps) {
   return (
     <div className={className ?? "app-panel p-4"}>
-      <div className="flex items-center gap-2">
-        <Spinner size="sm" />
+      <div className="space-y-2.5">
         <p className="text-sm text-[var(--text-secondary)]">{message}</p>
+        <div className="space-y-2">
+          <Skeleton className="h-2.5 w-4/5" />
+          <Skeleton className="h-2.5 w-3/5" />
+        </div>
       </div>
     </div>
   );
