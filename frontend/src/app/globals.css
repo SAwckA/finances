@@ -2,30 +2,63 @@
 @import "tailwindcss";
 
 :root {
-  --bg-app: #f4f6fb;
+  --bg-app: #f3f6fc;
   --bg-card: #ffffff;
   --bg-surface-dark: #1b2335;
-  --bg-surface-dark-soft: #27324a;
+  --bg-surface-dark-soft: #22304d;
   --text-primary: #1f2430;
-  --text-secondary: #6a7282;
+  --text-secondary: #5f6b82;
   --text-on-dark: #f5f7ff;
-  --accent-primary: #6366f1;
-  --accent-primary-strong: #5558e6;
+  --accent-primary: #2563eb;
+  --accent-primary-strong: #1d4ed8;
   --accent-success: #22a06b;
   --accent-danger: #e5484d;
   --accent-warning: #ed8a19;
-  --border-soft: #e8ebf2;
+  --border-soft: #dbe4f2;
+  --ring-primary: rgba(37, 99, 235, 0.26);
   --radius-md: 14px;
   --radius-lg: 18px;
   --radius-xl: 22px;
-  --shadow-soft: 0 8px 24px rgba(30, 36, 52, 0.08);
-  --shadow-strong: 0 18px 40px rgba(30, 36, 52, 0.2);
+  --shadow-soft: 0 10px 28px rgba(20, 37, 63, 0.08);
+  --shadow-strong: 0 20px 44px rgba(18, 33, 58, 0.2);
 }
 
 body {
-  background: var(--bg-app);
+  background:
+    radial-gradient(circle at 20% -10%, rgba(37, 99, 235, 0.14) 0%, transparent 38%),
+    radial-gradient(circle at 120% 120%, rgba(14, 165, 233, 0.11) 0%, transparent 40%),
+    var(--bg-app);
   font-family: "Manrope", "Inter", sans-serif;
   color: var(--text-primary);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+@layer base {
+  input,
+  select,
+  textarea {
+    border: 1px solid var(--border-soft);
+    border-radius: 0.8rem;
+    background: #fff;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px var(--ring-primary);
+  }
+
+  button:focus-visible,
+  a:focus-visible {
+    outline: 3px solid var(--ring-primary);
+    outline-offset: 2px;
+  }
 }
 
 @layer utilities {
@@ -34,10 +67,17 @@ body {
     width: 100%;
     max-width: 430px;
     min-height: 100vh;
-    background: var(--bg-app);
+    background: transparent;
   }
 
   .mobile-card {
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-lg);
+    background: color-mix(in srgb, var(--bg-card) 96%, #eff5ff 4%);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .app-panel {
     border: 1px solid var(--border-soft);
     border-radius: var(--radius-lg);
     background: var(--bg-card);
@@ -60,9 +100,9 @@ body {
   .dark-hero {
     color: var(--text-on-dark);
     background:
-      radial-gradient(circle at 20% 0%, #716df4 0%, transparent 45%),
-      radial-gradient(circle at 100% 100%, #4b3ecf 0%, transparent 40%),
-      linear-gradient(180deg, var(--bg-surface-dark) 0%, #141c2f 100%);
+      radial-gradient(circle at 18% 0%, #2f72ff 0%, transparent 46%),
+      radial-gradient(circle at 95% 100%, #0b7fcf 0%, transparent 42%),
+      linear-gradient(180deg, var(--bg-surface-dark) 0%, #141f34 100%);
   }
 
   .tap-highlight-none {

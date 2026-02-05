@@ -8,9 +8,9 @@ type StatCardProps = {
 };
 
 const TONE_CLASS: Record<StatCardProps["tone"], string> = {
-  success: "bg-emerald-100/30 text-emerald-50 border-white/20",
-  danger: "bg-rose-100/30 text-rose-50 border-white/20",
-  primary: "bg-indigo-100/30 text-indigo-50 border-white/20",
+  success: "border-white/20 bg-emerald-400/16 text-emerald-50",
+  danger: "border-white/20 bg-rose-400/16 text-rose-50",
+  primary: "border-white/20 bg-sky-400/18 text-sky-50",
 };
 
 export function StatCard({ title, value, icon: Icon, tone }: StatCardProps) {

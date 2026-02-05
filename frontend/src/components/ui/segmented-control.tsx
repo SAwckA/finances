@@ -30,7 +30,7 @@ export function SegmentedControl<T extends string>({
             className={`rounded-xl px-2.5 py-2 text-sm font-semibold transition ${
               active
                 ? "bg-[var(--accent-primary)] text-white"
-                : "bg-transparent text-slate-600 hover:bg-slate-100"
+                : "bg-transparent text-[var(--text-secondary)] hover:bg-slate-100/85"
             }`}
             onClick={() => onChange(option.key)}
           >
