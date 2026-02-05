@@ -21,6 +21,7 @@ import { SourceCard } from "@/components/ui/source-card";
 import { TransactionRow } from "@/components/ui/transaction-row";
 import { useAuth } from "@/features/auth/auth-context";
 import { ApiError } from "@/lib/api-client";
+import { getIconOption } from "@/lib/icon-catalog";
 import type {
   AccountBalanceResponse,
   AccountResponse,
@@ -780,28 +781,64 @@ export default function DashboardPage() {
                         );
                       })()}
                     </div>
-                    <select
-                      className="mt-1 block w-full px-3 py-2 text-sm"
-                      value={editForm.accountId}
-                      onChange={(event) =>
-                        setEditForm((prev) =>
-                          prev
-                            ? {
-                                ...prev,
-                                accountId: event.target.value,
-                              }
-                            : prev,
-                        )
-                      }
-                    >
-                      <option value="">Select account</option>
-                      {accounts.map((account) => (
-                        <option key={account.id} value={account.id}>
-                          {account.name}
-                          {account.short_identifier ? ` · ${account.short_identifier}` : ""}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      {accounts.map((account) => {
+                        const selected = String(account.id) === editForm.accountId;
+                        const Icon = getIconOption(account.icon).icon;
+                        const badge = shortAccountBadge(account);
+                        return (
+                          <button
+                            key={account.id}
+                            type="button"
+                            className={`flex items-center gap-2 rounded-2xl border px-3 py-2.5 text-left transition ${
+                              selected
+                                ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/10"
+                                : "border-[color:var(--border-soft)] bg-[var(--bg-card)]"
+                            }`}
+                            onClick={() =>
+                              setEditForm((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      accountId: String(account.id),
+                                    }
+                                  : prev,
+                              )
+                            }
+                          >
+                            <span
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-xl"
+                              style={{
+                                backgroundColor: `${account.color}22`,
+                                color: account.color,
+                              }}
+                            >
+                              <Icon className="h-4.5 w-4.5" />
+                            </span>
+                            <div className="min-w-0">
+                              {badge ? (
+                                <span className="badge" style={badgeStyle(account.color)}>
+                                  {badge}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-[var(--text-secondary)]">No ID</span>
+                              )}
+                              <span className="mt-1 block text-xs text-[var(--text-secondary)]">
+                                {(() => {
+                                  const balance = accountBalances.find(
+                                    (item) => item.account_id === account.id,
+                                  );
+                                  if (!balance) {
+                                    return "Balance unknown";
+                                  }
+                                  return formatAmount(balance.balance, balance.currency_code);
+                                })()}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </label>
 
                   <label className="block text-sm text-[var(--text-secondary)]">
@@ -828,27 +865,71 @@ export default function DashboardPage() {
                   {editingTransaction.type !== "transfer" ? (
                     <label className="block text-sm text-[var(--text-secondary)]">
                       Category
-                      <select
-                        className="mt-1 block w-full px-3 py-2 text-sm"
-                        value={editForm.categoryId}
-                        onChange={(event) =>
-                          setEditForm((prev) =>
-                            prev
-                              ? {
-                                  ...prev,
-                                  categoryId: event.target.value,
-                                }
-                              : prev,
-                          )
-                        }
-                      >
-                        <option value="">Without category</option>
-                        {editingCategories.map((category) => (
-                          <option key={category.id} value={category.id}>
-                            {category.name}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          className={`flex items-center gap-2 rounded-2xl border px-3 py-2.5 text-left transition ${
+                            editForm.categoryId === ""
+                              ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/10"
+                              : "border-[color:var(--border-soft)] bg-[var(--bg-card)]"
+                          }`}
+                          onClick={() =>
+                            setEditForm((prev) =>
+                              prev
+                                ? {
+                                    ...prev,
+                                    categoryId: "",
+                                  }
+                                : prev,
+                            )
+                          }
+                        >
+                          <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+                            <span className="text-xs font-semibold">—</span>
+                          </span>
+                          <span className="text-sm font-semibold text-[var(--text-primary)]">
+                            Without category
+                          </span>
+                        </button>
+                        {editingCategories.map((category) => {
+                          const selected = String(category.id) === editForm.categoryId;
+                          const Icon = getIconOption(category.icon).icon;
+                          return (
+                            <button
+                              key={category.id}
+                              type="button"
+                              className={`flex items-center gap-2 rounded-2xl border px-3 py-2.5 text-left transition ${
+                                selected
+                                  ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/10"
+                                  : "border-[color:var(--border-soft)] bg-[var(--bg-card)]"
+                              }`}
+                              onClick={() =>
+                                setEditForm((prev) =>
+                                  prev
+                                    ? {
+                                        ...prev,
+                                        categoryId: String(category.id),
+                                      }
+                                    : prev,
+                                )
+                              }
+                            >
+                              <span
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-xl"
+                                style={{
+                                  backgroundColor: `${category.color}22`,
+                                  color: category.color,
+                                }}
+                              >
+                                <Icon className="h-4.5 w-4.5" />
+                              </span>
+                              <span className="text-sm font-semibold text-[var(--text-primary)]">
+                                {category.name}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </label>
                   ) : null}
 
