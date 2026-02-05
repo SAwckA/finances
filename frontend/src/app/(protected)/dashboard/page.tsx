@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowRightLeft, Plus, Send, WalletCards } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowRightLeft, ChevronLeft, Plus, Save, Send, WalletCards } from "lucide-react";
 import { ErrorState, LoadingState } from "@/components/async-state";
 import { ActionTile } from "@/components/ui/action-tile";
 import { BalanceHeroCard } from "@/components/ui/balance-hero-card";
@@ -20,23 +20,23 @@ import type {
   PeriodStatisticsResponse,
   TotalBalanceResponse,
   TransactionResponse,
+  TransactionUpdate,
 } from "@/lib/types";
 
 type PeriodPreset = "7d" | "30d" | "month";
 
+type EditTransactionForm = {
+  amount: string;
+  description: string;
+  transactionDate: string;
+  categoryId: string;
+};
+
+const FEED_PAGE_SIZE = 20;
+
 function toDateInputValue(date: Date): string {
   const offset = date.getTimezoneOffset() * 60_000;
   return new Date(date.getTime() - offset).toISOString().slice(0, 10);
-}
-
-function getDefaultRange(): { start: string; end: string } {
-  const end = new Date();
-  const start = new Date();
-  start.setDate(end.getDate() - 29);
-  return {
-    start: toDateInputValue(start),
-    end: toDateInputValue(end),
-  };
 }
 
 function getPresetRange(preset: PeriodPreset): { start: string; end: string } {
@@ -54,12 +54,26 @@ function getPresetRange(preset: PeriodPreset): { start: string; end: string } {
     return { start: toDateInputValue(monthStart), end };
   }
 
-  return getDefaultRange();
+  const startDate = new Date(now);
+  startDate.setDate(now.getDate() - 29);
+  return { start: toDateInputValue(startDate), end };
 }
 
 function toApiDate(date: string, endOfDay: boolean): string {
   const time = endOfDay ? "23:59:59" : "00:00:00";
   return new Date(`${date}T${time}`).toISOString();
+}
+
+function toLocalDateTimeValue(isoValue: string): string {
+  const date = new Date(isoValue);
+  if (Number.isNaN(date.getTime())) {
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60_000;
+    return new Date(now.getTime() - offset).toISOString().slice(0, 16);
+  }
+
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
 function formatAmount(value: string, currencyCode: string): string {
@@ -119,67 +133,101 @@ function sortByNewest(items: TransactionResponse[]): TransactionResponse[] {
   );
 }
 
+function shortAccountLabel(account: AccountResponse | undefined): string {
+  if (!account) {
+    return "Unknown account";
+  }
+
+  return account.short_identifier ? `***${account.short_identifier}` : account.name;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const { authenticatedRequest } = useAuth();
-  const initialRange = useMemo(() => getDefaultRange(), []);
   const [selectedCurrency, setSelectedCurrency] = useState("USD");
   const [preset, setPreset] = useState<PeriodPreset>("30d");
-  const [startDate, setStartDate] = useState(initialRange.start);
-  const [endDate, setEndDate] = useState(initialRange.end);
   const [currencies, setCurrencies] = useState<CurrencyResponse[]>([]);
   const [totalBalance, setTotalBalance] = useState<TotalBalanceResponse | null>(null);
   const [accountBalances, setAccountBalances] = useState<AccountBalanceResponse[]>([]);
   const [summary, setSummary] = useState<PeriodStatisticsResponse | null>(null);
   const [accounts, setAccounts] = useState<AccountResponse[]>([]);
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
-  const [recentTransactions, setRecentTransactions] = useState<TransactionResponse[]>([]);
+  const [transactions, setTransactions] = useState<TransactionResponse[]>([]);
+  const [hasMoreTransactions, setHasMoreTransactions] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isTransactionsLoading, setIsTransactionsLoading] = useState(true);
+  const [isLoadingMoreTransactions, setIsLoadingMoreTransactions] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const loadDashboard = useCallback(async () => {
-    if (!startDate || !endDate) {
-      return;
+  const [editingTransactionId, setEditingTransactionId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<EditTransactionForm | null>(null);
+  const [editErrorMessage, setEditErrorMessage] = useState<string | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const transactionOffsetRef = useRef(0);
+  const range = useMemo(() => getPresetRange(preset), [preset]);
+
+  const accountById = useMemo(() => new Map(accounts.map((account) => [account.id, account])), [accounts]);
+  const categoryById = useMemo(
+    () => new Map(categories.map((category) => [category.id, category])),
+    [categories],
+  );
+  const currencyById = useMemo(
+    () => new Map(currencies.map((currency) => [currency.id, currency])),
+    [currencies],
+  );
+
+  const editingTransaction = useMemo(() => {
+    if (!editingTransactionId) {
+      return null;
     }
 
+    return transactions.find((item) => item.id === editingTransactionId) ?? null;
+  }, [editingTransactionId, transactions]);
+
+  const editingCategories = useMemo(() => {
+    if (!editingTransaction || editingTransaction.type === "transfer") {
+      return [];
+    }
+
+    return categories.filter((category) => category.type === editingTransaction.type);
+  }, [categories, editingTransaction]);
+
+  const loadDashboardData = useCallback(async () => {
     setErrorMessage(null);
     setIsRefreshing(true);
 
     try {
       const query = new URLSearchParams({
-        start_date: toApiDate(startDate, false),
-        end_date: toApiDate(endDate, true),
+        start_date: toApiDate(range.start, false),
+        end_date: toApiDate(range.end, true),
       });
 
-      const [
-        totalData,
-        balancesData,
-        summaryData,
-        transactionsData,
-        accountsData,
-        categoriesData,
-        currenciesData,
-      ] = await Promise.all([
-        authenticatedRequest<TotalBalanceResponse>(
-          `/api/statistics/total?currency=${encodeURIComponent(selectedCurrency)}`,
-        ),
-        authenticatedRequest<AccountBalanceResponse[]>("/api/statistics/balance"),
-        authenticatedRequest<PeriodStatisticsResponse>(`/api/statistics/summary?${query.toString()}`),
-        authenticatedRequest<TransactionResponse[]>("/api/transactions?skip=0&limit=20"),
-        authenticatedRequest<AccountResponse[]>("/api/accounts?skip=0&limit=300"),
-        authenticatedRequest<CategoryResponse[]>("/api/categories?skip=0&limit=300"),
-        authenticatedRequest<CurrencyResponse[]>("/api/currencies?skip=0&limit=300"),
-      ]);
+      const [totalData, balancesData, summaryData, accountsData, categoriesData, currenciesData] =
+        await Promise.all([
+          authenticatedRequest<TotalBalanceResponse>(
+            `/api/statistics/total?currency=${encodeURIComponent(selectedCurrency)}`,
+          ),
+          authenticatedRequest<AccountBalanceResponse[]>("/api/statistics/balance"),
+          authenticatedRequest<PeriodStatisticsResponse>(`/api/statistics/summary?${query.toString()}`),
+          authenticatedRequest<AccountResponse[]>("/api/accounts?skip=0&limit=300"),
+          authenticatedRequest<CategoryResponse[]>("/api/categories?skip=0&limit=300"),
+          authenticatedRequest<CurrencyResponse[]>("/api/currencies?skip=0&limit=300"),
+        ]);
 
       setTotalBalance(totalData);
       setAccountBalances(balancesData);
       setSummary(summaryData);
-      setRecentTransactions(sortByNewest(transactionsData).slice(0, 5));
       setAccounts(accountsData);
       setCategories(categoriesData);
       setCurrencies(currenciesData);
-      if (currenciesData.length && !currenciesData.some((currency) => currency.code === selectedCurrency)) {
+
+      if (
+        currenciesData.length > 0 &&
+        !currenciesData.some((currency) => currency.code === selectedCurrency)
+      ) {
         setSelectedCurrency(currenciesData[0].code);
       }
     } catch (error) {
@@ -188,107 +236,187 @@ export default function DashboardPage() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [authenticatedRequest, endDate, selectedCurrency, startDate]);
+  }, [authenticatedRequest, range.end, range.start, selectedCurrency]);
 
-  useEffect(() => {
-    void loadDashboard();
-  }, [loadDashboard]);
+  const loadTransactionsPage = useCallback(
+    async (reset: boolean) => {
+      if (reset) {
+        setIsTransactionsLoading(true);
+      } else {
+        setIsLoadingMoreTransactions(true);
+      }
 
-  const accountById = useMemo(() => new Map(accounts.map((account) => [account.id, account])), [accounts]);
-  const categoryById = useMemo(
-    () => new Map(categories.map((category) => [category.id, category])),
-    [categories],
+      try {
+        const nextOffset = reset ? 0 : transactionOffsetRef.current;
+        const response = await authenticatedRequest<TransactionResponse[]>(
+          `/api/transactions?skip=${nextOffset}&limit=${FEED_PAGE_SIZE}`,
+        );
+
+        const ordered = sortByNewest(response);
+        setTransactions((prev) => {
+          if (reset) {
+            return ordered;
+          }
+
+          const seenIds = new Set(prev.map((item) => item.id));
+          const appended = ordered.filter((item) => !seenIds.has(item.id));
+          return [...prev, ...appended];
+        });
+
+        transactionOffsetRef.current = nextOffset + ordered.length;
+        setHasMoreTransactions(ordered.length === FEED_PAGE_SIZE);
+      } catch (error) {
+        setErrorMessage(getErrorMessage(error));
+      } finally {
+        setIsTransactionsLoading(false);
+        setIsLoadingMoreTransactions(false);
+      }
+    },
+    [authenticatedRequest],
   );
 
-  const applyPreset = (nextPreset: PeriodPreset) => {
-    setPreset(nextPreset);
-    const range = getPresetRange(nextPreset);
-    setStartDate(range.start);
-    setEndDate(range.end);
+  useEffect(() => {
+    void loadDashboardData();
+  }, [loadDashboardData]);
+
+  useEffect(() => {
+    transactionOffsetRef.current = 0;
+    void loadTransactionsPage(true);
+  }, [loadTransactionsPage, preset]);
+
+  useEffect(() => {
+    if (!hasMoreTransactions || isTransactionsLoading || isLoadingMoreTransactions) {
+      return;
+    }
+
+    const node = loadMoreRef.current;
+    if (!node) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting) {
+          return;
+        }
+
+        void loadTransactionsPage(false);
+      },
+      { rootMargin: "220px" },
+    );
+
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasMoreTransactions, isLoadingMoreTransactions, isTransactionsLoading, loadTransactionsPage]);
+
+  const openEditor = (transaction: TransactionResponse) => {
+    setEditingTransactionId(transaction.id);
+    setEditErrorMessage(null);
+    setEditForm({
+      amount: transaction.amount,
+      description: transaction.description ?? "",
+      transactionDate: toLocalDateTimeValue(transaction.transaction_date),
+      categoryId: transaction.category_id ? String(transaction.category_id) : "",
+    });
+  };
+
+  const closeEditor = () => {
+    setEditingTransactionId(null);
+    setEditForm(null);
+    setEditErrorMessage(null);
+  };
+
+  const saveEditedTransaction = async () => {
+    if (!editingTransaction || !editForm) {
+      return;
+    }
+
+    if (!editForm.amount || Number(editForm.amount) <= 0) {
+      setEditErrorMessage("Укажите корректную сумму.");
+      return;
+    }
+
+    setIsSavingEdit(true);
+    setEditErrorMessage(null);
+
+    try {
+      const payload: TransactionUpdate = {
+        amount: Number(editForm.amount),
+        description: editForm.description.trim() || null,
+        transaction_date: new Date(editForm.transactionDate).toISOString(),
+        category_id:
+          editingTransaction.type === "transfer"
+            ? null
+            : editForm.categoryId
+              ? Number(editForm.categoryId)
+              : null,
+      };
+
+      await authenticatedRequest(`/api/transactions/${editingTransaction.id}`, {
+        method: "PATCH",
+        body: payload,
+      });
+
+      closeEditor();
+      await Promise.all([loadDashboardData(), loadTransactionsPage(true)]);
+    } catch (error) {
+      setEditErrorMessage(getErrorMessage(error));
+    } finally {
+      setIsSavingEdit(false);
+    }
   };
 
   return (
     <section className="space-y-3 pb-1">
-      <SegmentedControl
-        options={[
-          { key: "7d", label: "7D" },
-          { key: "30d", label: "30D" },
-          { key: "month", label: "Month" },
-        ]}
-        value={preset}
-        onChange={applyPreset}
-      />
+      <section className="mobile-card grid grid-cols-1 gap-3 p-3">
+        <BalanceHeroCard
+          totalBalance={
+            totalBalance
+              ? formatAmount(totalBalance.total_balance, totalBalance.currency_code)
+              : "$0.00"
+          }
+          income={summary ? formatAmount(summary.total_income, selectedCurrency) : "$0.00"}
+          expenses={summary ? formatAmount(summary.total_expense, selectedCurrency) : "$0.00"}
+        />
 
-      <section className="mobile-card grid grid-cols-2 gap-2.5 p-3">
-        <label className="text-xs font-semibold text-slate-600">
-          From
-          <input
-            className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-2.5 py-2 text-sm"
-            type="date"
-            value={startDate}
-            onChange={(event) => {
-              setPreset("30d");
-              setStartDate(event.target.value);
-            }}
-          />
-        </label>
-        <label className="text-xs font-semibold text-slate-600">
-          To
-          <input
-            className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-2.5 py-2 text-sm"
-            type="date"
-            value={endDate}
-            onChange={(event) => {
-              setPreset("30d");
-              setEndDate(event.target.value);
-            }}
-          />
-        </label>
+        <div className="grid grid-cols-[1fr_auto] items-end gap-2">
+          <label className="text-xs font-semibold text-[var(--text-secondary)]">
+            Currency
+            <select
+              className="mt-1 block w-full px-2.5 py-2 text-sm"
+              value={selectedCurrency}
+              onChange={(event) => setSelectedCurrency(event.target.value)}
+            >
+              {currencies.map((currency) => (
+                <option key={currency.id} value={currency.code}>
+                  {currency.code} ({currency.symbol})
+                </option>
+              ))}
+            </select>
+          </label>
 
-        <label className="col-span-2 text-xs font-semibold text-slate-600">
-          Currency
-          <select
-            className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-2.5 py-2 text-sm"
-            value={selectedCurrency}
-            onChange={(event) => setSelectedCurrency(event.target.value)}
+          <button
+            type="button"
+            className="rounded-xl bg-[var(--accent-primary)] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[var(--accent-primary-strong)]"
+            onClick={() => void loadDashboardData()}
+            disabled={isRefreshing}
           >
-            {currencies.map((currency) => (
-              <option key={currency.id} value={currency.code}>
-                {currency.code} ({currency.symbol})
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <button
-          type="button"
-          className="col-span-2 rounded-xl bg-[var(--accent-primary)] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[var(--accent-primary-strong)]"
-          onClick={() => void loadDashboard()}
-          disabled={isRefreshing}
-        >
-          {isRefreshing ? "Refreshing..." : "Refresh data"}
-        </button>
+            {isRefreshing ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
       </section>
 
       {errorMessage ? <ErrorState message={errorMessage} /> : null}
       {isLoading ? <LoadingState message="Загружаем dashboard..." /> : null}
 
       {!isLoading ? (
-        <section className="space-y-3 rounded-[24px] bg-[#172338] p-3">
-          <BalanceHeroCard
-            totalBalance={
-              totalBalance
-                ? formatAmount(totalBalance.total_balance, totalBalance.currency_code)
-                : "$0.00"
-            }
-            income={summary ? formatAmount(summary.total_income, selectedCurrency) : "$0.00"}
-            expenses={summary ? formatAmount(summary.total_expense, selectedCurrency) : "$0.00"}
-          />
-
+        <section className="space-y-3">
           <section>
             <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-white/95">Payment Sources</h2>
-              <Link href="/accounts" className="text-xs font-semibold text-indigo-300">
+              <h2 className="text-lg font-bold text-[var(--text-primary)]">Payment Sources</h2>
+              <Link href="/accounts" className="text-xs font-semibold text-[var(--accent-primary)]">
                 View All
               </Link>
             </div>
@@ -314,62 +442,220 @@ export default function DashboardPage() {
             <ActionTile
               label="Add"
               icon={Plus}
-              iconClassName="bg-emerald-500/20 text-emerald-300"
+              iconClassName="bg-emerald-500/15 text-emerald-600"
               onClick={() => router.push("/transactions?create=1")}
             />
             <ActionTile
               label="Send"
               icon={Send}
-              iconClassName="bg-rose-500/20 text-rose-300"
+              iconClassName="bg-rose-500/15 text-rose-600"
               onClick={() => router.push("/transactions?create=1")}
             />
             <ActionTile
               label="Transfer"
               icon={ArrowRightLeft}
-              iconClassName="bg-indigo-500/20 text-indigo-300"
+              iconClassName="bg-sky-500/15 text-sky-600"
               onClick={() => router.push("/transactions?create=1")}
             />
             <ActionTile
               label="Budget"
               icon={WalletCards}
-              iconClassName="bg-orange-500/20 text-orange-300"
+              iconClassName="bg-amber-500/15 text-amber-600"
               onClick={() => router.push("/analytics")}
             />
           </section>
 
           <section>
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-white/95">Recent Transactions</h2>
-              <Link href="/transactions" className="text-xs font-semibold text-indigo-300">
-                See All
-              </Link>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h2 className="text-lg font-bold text-[var(--text-primary)]">Recent Transactions</h2>
+              <div className="w-[180px]">
+                <SegmentedControl
+                  options={[
+                    { key: "7d", label: "7D" },
+                    { key: "30d", label: "30D" },
+                    { key: "month", label: "Month" },
+                  ]}
+                  value={preset}
+                  onChange={setPreset}
+                />
+              </div>
             </div>
+
             <div className="space-y-2">
-              {recentTransactions.length ? (
-                recentTransactions.map((transaction) => {
-                  const account = accountById.get(transaction.account_id);
-                  const category = transaction.category_id
-                    ? categoryById.get(transaction.category_id)
-                    : null;
-                  return (
+              {isTransactionsLoading ? <LoadingState message="Загружаем операции..." /> : null}
+
+              {!isTransactionsLoading && transactions.length === 0 ? (
+                <p className="rounded-2xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-3 text-sm text-[var(--text-secondary)]">
+                  No transactions yet.
+                </p>
+              ) : null}
+
+              {transactions.map((transaction) => {
+                const account = accountById.get(transaction.account_id);
+                const targetAccount = transaction.target_account_id
+                  ? accountById.get(transaction.target_account_id)
+                  : undefined;
+                const category = transaction.category_id
+                  ? categoryById.get(transaction.category_id)
+                  : null;
+                const accountCurrency = account
+                  ? currencyById.get(account.currency_id)?.code ?? selectedCurrency
+                  : selectedCurrency;
+                const subtitle =
+                  transaction.type === "transfer"
+                    ? `${shortAccountLabel(account)} -> ${shortAccountLabel(targetAccount)}`
+                    : shortAccountLabel(account);
+
+                return (
+                  <button
+                    key={transaction.id}
+                    type="button"
+                    className="block w-full text-left"
+                    onClick={() => openEditor(transaction)}
+                  >
                     <TransactionRow
-                      key={transaction.id}
                       name={category?.name ?? account?.name ?? "Transaction"}
-                      subtitle={`${transaction.type} • ${account?.name ?? "Unknown source"}`}
-                      amount={formatAmount(transaction.amount, selectedCurrency)}
+                      subtitle={subtitle}
+                      amount={formatAmount(transaction.amount, accountCurrency)}
                       dateLabel={formatDateLabel(transaction.transaction_date)}
                       type={transaction.type}
                       categoryIcon={category?.icon ?? null}
                     />
-                  );
-                })
-              ) : (
-                <p className="rounded-2xl border border-white/10 bg-[#1f2a40] px-3 py-3 text-sm text-white/70">
-                  No transactions yet.
-                </p>
-              )}
+                  </button>
+                );
+              })}
+
+              {isLoadingMoreTransactions ? (
+                <LoadingState message="Загружаем еще операции..." />
+              ) : null}
+
+              <div ref={loadMoreRef} className="h-1" />
             </div>
           </section>
+        </section>
+      ) : null}
+
+      {editingTransaction && editForm ? (
+        <section className="fixed inset-0 z-50 bg-[var(--bg-app)]">
+          <div className="mx-auto flex h-full w-full max-w-[430px] flex-col">
+            <header className="sticky top-0 z-10 border-b border-[color:var(--border-soft)] bg-[color:color-mix(in_srgb,var(--bg-app)_85%,transparent)] px-3 py-2.5 backdrop-blur">
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={closeEditor}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] text-[var(--text-secondary)]"
+                  aria-label="Back"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <h2 className="text-base font-bold text-[var(--text-primary)]">Edit Transaction</h2>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 rounded-xl bg-[var(--accent-primary)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-70"
+                  onClick={() => void saveEditedTransaction()}
+                  disabled={isSavingEdit}
+                >
+                  <Save className="h-4 w-4" />
+                  {isSavingEdit ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </header>
+
+            <div className="flex-1 overflow-y-auto px-3 py-3">
+              <section className="mobile-card space-y-3 p-3">
+                <p className="text-xs font-semibold text-[var(--text-secondary)]">
+                  Account: {shortAccountLabel(accountById.get(editingTransaction.account_id))}
+                </p>
+
+                <label className="block text-sm text-[var(--text-secondary)]">
+                  Amount
+                  <input
+                    className="mt-1 block w-full px-3 py-2 text-sm"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={editForm.amount}
+                    onChange={(event) =>
+                      setEditForm((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              amount: event.target.value,
+                            }
+                          : prev,
+                      )
+                    }
+                  />
+                </label>
+
+                {editingTransaction.type !== "transfer" ? (
+                  <label className="block text-sm text-[var(--text-secondary)]">
+                    Category
+                    <select
+                      className="mt-1 block w-full px-3 py-2 text-sm"
+                      value={editForm.categoryId}
+                      onChange={(event) =>
+                        setEditForm((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                categoryId: event.target.value,
+                              }
+                            : prev,
+                        )
+                      }
+                    >
+                      <option value="">Without category</option>
+                      {editingCategories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+
+                <label className="block text-sm text-[var(--text-secondary)]">
+                  Description
+                  <input
+                    className="mt-1 block w-full px-3 py-2 text-sm"
+                    value={editForm.description}
+                    onChange={(event) =>
+                      setEditForm((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              description: event.target.value,
+                            }
+                          : prev,
+                      )
+                    }
+                  />
+                </label>
+
+                <label className="block text-sm text-[var(--text-secondary)]">
+                  Date and time
+                  <input
+                    className="mt-1 block w-full px-3 py-2 text-sm"
+                    type="datetime-local"
+                    value={editForm.transactionDate}
+                    onChange={(event) =>
+                      setEditForm((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              transactionDate: event.target.value,
+                            }
+                          : prev,
+                      )
+                    }
+                  />
+                </label>
+
+                {editErrorMessage ? <ErrorState message={editErrorMessage} /> : null}
+              </section>
+            </div>
+          </div>
         </section>
       ) : null}
     </section>
