@@ -15,7 +15,7 @@ import {
 } from "@heroui/react";
 import { Check, Plus, Trash2 } from "lucide-react";
 import { EmptyState, ErrorState, LoadingState } from "@/components/async-state";
-import { ScreenHeader } from "@/components/screen-header";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { useAuth } from "@/features/auth/auth-context";
 import { ApiError } from "@/lib/api-client";
 import type {
@@ -337,48 +337,32 @@ export default function ShoppingListsPage() {
   };
 
   return (
-    <>
-      <ScreenHeader
-        title="Списки покупок"
-        description="Черновики, подтверждение и завершение списка с автоматической фиксацией транзакции."
-      />
-
-      <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap gap-2">
-            {(["all", "draft", "confirmed", "completed"] as StatusFilter[]).map((status) => {
-              const active = filter === status;
-              const label =
-                status === "all"
-                  ? "Все"
-                  : status === "draft"
-                    ? "Черновики"
-                    : status === "confirmed"
-                      ? "Подтвержденные"
-                      : "Завершенные";
-              return (
-                <Button
-                  key={status}
-                  size="sm"
-                  variant={active ? "solid" : "flat"}
-                  color={active ? "primary" : "default"}
-                  onPress={() => setFilter(status)}
-                >
-                  {label}
-                </Button>
-              );
-            })}
-          </div>
+    <section className="space-y-3">
+      <section className="mobile-card p-3">
+        <h1 className="section-title text-[1.35rem]">Shopping Lists</h1>
+        <p className="section-caption">Draft, confirm, complete and post spending automatically.</p>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex gap-2">
             <Button size="sm" variant="flat" isLoading={isRefreshing} onPress={() => void loadData()}>
-              Обновить
+              Refresh
             </Button>
             <Button color="primary" size="sm" startContent={<Plus className="h-4 w-4" />} onPress={openCreateModal}>
-              Новый список
+              New list
             </Button>
           </div>
         </div>
       </section>
+
+      <SegmentedControl
+        options={[
+          { key: "all", label: "All" },
+          { key: "draft", label: "Draft" },
+          { key: "confirmed", label: "Confirmed" },
+          { key: "completed", label: "Completed" },
+        ]}
+        value={filter}
+        onChange={setFilter}
+      />
 
       {errorMessage ? <ErrorState className="mb-3" message={errorMessage} /> : null}
 
@@ -622,6 +606,6 @@ export default function ShoppingListsPage() {
           </form>
         </ModalContent>
       </Modal>
-    </>
+    </section>
   );
 }

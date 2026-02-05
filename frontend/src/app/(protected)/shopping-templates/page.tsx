@@ -11,13 +11,12 @@ import {
   ModalContent,
   ModalFooter,
   ModalHeader,
-  Spinner,
   useDisclosure,
 } from "@heroui/react";
 import { CopyPlus, Plus, Trash2 } from "lucide-react";
+import { EmptyState, ErrorState, LoadingState } from "@/components/async-state";
 import { ColorPickerField } from "@/components/color-picker-field";
 import { IconPickerField } from "@/components/icon-picker-field";
-import { ScreenHeader } from "@/components/screen-header";
 import { useAuth } from "@/features/auth/auth-context";
 import { ApiError } from "@/lib/api-client";
 import { getIconOption } from "@/lib/icon-catalog";
@@ -362,44 +361,25 @@ export default function ShoppingTemplatesPage() {
   };
 
   return (
-    <>
-      <ScreenHeader
-        title="Шаблоны покупок"
-        description="Типовые наборы товаров, из которых можно создать список в одно действие."
-      />
-
-      <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-4">
+    <section className="space-y-3">
+      <section className="mobile-card p-3">
+        <h1 className="section-title text-[1.35rem]">Shopping Templates</h1>
+        <p className="section-caption">Reusable packs of goods to create lists in one click.</p>
         <div className="flex items-center justify-between gap-2">
           <Button size="sm" variant="flat" isLoading={isRefreshing} onPress={() => void loadData()}>
-            Обновить
+            Refresh
           </Button>
           <Button color="primary" size="sm" startContent={<Plus className="h-4 w-4" />} onPress={openCreateTemplateModal}>
-            Новый шаблон
+            New template
           </Button>
         </div>
       </section>
 
-      {errorMessage ? (
-        <div className="mb-3 rounded-xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger">
-          {errorMessage}
-        </div>
-      ) : null}
+      {errorMessage ? <ErrorState message={errorMessage} /> : null}
 
       <section>
-        {isLoading ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <div className="flex items-center gap-2">
-              <Spinner size="sm" />
-              <p className="text-sm text-slate-700">Загружаем шаблоны...</p>
-            </div>
-          </div>
-        ) : null}
-
-        {!isLoading && templates.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-600">
-            Шаблонов пока нет.
-          </div>
-        ) : null}
+        {isLoading ? <LoadingState message="Загружаем шаблоны..." /> : null}
+        {!isLoading && templates.length === 0 ? <EmptyState message="Шаблонов пока нет." /> : null}
 
         {!isLoading && templates.length > 0 ? (
           <Accordion variant="bordered" isCompact>
@@ -674,6 +654,6 @@ export default function ShoppingTemplatesPage() {
           </form>
         </ModalContent>
       </Modal>
-    </>
+    </section>
   );
 }

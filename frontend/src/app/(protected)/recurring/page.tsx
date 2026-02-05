@@ -24,8 +24,8 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import { ScreenHeader } from "@/components/screen-header";
 import { EmptyState, ErrorState, LoadingState } from "@/components/async-state";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { useAuth } from "@/features/auth/auth-context";
 import { ApiError } from "@/lib/api-client";
 import { getIconOption } from "@/lib/icon-catalog";
@@ -417,47 +417,30 @@ export default function RecurringPage() {
   };
 
   return (
-    <>
-      <ScreenHeader
-        title="Повторяемые операции"
-        description="Настройка регулярных доходов/расходов, pending к исполнению и ручной execute."
-      />
-
-      <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-4">
-        <div className="flex items-center justify-between gap-2">
+    <section className="space-y-3">
+      <section className="mobile-card p-3">
+        <h1 className="section-title text-[1.35rem]">Recurring Transactions</h1>
+        <p className="section-caption">Automate repeating income and expenses with one control panel.</p>
+        <div className="mt-3 flex items-center justify-between gap-2">
           <Button color="primary" onPress={openCreateModal}>
-            Добавить регулярную
+            New recurring
           </Button>
           <Button variant="flat" onPress={() => void refreshData(view)}>
-            Обновить
+            Refresh
           </Button>
         </div>
-
-        <div className="mt-3 flex flex-wrap gap-2">
-          {(["all", "active", "inactive", "pending"] as RecurringView[]).map((item) => {
-            const active = view === item;
-            const label =
-              item === "all"
-                ? "Все"
-                : item === "active"
-                  ? "Активные"
-                  : item === "inactive"
-                    ? "Неактивные"
-                    : `К исполнению (${pendingItems.length})`;
-            return (
-              <Button
-                key={item}
-                size="sm"
-                variant={active ? "solid" : "flat"}
-                color={active ? "primary" : "default"}
-                onPress={() => setView(item)}
-              >
-                {label}
-              </Button>
-            );
-          })}
-        </div>
       </section>
+
+      <SegmentedControl
+        options={[
+          { key: "all", label: "All" },
+          { key: "active", label: "Active" },
+          { key: "inactive", label: "Paused" },
+          { key: "pending", label: `Pending (${pendingItems.length})` },
+        ]}
+        value={view}
+        onChange={setView}
+      />
 
       {errorMessage ? <ErrorState className="mb-3" message={errorMessage} /> : null}
 
@@ -483,7 +466,7 @@ export default function RecurringPage() {
               return (
                 <article
                   key={item.id}
-                  className={`rounded-2xl border p-3 ${
+                  className={`mobile-card p-3 ${
                     item.is_active ? "border-slate-200 bg-white" : "border-slate-200 bg-slate-50/70"
                   }`}
                 >
@@ -812,6 +795,6 @@ export default function RecurringPage() {
           </form>
         </ModalContent>
       </Modal>
-    </>
+    </section>
   );
 }

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Card, CardBody, CardHeader, Input } from "@heroui/react";
 import { ApiError } from "@/lib/api-client";
 import { useAuth } from "@/features/auth/auth-context";
 
@@ -41,41 +40,49 @@ export default function LoginPage() {
   };
 
   return (
-    <Card className="mt-10 border border-slate-200 shadow-none">
-      <CardHeader className="flex flex-col items-start pb-0">
-        <p className="text-xs uppercase tracking-[0.1em] text-slate-500">Finances</p>
-        <h1 className="text-xl font-semibold text-slate-900">Вход</h1>
-      </CardHeader>
-      <CardBody>
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <Input
+    <section className="mobile-card space-y-4 p-4">
+      <div>
+        <h2 className="text-xl font-bold text-slate-900">Sign In</h2>
+        <p className="text-sm text-slate-500">Use your account to continue.</p>
+      </div>
+      <form className="space-y-3" onSubmit={handleSubmit}>
+        <label className="block text-sm text-slate-700">
+          Email
+          <input
+            className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
             type="email"
-            label="Email"
-            isRequired
             value={email}
-            onValueChange={setEmail}
+            onChange={(event) => setEmail(event.target.value)}
             autoComplete="email"
+            required
           />
-          <Input
+        </label>
+        <label className="block text-sm text-slate-700">
+          Password
+          <input
+            className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
             type="password"
-            label="Пароль"
-            isRequired
             value={password}
-            onValueChange={setPassword}
+            onChange={(event) => setPassword(event.target.value)}
             autoComplete="current-password"
+            required
           />
-          {errorMessage ? <p className="text-sm text-danger">{errorMessage}</p> : null}
-          <Button className="w-full" color="primary" type="submit" isLoading={pending}>
-            Войти
-          </Button>
-        </form>
-        <p className="mt-4 text-center text-sm text-slate-600">
-          Нет аккаунта?{" "}
-          <Link href="/auth/register" className="font-medium text-slate-900">
-            Регистрация
-          </Link>
-        </p>
-      </CardBody>
-    </Card>
+        </label>
+        {errorMessage ? <p className="text-sm font-medium text-rose-700">{errorMessage}</p> : null}
+        <button
+          className="w-full rounded-xl bg-[var(--accent-primary)] px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-primary-strong)] disabled:cursor-not-allowed disabled:opacity-70"
+          type="submit"
+          disabled={pending}
+        >
+          {pending ? "Signing in..." : "Sign In"}
+        </button>
+      </form>
+      <p className="text-center text-sm text-slate-600">
+        No account yet?{" "}
+        <Link href="/auth/register" className="font-semibold text-slate-900">
+          Create one
+        </Link>
+      </p>
+    </section>
   );
 }
