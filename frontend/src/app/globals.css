@@ -21,6 +21,29 @@
   --radius-xl: 22px;
   --shadow-soft: 0 10px 28px rgba(20, 37, 63, 0.08);
   --shadow-strong: 0 20px 44px rgba(18, 33, 58, 0.2);
+  --input-bg: #ffffff;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg-app: #0a1220;
+  --bg-card: #111c30;
+  --bg-surface-dark: #0b1428;
+  --bg-surface-dark-soft: #15223b;
+  --text-primary: #e7eeff;
+  --text-secondary: #9caacc;
+  --text-on-dark: #f5f8ff;
+  --accent-primary: #4f8bff;
+  --accent-primary-strong: #3a76f3;
+  --accent-success: #31b782;
+  --accent-danger: #eb5d62;
+  --accent-warning: #f0a933;
+  --border-soft: #233252;
+  --ring-primary: rgba(79, 139, 255, 0.36);
+  --shadow-soft: 0 12px 30px rgba(5, 10, 20, 0.45);
+  --shadow-strong: 0 24px 48px rgba(4, 8, 18, 0.6);
+  --input-bg: #0f1a2e;
+  color-scheme: dark;
 }
 
 body {
@@ -41,7 +64,7 @@ body {
   textarea {
     border: 1px solid var(--border-soft);
     border-radius: 0.8rem;
-    background: #fff;
+    background: var(--input-bg);
     color: var(--text-primary);
     outline: none;
     transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
@@ -108,4 +131,37 @@ body {
   .tap-highlight-none {
     -webkit-tap-highlight-color: transparent;
   }
+}
+
+:root[data-theme="dark"] body {
+  background:
+    radial-gradient(circle at 20% -10%, rgba(79, 139, 255, 0.18) 0%, transparent 40%),
+    radial-gradient(circle at 110% 120%, rgba(14, 165, 233, 0.14) 0%, transparent 42%),
+    var(--bg-app);
+}
+
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea {
+  background: var(--input-bg) !important;
+  border-color: var(--border-soft) !important;
+  color: var(--text-primary) !important;
+}
+
+:root[data-theme="dark"] input::placeholder,
+:root[data-theme="dark"] textarea::placeholder {
+  color: var(--text-secondary) !important;
+}
+
+:root[data-theme="dark"] [data-slot="input-wrapper"] {
+  background: var(--input-bg) !important;
+  border-color: var(--border-soft) !important;
+}
+
+:root[data-theme="dark"] [data-slot="input"] {
+  color: var(--text-primary) !important;
+}
+
+:root[data-theme="dark"] [data-slot="label"] {
+  color: var(--text-secondary) !important;
 }

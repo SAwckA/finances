@@ -38,10 +38,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main className={isEditorScreen ? "" : "px-3 pb-4 pt-2.5"}>{children}</main>
 
       {!isEditorScreen ? (
-        <nav className="fixed bottom-0 left-0 right-0 z-40 mx-auto w-full max-w-[430px] border-t border-[color:var(--border-soft)] bg-white/92 px-3 pb-[calc(env(safe-area-inset-bottom)+0.45rem)] pt-2.5 backdrop-blur-xl">
+        <nav className="fixed bottom-0 left-0 right-0 z-40 mx-auto w-full max-w-[430px] border-t border-[color:var(--border-soft)] bg-[color:color-mix(in_srgb,var(--bg-card)_86%,transparent)] px-3 pb-[calc(env(safe-area-inset-bottom)+0.45rem)] pt-2.5 backdrop-blur-xl">
           <Link
             href="/transactions?create=1"
-            className={`tap-highlight-none absolute left-1/2 top-0 inline-flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl border-4 border-white shadow-lg transition ${
+            className={`tap-highlight-none absolute left-1/2 top-0 inline-flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl border-4 border-[color:var(--bg-card)] shadow-lg transition ${
               quickAddActive
                 ? "bg-[var(--accent-primary-strong)] text-white"
                 : "bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary-strong)]"
@@ -63,7 +63,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     className={`tap-highlight-none flex min-h-11 flex-col items-center justify-center rounded-xl px-1 text-center text-[11px] font-semibold transition ${
                       active
                         ? "bg-[var(--accent-primary)]/12 text-[var(--accent-primary)]"
-                        : "text-[var(--text-secondary)] hover:bg-slate-100/90"
+                        : "text-[var(--text-secondary)] hover:bg-[color:color-mix(in_srgb,var(--bg-card)_70%,#cbd5e1_30%)]"
                     }`}
                   >
                     <Icon className="mb-0.5 h-4 w-4" />

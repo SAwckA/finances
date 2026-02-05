@@ -4,7 +4,9 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Button, Input } from "@heroui/react";
 import { ErrorState, LoadingState } from "@/components/async-state";
 import { ScreenHeader } from "@/components/screen-header";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { useAuth } from "@/features/auth/auth-context";
+import { useThemePreference } from "@/features/theme/theme-context";
 import { ApiError } from "@/lib/api-client";
 import type { UserResponse, UserUpdate } from "@/lib/types";
 
@@ -27,6 +29,7 @@ function getErrorMessage(error: unknown): string {
 
 export default function ProfilePage() {
   const { user, refreshProfile, authenticatedRequest } = useAuth();
+  const { preference, resolvedTheme, setPreference } = useThemePreference();
   const [form, setForm] = useState<ProfileFormState>({
     email: user?.email ?? "",
     name: user?.name ?? "",
@@ -89,7 +92,23 @@ export default function ProfilePage() {
     <>
       <ScreenHeader title="Профиль" description="Управление данными текущего пользователя." />
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-4">
+      <section className="mobile-card p-4">
+        <div className="mb-4 space-y-2">
+          <h2 className="text-sm font-semibold text-[var(--text-primary)]">Тема приложения</h2>
+          <SegmentedControl
+            options={[
+              { key: "system", label: "Система" },
+              { key: "light", label: "Светлая" },
+              { key: "dark", label: "Темная" },
+            ]}
+            value={preference}
+            onChange={setPreference}
+          />
+          <p className="text-xs text-[var(--text-secondary)]">
+            Текущая тема: {resolvedTheme === "dark" ? "темная" : "светлая"}.
+          </p>
+        </div>
+
         {isLoading ? (
           <LoadingState
             className="rounded-none border-none bg-transparent p-0"
@@ -113,7 +132,7 @@ export default function ProfilePage() {
 
             {errorMessage ? (
               <ErrorState
-                className="rounded-lg border border-danger-200 bg-danger-50 px-2.5 py-2 text-sm text-danger"
+                className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-2 text-sm text-rose-700"
                 message={errorMessage}
               />
             ) : null}

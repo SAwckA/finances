@@ -13,7 +13,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru">
+    <html lang="ru" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var k="finances.theme.preference";var v=localStorage.getItem(k);var p=v==="light"||v==="dark"||v==="system"?v:"system";var s=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";var t=p==="system"?s:p;document.documentElement.dataset.theme=t;document.documentElement.classList.toggle("dark",t==="dark");}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-screen antialiased">
         <Providers>{children}</Providers>
       </body>
