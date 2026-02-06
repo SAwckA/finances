@@ -18,7 +18,7 @@ export function TransactionEditorHeader({
   formId,
 }: TransactionEditorHeaderProps) {
   return (
-    <header className="sticky top-0 z-10 border-b border-[color:var(--border-soft)] bg-[color:color-mix(in_srgb,var(--bg-card)_88%,transparent)] px-3 py-2.5 backdrop-blur">
+    <header className="sticky top-0 z-10 rounded-[var(--radius-lg)] border-b border-[color:var(--border-soft)] bg-[color:color-mix(in_srgb,var(--bg-card)_88%,transparent)] px-3 py-2.5 backdrop-blur">
       <div className="flex items-center justify-between gap-2">
         <button
           type="button"
