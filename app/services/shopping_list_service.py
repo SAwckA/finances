@@ -80,6 +80,18 @@ class ShoppingListIncompletePricesException(BusinessLogicException):
     message = "Необходимо указать цены для всех товаров"
 
 
+class ShoppingListItemsLockedException(BusinessLogicException):
+    """Товары можно менять только в режиме черновика."""
+
+    message = "Изменение товаров доступно только в режиме черновика"
+
+
+class ShoppingListPricesLockedException(BusinessLogicException):
+    """Цены можно менять только в подтвержденном списке."""
+
+    message = "Цены можно указывать только после подтверждения списка"
+
+
 # === SERVICE ===
 
 
@@ -171,6 +183,12 @@ class ShoppingListService(BaseService):
         if shopping_list.status == ShoppingListStatus.COMPLETED:
             raise ShoppingListAlreadyCompletedException()
 
+        if shopping_list.status != ShoppingListStatus.DRAFT:
+            raise ShoppingListItemsLockedException()
+
+        if data.price is not None:
+            raise ShoppingListPricesLockedException()
+
         item_data = data.model_dump()
         item_data["shopping_list_id"] = list_id
         item = await self.shopping_item_repository.create(item_data)
@@ -185,6 +203,14 @@ class ShoppingListService(BaseService):
 
         if shopping_list.status == ShoppingListStatus.COMPLETED:
             raise ShoppingListAlreadyCompletedException()
+
+        if shopping_list.status == ShoppingListStatus.DRAFT and data.price is not None:
+            raise ShoppingListPricesLockedException()
+
+        if shopping_list.status == ShoppingListStatus.CONFIRMED and (
+            data.name is not None or data.quantity is not None
+        ):
+            raise ShoppingListItemsLockedException()
 
         item = await self.shopping_item_repository.get_list_item(list_id, item_id)
         if not item:
@@ -202,6 +228,9 @@ class ShoppingListService(BaseService):
         if shopping_list.status == ShoppingListStatus.COMPLETED:
             raise ShoppingListAlreadyCompletedException()
 
+        if shopping_list.status != ShoppingListStatus.DRAFT:
+            raise ShoppingListItemsLockedException()
+
         item = await self.shopping_item_repository.get_list_item(list_id, item_id)
         if not item:
             raise ShoppingItemNotFoundException(details={"item_id": item_id})
@@ -217,6 +246,9 @@ class ShoppingListService(BaseService):
         if shopping_list.status == ShoppingListStatus.COMPLETED:
             raise ShoppingListAlreadyCompletedException()
 
+        if shopping_list.status == ShoppingListStatus.CONFIRMED:
+            return await self.shopping_list_repository.get_by_id_with_items(list_id)
+
         await self.shopping_list_repository.update(
             list_id,
             {
@@ -225,6 +257,26 @@ class ShoppingListService(BaseService):
             },
         )
         logger.info(f"Confirmed shopping list {list_id}")
+        return await self.shopping_list_repository.get_by_id_with_items(list_id)
+
+    async def revert_to_draft(self, list_id: int, user_id: int):
+        """Вернуть список покупок в режим черновика."""
+        shopping_list = await self.get_by_id(list_id, user_id)
+
+        if shopping_list.status == ShoppingListStatus.COMPLETED:
+            raise ShoppingListAlreadyCompletedException()
+
+        if shopping_list.status == ShoppingListStatus.DRAFT:
+            return await self.shopping_list_repository.get_by_id_with_items(list_id)
+
+        await self.shopping_list_repository.update(
+            list_id,
+            {
+                "status": ShoppingListStatus.DRAFT,
+                "confirmed_at": None,
+            },
+        )
+        logger.info(f"Reverted shopping list {list_id} to draft")
         return await self.shopping_list_repository.get_by_id_with_items(list_id)
 
     async def complete(self, list_id: int, user_id: int):

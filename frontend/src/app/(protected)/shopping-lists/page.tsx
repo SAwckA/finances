@@ -1,22 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  Accordion,
-  AccordionItem,
-  Button,
-  Input,
-  useDisclosure,
-} from "@heroui/react";
+import { Accordion, AccordionItem, Button } from "@heroui/react";
 import { ChevronLeft, Plus, Trash2 } from "lucide-react";
 import { EmptyState, ErrorState, LoadingState } from "@/components/async-state";
 import { SegmentedControl } from "@/components/ui/segmented-control";
-import { TransactionEditorHeader } from "@/components/transactions/transaction-editor-header";
 import { useAuth } from "@/features/auth/auth-context";
 import { ApiError } from "@/lib/api-client";
-import { getIconOption } from "@/lib/icon-catalog";
 import type {
   AccountResponse,
   CategoryResponse,
@@ -24,24 +16,10 @@ import type {
   ShoppingListCreate,
   ShoppingListResponse,
   ShoppingListStatus,
-  ShoppingListUpdate,
 } from "@/lib/types";
 
 type StatusFilter = ShoppingListStatus | "all";
 
-type ListFormState = {
-  name: string;
-  accountId: string;
-  categoryId: string;
-};
-
-const FORM_ID = "shopping-list-form";
-
-const DEFAULT_LIST_FORM: ListFormState = {
-  name: "",
-  accountId: "",
-  categoryId: "",
-};
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
@@ -84,20 +62,23 @@ function statusMeta(status: ShoppingListStatus): { label: string; className: str
   if (status === "confirmed") {
     return {
       label: "Подтвержден",
-      className: "border-blue-300 bg-blue-100 text-blue-800",
+      className:
+        "border-[color:color-mix(in_srgb,#60a5fa_55%,transparent)] bg-[color:color-mix(in_srgb,#60a5fa_18%,transparent)] text-[color:color-mix(in_srgb,#1d4ed8_85%,var(--text-primary))]",
     };
   }
 
   if (status === "completed") {
     return {
       label: "Завершен",
-      className: "border-emerald-300 bg-emerald-100 text-emerald-800",
+      className:
+        "border-[color:color-mix(in_srgb,#34d399_55%,transparent)] bg-[color:color-mix(in_srgb,#34d399_18%,transparent)] text-[color:color-mix(in_srgb,#047857_85%,var(--text-primary))]",
     };
   }
 
   return {
     label: "Черновик",
-    className: "border-amber-300 bg-amber-100 text-amber-800",
+    className:
+      "border-[color:color-mix(in_srgb,#f59e0b_55%,transparent)] bg-[color:color-mix(in_srgb,#f59e0b_18%,transparent)] text-[color:color-mix(in_srgb,#b45309_85%,var(--text-primary))]",
   };
 }
 
@@ -105,18 +86,14 @@ export default function ShoppingListsPage() {
   const { authenticatedRequest } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isOpen, onOpen, onClose } = useDisclosure();
   const [lists, setLists] = useState<ShoppingListResponse[]>([]);
   const [accounts, setAccounts] = useState<AccountResponse[]>([]);
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
   const [currencies, setCurrencies] = useState<CurrencyResponse[]>([]);
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [editingListId, setEditingListId] = useState<number | null>(null);
-  const [listForm, setListForm] = useState<ListFormState>(DEFAULT_LIST_FORM);
 
   const accountById = useMemo(
     () => new Map(accounts.map((account) => [account.id, account])),
@@ -179,73 +156,28 @@ export default function ShoppingListsPage() {
     }
   }, [router, searchParams]);
 
-  const resetListForm = () => {
-    setEditingListId(null);
-    setListForm({
-      ...DEFAULT_LIST_FORM,
-      accountId: accounts[0] ? String(accounts[0].id) : "",
-      categoryId: expenseCategories[0] ? String(expenseCategories[0].id) : "",
-    });
-  };
-
-  const openCreateModal = () => {
-    resetListForm();
-    onOpen();
-  };
-
-  const openEditModal = (list: ShoppingListResponse) => {
-    setEditingListId(list.id);
-    setListForm({
-      name: list.name,
-      accountId: String(list.account_id),
-      categoryId: String(list.category_id),
-    });
-    onOpen();
-  };
-
-  const closeModal = () => {
-    onClose();
-    resetListForm();
-  };
-
-  const handleSaveList = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (!listForm.name || !listForm.accountId || !listForm.categoryId) {
-      setErrorMessage("Укажите название, счет и категорию.");
+  const createQuickList = async () => {
+    const fallbackAccount = accounts[0];
+    const fallbackCategory = expenseCategories[0];
+    if (!fallbackAccount || !fallbackCategory) {
+      setErrorMessage("Добавьте счет и категорию перед созданием списка.");
       return;
     }
-
-    setIsSubmitting(true);
     setErrorMessage(null);
-
     try {
-      if (editingListId) {
-        const payload: ShoppingListUpdate = {
-          name: listForm.name.trim(),
-          account_id: Number(listForm.accountId),
-          category_id: Number(listForm.categoryId),
-        };
-        await authenticatedRequest(`/api/shopping-lists/${editingListId}`, {
-          method: "PATCH",
-          body: payload,
-        });
-      } else {
-        const payload: ShoppingListCreate = {
-          name: listForm.name.trim(),
-          account_id: Number(listForm.accountId),
-          category_id: Number(listForm.categoryId),
-          items: [],
-        };
-        await authenticatedRequest("/api/shopping-lists", { method: "POST", body: payload });
-      }
-
-      closeModal();
-      await loadData();
+      const payload: ShoppingListCreate = {
+        name: "Новый список",
+        account_id: fallbackAccount.id,
+        category_id: fallbackCategory.id,
+        items: [],
+      };
+      const created = await authenticatedRequest<ShoppingListResponse>("/api/shopping-lists", {
+        method: "POST",
+        body: payload,
+      });
+      router.push(`/shopping-lists/${created.id}`);
     } catch (error) {
       setErrorMessage(getErrorMessage(error));
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -263,7 +195,10 @@ export default function ShoppingListsPage() {
     }
   };
 
-  const handleTransition = async (listId: number, action: "confirm" | "complete") => {
+  const handleTransition = async (
+    listId: number,
+    action: "confirm" | "complete" | "draft",
+  ) => {
     setErrorMessage(null);
 
     try {
@@ -290,7 +225,7 @@ export default function ShoppingListsPage() {
             <h2 className="text-base font-bold text-[var(--text-primary)]">Shopping Lists</h2>
             <button
               type="button"
-              onClick={openCreateModal}
+              onClick={() => void createQuickList()}
               className="inline-flex items-center gap-1 rounded-xl bg-[var(--accent-primary)] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[var(--accent-primary-strong)]"
             >
               <Plus className="h-4 w-4" aria-hidden="true" />
@@ -369,9 +304,12 @@ export default function ShoppingListsPage() {
                       >
                         <div className="space-y-3">
                           <div className="flex flex-wrap gap-2">
-                            <Button size="sm" variant="flat" onPress={() => openEditModal(list)}>
-                              Изменить
-                            </Button>
+                            <Link
+                              href={`/shopping-lists/${list.id}`}
+                              className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]"
+                            >
+                              Открыть
+                            </Link>
                             <Link
                               href={`/shopping-lists/${list.id}`}
                               className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]"
@@ -386,6 +324,15 @@ export default function ShoppingListsPage() {
                                 onPress={() => void handleTransition(list.id, "confirm")}
                               >
                                 Подтвердить
+                              </Button>
+                            ) : null}
+                            {list.status === "confirmed" ? (
+                              <Button
+                                size="sm"
+                                variant="flat"
+                                onPress={() => void handleTransition(list.id, "draft")}
+                              >
+                                Вернуть в черновик
                               </Button>
                             ) : null}
                             {list.status === "confirmed" ? (
@@ -428,123 +375,7 @@ export default function ShoppingListsPage() {
           </section>
         </div>
 
-        {isOpen ? (
-          <section className="fixed inset-0 z-50 overscroll-contain bg-[var(--bg-app)]">
-            <div className="mx-auto flex h-full w-full max-w-[430px] flex-col">
-              <TransactionEditorHeader
-                title={editingListId ? "Edit List" : "New List"}
-                onBack={closeModal}
-                formId={FORM_ID}
-                isSaving={isSubmitting}
-              />
-              <div className="flex-1 overflow-y-auto px-3 py-3">
-                <form id={FORM_ID} className="mobile-card space-y-3 p-3" onSubmit={handleSaveList}>
-                  <label className="block text-sm text-[var(--text-secondary)]">
-                    Название
-                    <input
-                      className="mt-1 block w-full rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
-                      value={listForm.name}
-                      name="listName"
-                      autoComplete="off"
-                      onChange={(event) => setListForm((prev) => ({ ...prev, name: event.target.value }))}
-                      placeholder="Название списка…"
-                      required
-                    />
-                  </label>
-
-                  <section>
-                    <p className="mb-1.5 text-sm font-semibold text-[var(--text-secondary)]">Счет</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {accounts.map((account) => {
-                        const selected = String(account.id) === listForm.accountId;
-                        const Icon = getIconOption(account.icon).icon;
-                        const badge = shortAccountBadge(account);
-                        return (
-                          <button
-                            key={account.id}
-                            type="button"
-                            className={`flex items-center gap-2 rounded-2xl border px-3 py-2.5 text-left transition ${
-                              selected
-                                ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/10"
-                                : "border-[color:var(--border-soft)] bg-[var(--bg-card)]"
-                            }`}
-                            onClick={() =>
-                              setListForm((prev) => ({
-                                ...prev,
-                                accountId: String(account.id),
-                              }))
-                            }
-                          >
-                            <span
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-xl"
-                              style={{ backgroundColor: `${account.color}22`, color: account.color }}
-                            >
-                              <Icon className="h-4.5 w-4.5" aria-hidden="true" />
-                            </span>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="truncate text-xs font-semibold text-[var(--text-primary)]">
-                                  {account.name}
-                                </span>
-                                {badge ? (
-                                  <span className="badge">{badge}</span>
-                                ) : (
-                                  <span className="text-xs text-[var(--text-secondary)]">No ID</span>
-                                )}
-                              </div>
-                              <span className="mt-1 block text-xs text-[var(--text-secondary)]">
-                                {account.type ?? "Payment source"}
-                              </span>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </section>
-
-                  <section>
-                    <p className="mb-1.5 text-sm font-semibold text-[var(--text-secondary)]">Категория расходов</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {expenseCategories.map((category) => {
-                        const selected = String(category.id) === listForm.categoryId;
-                        const Icon = getIconOption(category.icon).icon;
-                        return (
-                          <button
-                            key={category.id}
-                            type="button"
-                            className={`flex items-center gap-2 rounded-2xl border px-3 py-2.5 text-left transition ${
-                              selected
-                                ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/10"
-                                : "border-[color:var(--border-soft)] bg-[var(--bg-card)]"
-                            }`}
-                            onClick={() =>
-                              setListForm((prev) => ({
-                                ...prev,
-                                categoryId: String(category.id),
-                              }))
-                            }
-                          >
-                            <span
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-xl"
-                              style={{ backgroundColor: `${category.color}22`, color: category.color }}
-                            >
-                              <Icon className="h-4.5 w-4.5" aria-hidden="true" />
-                            </span>
-                            <span className="text-sm font-semibold text-[var(--text-primary)]">
-                              {category.name}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </section>
-
-                  {errorMessage ? <ErrorState message={errorMessage} /> : null}
-                </form>
-              </div>
-            </div>
-          </section>
-        ) : null}
+        {errorMessage ? <ErrorState message={errorMessage} /> : null}
       </div>
     </section>
   );

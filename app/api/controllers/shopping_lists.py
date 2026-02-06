@@ -121,6 +121,16 @@ async def confirm_shopping_list(
         return await service.confirm(list_id=list_id, user_id=current_user.id)
 
 
+@router.post("/{list_id}/draft", response_model=ShoppingListResponse)
+async def revert_shopping_list_to_draft(
+    list_id: int,
+    current_user: User = Depends(get_current_active_user),
+):
+    """Вернуть список покупок в черновик."""
+    async with ShoppingListService() as service:
+        return await service.revert_to_draft(list_id=list_id, user_id=current_user.id)
+
+
 @router.post("/{list_id}/complete", response_model=ShoppingListResponse)
 async def complete_shopping_list(
     list_id: int,

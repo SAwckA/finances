@@ -128,7 +128,10 @@ class ShoppingList(SoftDeleteModel):
     account = relationship("Account")
     category = relationship("Category")
     items = relationship(
-        "ShoppingItem", back_populates="shopping_list", cascade="all, delete-orphan"
+        "ShoppingItem",
+        back_populates="shopping_list",
+        cascade="all, delete-orphan",
+        order_by="ShoppingItem.id",
     )
     transaction = relationship(
         "Transaction", back_populates="shopping_list", uselist=False
