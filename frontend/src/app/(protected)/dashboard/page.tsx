@@ -184,6 +184,16 @@ function typeBadgeStyle(type: TransactionResponse["type"]): React.CSSProperties 
   return { backgroundColor: "rgba(14,165,233,0.18)", borderColor: "rgba(14,165,233,0.4)", color: "#bae6fd" };
 }
 
+function normalizeAmountInput(value: string): number {
+  const normalized = value.replace(",", ".").trim();
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatAmountInput(value: number): string {
+  return value.toFixed(2);
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const { authenticatedRequest } = useAuth();
@@ -841,26 +851,137 @@ export default function DashboardPage() {
                     </div>
                   </label>
 
-                  <label className="block text-sm text-[var(--text-secondary)]">
-                    Amount
-                    <input
-                      className="mt-1 block w-full px-3 py-2 text-sm"
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      value={editForm.amount}
-                      onChange={(event) =>
-                        setEditForm((prev) =>
-                          prev
-                            ? {
-                                ...prev,
-                                amount: event.target.value,
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-[var(--text-secondary)]">Amount</span>
+                      {(() => {
+                        const selectedAccount = accounts.find(
+                          (account) => String(account.id) === editForm.accountId,
+                        );
+                        const currency = selectedAccount
+                          ? currencyById.get(selectedAccount.currency_id)
+                          : null;
+                        return (
+                          <span className="badge">
+                            {currency ? `${currency.code} ${currency.symbol}` : "Currency"}
+                          </span>
+                        );
+                      })()}
+                    </div>
+
+                    <div className="rounded-2xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] p-3 transition focus-within:shadow-[0_0_0_3px_var(--ring-primary)]">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-secondary)]">
+                          Total
+                        </span>
+                        <div className="h-px flex-1 bg-[color:var(--border-soft)]" />
+                        <button
+                          type="button"
+                          className="text-xs font-semibold text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]"
+                          onClick={() =>
+                            setEditForm((prev) =>
+                              prev
+                                ? {
+                                    ...prev,
+                                    amount: "",
+                                  }
+                                : prev,
+                            )
+                          }
+                        >
+                          Clear
+                        </button>
+                      </div>
+
+                      <div className="mt-3 flex items-end gap-2">
+                        <input
+                          className="w-full bg-transparent text-3xl font-extrabold tracking-tight text-[var(--text-primary)] outline-none"
+                          inputMode="decimal"
+                          name="amount"
+                          autoComplete="off"
+                          placeholder="0.00…"
+                          value={editForm.amount}
+                          onChange={(event) =>
+                            setEditForm((prev) =>
+                              prev
+                                ? {
+                                    ...prev,
+                                    amount: event.target.value,
+                                  }
+                                : prev,
+                            )
+                          }
+                        />
+                        <span className="text-sm font-semibold text-[var(--text-secondary)]">
+                          {(() => {
+                            const selectedAccount = accounts.find(
+                              (account) => String(account.id) === editForm.accountId,
+                            );
+                            const currency = selectedAccount
+                              ? currencyById.get(selectedAccount.currency_id)
+                              : null;
+                            return currency?.symbol ?? "";
+                          })()}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-[color:var(--border-soft)] bg-[var(--bg-card)]/70 p-1.5">
+                      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
+                        <div className="flex flex-wrap items-center justify-start gap-1.5">
+                          {[-100, -25, -5].map((value) => (
+                            <button
+                              key={value}
+                              type="button"
+                              className="surface-hover rounded-full border border-[color:var(--border-soft)] px-2.5 py-0.5 text-[11px] font-semibold text-rose-600 transition"
+                              onClick={() =>
+                                setEditForm((prev) => {
+                                  if (!prev) {
+                                    return prev;
+                                  }
+                                  const current = normalizeAmountInput(prev.amount);
+                                  const next = Math.max(0, current + value);
+                                  return {
+                                    ...prev,
+                                    amount: formatAmountInput(next),
+                                  };
+                                })
                               }
-                            : prev,
-                        )
-                      }
-                    />
-                  </label>
+                            >
+                              {value}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex flex-col items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.24em] text-[var(--text-secondary)]">
+                          <span>±</span>
+                          <span className="h-5 w-px bg-[color:var(--border-soft)]" />
+                        </div>
+                        <div className="flex flex-wrap items-center justify-end gap-1.5">
+                          {[5, 25, 100].map((value) => (
+                            <button
+                              key={value}
+                              type="button"
+                              className="surface-hover rounded-full border border-[color:var(--border-soft)] px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600 transition"
+                              onClick={() =>
+                                setEditForm((prev) => {
+                                  if (!prev) {
+                                    return prev;
+                                  }
+                                  const current = normalizeAmountInput(prev.amount);
+                                  return {
+                                    ...prev,
+                                    amount: formatAmountInput(current + value),
+                                  };
+                                })
+                              }
+                            >
+                              +{value}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
                   {editingTransaction.type !== "transfer" ? (
                     <label className="block text-sm text-[var(--text-secondary)]">
