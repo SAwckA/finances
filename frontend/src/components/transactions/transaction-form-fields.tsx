@@ -229,13 +229,18 @@ export function TransactionFormFields({
                   <Icon className="h-4.5 w-4.5" />
                 </span>
                 <div className="min-w-0">
-                  {badge ? (
-                    <span className="badge" style={badgeStyle(account.color)}>
-                      {badge}
+                  <div className="flex items-center gap-2">
+                    <span className="truncate text-xs font-semibold text-[var(--text-primary)]">
+                      {account.name}
                     </span>
-                  ) : (
-                    <span className="text-xs text-[var(--text-secondary)]">No ID</span>
-                  )}
+                    {badge ? (
+                      <span className="badge" style={badgeStyle(account.color)}>
+                        {badge}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-[var(--text-secondary)]">No ID</span>
+                    )}
+                  </div>
                   <span className="mt-1 block text-xs text-[var(--text-secondary)]">
                     {balance ? formatAmount(balance.balance, balance.currency_code) : "Balance unknown"}
                   </span>
@@ -280,13 +285,18 @@ export function TransactionFormFields({
                       <Icon className="h-4.5 w-4.5" />
                     </span>
                     <div className="min-w-0">
-                      {badge ? (
-                        <span className="badge" style={badgeStyle(account.color)}>
-                          {badge}
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-xs font-semibold text-[var(--text-primary)]">
+                          {account.name}
                         </span>
-                      ) : (
-                        <span className="text-xs text-[var(--text-secondary)]">No ID</span>
-                      )}
+                        {badge ? (
+                          <span className="badge" style={badgeStyle(account.color)}>
+                            {badge}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-[var(--text-secondary)]">No ID</span>
+                        )}
+                      </div>
                       <span className="mt-1 block text-xs text-[var(--text-secondary)]">
                         {balance
                           ? formatAmount(balance.balance, balance.currency_code)
@@ -311,7 +321,7 @@ export function TransactionFormFields({
               }`}
               onClick={() => setForm((prev) => ({ ...prev, categoryId: "" }))}
             >
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--surface-hover)] text-[var(--text-secondary)]">
                 <span className="text-xs font-semibold">—</span>
               </span>
               <span className="text-sm font-semibold text-[var(--text-primary)]">

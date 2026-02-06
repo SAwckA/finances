@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRightLeft,
@@ -175,7 +175,6 @@ function typeBadgeClass(type: TransactionResponse["type"]): string {
 }
 
 export default function DashboardPage() {
-  const router = useRouter();
   const { authenticatedRequest } = useAuth();
   const [selectedCurrency, setSelectedCurrency] = useState("USD");
   const [preset, setPreset] = useState<PeriodPreset>("30d");
@@ -190,6 +189,8 @@ export default function DashboardPage() {
   const [accounts, setAccounts] = useState<AccountResponse[]>([]);
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
   const [transactions, setTransactions] = useState<TransactionResponse[]>([]);
+  const [showAllSources, setShowAllSources] = useState(false);
+  const [selectedAccountIds, setSelectedAccountIds] = useState<number[]>([]);
   const [hasMoreTransactions, setHasMoreTransactions] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -202,6 +203,8 @@ export default function DashboardPage() {
   const [editErrorMessage, setEditErrorMessage] = useState<string | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const transactionOffsetRef = useRef(0);
   const range = useMemo(() => {
@@ -225,6 +228,18 @@ export default function DashboardPage() {
     () => new Map(currencies.map((currency) => [currency.id, currency])),
     [currencies],
   );
+  const filteredTransactions = useMemo(() => {
+    if (selectedAccountIds.length === 0) {
+      return transactions;
+    }
+
+    const selectedSet = new Set(selectedAccountIds);
+    return transactions.filter(
+      (transaction) =>
+        selectedSet.has(transaction.account_id) ||
+        (transaction.target_account_id ? selectedSet.has(transaction.target_account_id) : false),
+    );
+  }, [selectedAccountIds, transactions]);
 
   const editingTransaction = useMemo(() => {
     if (!editingTransactionId) {
@@ -233,6 +248,47 @@ export default function DashboardPage() {
 
     return transactions.find((item) => item.id === editingTransactionId) ?? null;
   }, [editingTransactionId, transactions]);
+
+  const toggleAccountSelection = useCallback((accountId: number) => {
+    setSelectedAccountIds((prev) =>
+      prev.includes(accountId) ? prev.filter((id) => id !== accountId) : [...prev, accountId],
+    );
+  }, []);
+
+  useEffect(() => {
+    const accountsParam = searchParams.get("accounts");
+    if (!accountsParam) {
+      setSelectedAccountIds((prev) => (prev.length === 0 ? prev : []));
+      return;
+    }
+
+    const nextIds = accountsParam
+      .split(",")
+      .map((value) => Number(value))
+      .filter((value) => Number.isFinite(value));
+    setSelectedAccountIds((prev) => {
+      if (prev.length === nextIds.length && prev.every((value, index) => value === nextIds[index])) {
+        return prev;
+      }
+      return nextIds;
+    });
+  }, [searchParams]);
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams(searchParams.toString());
+    if (selectedAccountIds.length > 0) {
+      nextParams.set("accounts", selectedAccountIds.join(","));
+    } else {
+      nextParams.delete("accounts");
+    }
+    const nextQuery = nextParams.toString();
+    const currentQuery = searchParams.toString();
+    if (nextQuery === currentQuery) {
+      return;
+    }
+    const nextUrl = nextQuery ? `?${nextQuery}` : window.location.pathname;
+    router.replace(nextUrl, { scroll: false });
+  }, [router, searchParams, selectedAccountIds]);
 
   const loadDashboardData = useCallback(async () => {
     setErrorMessage(null);
@@ -495,6 +551,8 @@ export default function DashboardPage() {
             Currency
             <select
               className="mt-1 block w-full px-2.5 py-2 text-sm"
+              name="currency"
+              autoComplete="off"
               value={selectedCurrency}
               onChange={(event) => setSelectedCurrency(event.target.value)}
             >
@@ -508,29 +566,62 @@ export default function DashboardPage() {
 
           <button
             type="button"
-            className="rounded-xl bg-[var(--accent-primary)] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[var(--accent-primary-strong)]"
+            className="rounded-xl bg-[var(--accent-primary)] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[var(--accent-primary-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/40"
             onClick={() => void loadDashboardData()}
             disabled={isRefreshing}
           >
-            {isRefreshing ? "Refreshing..." : "Refresh"}
+            {isRefreshing ? "Refreshing…" : "Refresh"}
           </button>
         </div>
       </section>
 
       {errorMessage ? <ErrorState message={errorMessage} /> : null}
-      {isLoading ? <LoadingState message="Загружаем dashboard..." /> : null}
+      {isLoading ? <LoadingState message="Загружаем dashboard…" /> : null}
 
       {!isLoading ? (
         <section className="space-y-3">
+          <section className="grid grid-cols-4 gap-2">
+            <ActionTile
+              label="Add"
+              icon={Plus}
+              iconClassName="bg-emerald-500/15 text-emerald-600"
+              href="/transactions?create=1&type=income"
+            />
+            <ActionTile
+              label="Send"
+              icon={Send}
+              iconClassName="bg-rose-500/15 text-rose-600"
+              href="/transactions?create=1&type=expense"
+            />
+            <ActionTile
+              label="Transfer"
+              icon={ArrowRightLeft}
+              iconClassName="bg-sky-500/15 text-sky-600"
+              href="/transactions?create=1&type=transfer"
+            />
+            <ActionTile
+              label="Budget"
+              icon={WalletCards}
+              iconClassName="bg-amber-500/15 text-amber-600"
+              href="/analytics"
+            />
+          </section>
+
           <section>
             <div className="mb-2 flex items-center justify-between">
               <h2 className="text-lg font-bold text-[var(--text-primary)]">Payment Sources</h2>
-              <Link href="/accounts" className="text-xs font-semibold text-[var(--accent-primary)]">
-                View All
-              </Link>
+              {accountBalances.length > 2 ? (
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-[var(--accent-primary)] transition hover:text-[var(--accent-primary-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/40"
+                  onClick={() => setShowAllSources((prev) => !prev)}
+                >
+                  {showAllSources ? "Show Less" : "Show All"}
+                </button>
+              ) : null}
             </div>
             <div className="space-y-2">
-              {accountBalances.slice(0, 2).map((account) => {
+              {(showAllSources ? accountBalances : accountBalances.slice(0, 2)).map((account) => {
                 const accountDetails = accountById.get(account.account_id);
                 const badge = shortAccountBadge(accountDetails);
                 return (
@@ -547,37 +638,27 @@ export default function DashboardPage() {
                       )
                     }
                     amount={formatAmount(account.balance, account.currency_code)}
+                    tone={accountDetails?.color}
+                    selected={selectedAccountIds.includes(account.account_id)}
+                    onClick={() => toggleAccountSelection(account.account_id)}
                   />
                 );
               })}
             </div>
-          </section>
-
-          <section className="grid grid-cols-4 gap-2">
-            <ActionTile
-              label="Add"
-              icon={Plus}
-              iconClassName="bg-emerald-500/15 text-emerald-600"
-              onClick={() => router.push("/transactions?create=1")}
-            />
-            <ActionTile
-              label="Send"
-              icon={Send}
-              iconClassName="bg-rose-500/15 text-rose-600"
-              onClick={() => router.push("/transactions?create=1")}
-            />
-            <ActionTile
-              label="Transfer"
-              icon={ArrowRightLeft}
-              iconClassName="bg-sky-500/15 text-sky-600"
-              onClick={() => router.push("/transactions?create=1")}
-            />
-            <ActionTile
-              label="Budget"
-              icon={WalletCards}
-              iconClassName="bg-amber-500/15 text-amber-600"
-              onClick={() => router.push("/analytics")}
-            />
+            {selectedAccountIds.length > 0 ? (
+              <div className="mt-2 flex items-center justify-between rounded-2xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-xs text-[var(--text-secondary)]">
+                <span>Filtering by {selectedAccountIds.length} account(s)</span>
+                <button
+                  type="button"
+                  className="font-semibold text-[var(--accent-primary)] transition hover:text-[var(--accent-primary-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/40"
+                  onClick={() => {
+                    setSelectedAccountIds([]);
+                  }}
+                >
+                  Clear
+                </button>
+              </div>
+            ) : null}
           </section>
 
           <section>
@@ -618,6 +699,8 @@ export default function DashboardPage() {
                   <input
                     className="mt-1 block w-full px-2.5 py-2 text-sm"
                     type="date"
+                    name="startDate"
+                    autoComplete="off"
                     value={startDate}
                     onChange={(event) => {
                       setPreset("custom");
@@ -630,6 +713,8 @@ export default function DashboardPage() {
                   <input
                     className="mt-1 block w-full px-2.5 py-2 text-sm"
                     type="date"
+                    name="endDate"
+                    autoComplete="off"
                     value={endDate}
                     onChange={(event) => {
                       setPreset("custom");
@@ -641,15 +726,17 @@ export default function DashboardPage() {
             ) : null}
 
             <div className="space-y-2">
-              {isTransactionsLoading ? <LoadingState message="Загружаем операции..." /> : null}
+              {isTransactionsLoading ? <LoadingState message="Загружаем операции…" /> : null}
 
-              {!isTransactionsLoading && transactions.length === 0 ? (
+              {!isTransactionsLoading && filteredTransactions.length === 0 ? (
                 <p className="rounded-2xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-3 text-sm text-[var(--text-secondary)]">
-                  No transactions yet.
+                  {selectedAccountIds.length > 0
+                    ? "No transactions for selected accounts."
+                    : "No transactions yet."}
                 </p>
               ) : null}
 
-              {transactions.map((transaction) => {
+              {filteredTransactions.map((transaction) => {
                 const account = accountById.get(transaction.account_id);
                 const targetAccount = transaction.target_account_id
                   ? accountById.get(transaction.target_account_id)
@@ -684,7 +771,7 @@ export default function DashboardPage() {
                   ) : null;
                 const shoppingBadge = transaction.shopping_list_id ? (
                   <span className="badge">
-                    <ListChecks className="h-3 w-3" />
+                    <ListChecks className="h-3 w-3" aria-hidden="true" />
                     List
                   </span>
                 ) : null;
@@ -693,7 +780,7 @@ export default function DashboardPage() {
                   <button
                     key={transaction.id}
                     type="button"
-                    className="block w-full text-left"
+                    className="block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/30"
                     onClick={() => openEditor(transaction)}
                   >
                     <TransactionRow
@@ -711,7 +798,7 @@ export default function DashboardPage() {
               })}
 
               {isLoadingMoreTransactions ? (
-                <LoadingState message="Загружаем еще операции..." />
+                <LoadingState message="Загружаем еще операции…" />
               ) : null}
 
               <div ref={loadMoreRef} className="h-1" />
@@ -721,7 +808,7 @@ export default function DashboardPage() {
       ) : null}
 
       {editingTransaction && editForm ? (
-        <section className="fixed inset-0 z-50 bg-[var(--bg-app)]">
+        <section className="fixed inset-0 z-50 overscroll-contain bg-[var(--bg-app)]">
           <div className="mx-auto flex h-full w-full max-w-[430px] flex-col">
             <TransactionEditorHeader
               title="Edit Transaction"
@@ -766,13 +853,12 @@ export default function DashboardPage() {
                         List ID: {editingTransaction.shopping_list_id}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      className="rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]"
-                      onClick={() => router.push(`/shopping-lists?open=${editingTransaction.shopping_list_id}`)}
+                    <Link
+                      href={`/shopping-lists?open=${editingTransaction.shopping_list_id}`}
+                      className="rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] transition hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/30"
                     >
                       Open
-                    </button>
+                    </Link>
                   </section>
                 ) : null}
 

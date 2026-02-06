@@ -115,6 +115,13 @@ function sortByNewest(items: TransactionResponse[]): TransactionResponse[] {
   });
 }
 
+function parseTransactionType(value: string | null): TransactionType | null {
+  if (value === "income" || value === "expense" || value === "transfer") {
+    return value;
+  }
+  return null;
+}
+
 function formatDateLabel(isoValue: string): string {
   const date = new Date(isoValue);
   if (Number.isNaN(date.getTime())) {
@@ -178,6 +185,9 @@ export default function TransactionsPage() {
   const { authenticatedRequest } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const createParam = searchParams.get("create");
+  const isCreateRoute = createParam === "1" || createParam === "true";
+  const requestedType = parseTransactionType(searchParams.get("type"));
   const [transactions, setTransactions] = useState<TransactionResponse[]>([]);
   const [accounts, setAccounts] = useState<AccountResponse[]>([]);
   const [accountBalances, setAccountBalances] = useState<AccountBalanceResponse[]>([]);
@@ -299,15 +309,22 @@ export default function TransactionsPage() {
   }, [filters]);
 
   useEffect(() => {
-    const createParam = searchParams.get("create");
-    if (createParam === "1" || createParam === "true") {
+    if (isCreateRoute) {
       setCreateMode(true);
+      setEditingTransactionId(null);
+      setForm((prev) => ({
+        ...DEFAULT_FORM,
+        accountId: prev.accountId || (accounts[0] ? String(accounts[0].id) : ""),
+        type: requestedType ?? prev.type,
+        targetAccountId: requestedType === "transfer" ? prev.targetAccountId : "",
+        categoryId: requestedType === "transfer" ? "" : prev.categoryId,
+      }));
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
     setCreateMode(false);
-  }, [searchParams]);
+  }, [accounts, isCreateRoute, requestedType]);
 
   const resetForm = useCallback(() => {
     setEditingTransactionId(null);
@@ -410,9 +427,12 @@ export default function TransactionsPage() {
         });
       }
 
-      resetForm();
       await loadTransactions();
-      setCreateMode(false);
+      if (!editingTransactionId && isCreateRoute) {
+        router.back();
+        return;
+      }
+      resetForm();
     } catch (error) {
       setErrorMessage(getErrorMessage(error));
     } finally {
@@ -423,7 +443,7 @@ export default function TransactionsPage() {
   return (
     <section className="space-y-3">
       {createMode ? (
-        <section className="fixed inset-0 z-50 bg-[var(--bg-app)]">
+        <section className="fixed inset-0 z-50 overscroll-contain bg-[var(--bg-app)]">
           <div className="mx-auto flex h-full w-full max-w-[430px] flex-col">
             <TransactionEditorHeader
               title="Add Transaction"
@@ -474,10 +494,10 @@ export default function TransactionsPage() {
             {editingTransactionId ? (
               <button
                 type="button"
-                className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-700"
+                className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
                 onClick={resetForm}
               >
-                Cancel edit
+                Cancel Edit
               </button>
             ) : null}
           </div>
@@ -507,7 +527,7 @@ export default function TransactionsPage() {
             disabled={isSubmitting}
           >
             {isSubmitting
-              ? "Saving..."
+              ? "Saving…"
               : editingTransactionId
                 ? "Save Transaction"
                 : `Create ${form.type === "income" ? "Income" : form.type === "expense" ? "Expense" : "Transfer"}`}
@@ -530,6 +550,8 @@ export default function TransactionsPage() {
                 Type
                 <select
                   className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  name="typeFilter"
+                  autoComplete="off"
                   value={filters.type}
                   onChange={(event) =>
                     setFilters((prev) => ({
@@ -548,6 +570,8 @@ export default function TransactionsPage() {
                 Source
                 <select
                   className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  name="accountFilter"
+                  autoComplete="off"
                   value={filters.accountId}
                   onChange={(event) =>
                     setFilters((prev) => ({
@@ -569,6 +593,8 @@ export default function TransactionsPage() {
                 <input
                   className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                   type="date"
+                  name="startDate"
+                  autoComplete="off"
                   value={filters.startDate}
                   onChange={(event) =>
                     setFilters((prev) => ({
@@ -583,6 +609,8 @@ export default function TransactionsPage() {
                 <input
                   className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                   type="date"
+                  name="endDate"
+                  autoComplete="off"
                   value={filters.endDate}
                   onChange={(event) =>
                     setFilters((prev) => ({
@@ -595,17 +623,17 @@ export default function TransactionsPage() {
             </div>
             <button
               type="button"
-              className="mt-2 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-700"
+              className="mt-2 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
               onClick={() => setFilters(DEFAULT_FILTERS)}
             >
-              Reset filters
+              Reset Filters
             </button>
           </section>
 
           {errorMessage ? <ErrorState message={errorMessage} /> : null}
 
           <section className="space-y-2">
-            {isLoading ? <LoadingState message="Загружаем операции..." /> : null}
+            {isLoading ? <LoadingState message="Загружаем операции…" /> : null}
             {!isLoading && transactions.length === 0 ? (
               <EmptyState message="Операции не найдены." />
             ) : null}
