@@ -145,6 +145,7 @@ class TransactionService(BaseService):
         user_id: int,
         data: TransactionCreate,
         exchange_rate: Decimal | None = None,
+        converted_amount: Decimal | None = None,
     ):
         """Создать новую транзакцию."""
         account = await self.account_repository.get_by_id(data.account_id)
@@ -171,13 +172,18 @@ class TransactionService(BaseService):
                 target_account = await self.account_repository.get_by_id(
                     data.target_account_id
                 )
-            if target_account and account.currency_id != target_account.currency_id:
+            if converted_amount is not None:
+                transaction_data["converted_amount"] = converted_amount
                 if exchange_rate is None:
-                    raise ValidationException(
-                        message="Для перевода между разными валютами требуется курс обмена"
-                    )
+                    exchange_rate = converted_amount / data.amount
+                transaction_data["exchange_rate"] = exchange_rate
+            elif exchange_rate is not None:
                 transaction_data["exchange_rate"] = exchange_rate
                 transaction_data["converted_amount"] = data.amount * exchange_rate
+            elif target_account and account.currency_id != target_account.currency_id:
+                raise ValidationException(
+                    message="Для перевода между разными валютами требуется курс обмена"
+                )
             else:
                 transaction_data["converted_amount"] = data.amount
         else:
@@ -227,7 +233,14 @@ class TransactionService(BaseService):
                     }
                 )
 
-    async def update(self, transaction_id: int, user_id: int, data: TransactionUpdate):
+    async def update(
+        self,
+        transaction_id: int,
+        user_id: int,
+        data: TransactionUpdate,
+        exchange_rate_override: Decimal | None = None,
+        converted_amount_override: Decimal | None = None,
+    ):
         """Обновить транзакцию."""
         transaction = await self.get_by_id(transaction_id, user_id)
 
@@ -275,6 +288,8 @@ class TransactionService(BaseService):
             "account_id" in update_data
             or "target_account_id" in update_data
             or "amount" in update_data
+            or exchange_rate_override is not None
+            or converted_amount_override is not None
         ):
             source_account_id = update_data.get("account_id", transaction.account_id)
             target_account_id = update_data.get(
@@ -298,7 +313,15 @@ class TransactionService(BaseService):
                 )
 
             amount = update_data.get("amount", transaction.amount)
-            if source_account.currency_id != target_account.currency_id:
+            if converted_amount_override is not None:
+                update_data["converted_amount"] = converted_amount_override
+                if exchange_rate_override is None:
+                    exchange_rate_override = converted_amount_override / amount
+                update_data["exchange_rate"] = exchange_rate_override
+            elif exchange_rate_override is not None:
+                update_data["exchange_rate"] = exchange_rate_override
+                update_data["converted_amount"] = amount * exchange_rate_override
+            elif source_account.currency_id != target_account.currency_id:
                 source_currency = await self.currency_repository.get_by_id(
                     source_account.currency_id
                 )

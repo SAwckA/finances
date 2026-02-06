@@ -42,6 +42,7 @@ type TransactionFormState = {
   targetAccountId: string;
   categoryId: string;
   amount: string;
+  targetAmount: string;
   description: string;
   transactionDate: string;
 };
@@ -67,6 +68,7 @@ const DEFAULT_FORM: TransactionFormState = {
   targetAccountId: "",
   categoryId: "",
   amount: "",
+  targetAmount: "",
   description: "",
   transactionDate: getNowLocalDateTimeValue(),
 };
@@ -318,6 +320,7 @@ export default function TransactionsPage() {
         type: requestedType ?? prev.type,
         targetAccountId: requestedType === "transfer" ? prev.targetAccountId : "",
         categoryId: requestedType === "transfer" ? "" : prev.categoryId,
+        targetAmount: requestedType === "transfer" ? prev.targetAmount : "",
       }));
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
@@ -344,6 +347,7 @@ export default function TransactionsPage() {
       targetAccountId: transaction.target_account_id ? String(transaction.target_account_id) : "",
       categoryId: transaction.category_id ? String(transaction.category_id) : "",
       amount: transaction.amount,
+      targetAmount: transaction.type === "transfer" ? transaction.converted_amount ?? "" : "",
       description: transaction.description ?? "",
       transactionDate: toLocalDateTimeValue(transaction.transaction_date),
     });
@@ -359,6 +363,7 @@ export default function TransactionsPage() {
       targetAccountId: transaction.target_account_id ? String(transaction.target_account_id) : "",
       categoryId: transaction.category_id ? String(transaction.category_id) : "",
       amount: transaction.amount,
+      targetAmount: transaction.type === "transfer" ? transaction.converted_amount ?? "" : "",
       description: transaction.description ?? "",
       transactionDate: getNowLocalDateTimeValue(),
     });
@@ -398,6 +403,18 @@ export default function TransactionsPage() {
 
     try {
       if (editingTransactionId) {
+        const query = new URLSearchParams();
+        if (form.type === "transfer" && form.targetAmount) {
+          const sourceAmount = Number(form.amount);
+          const targetAmount = Number(form.targetAmount);
+          if (Number.isFinite(sourceAmount) && sourceAmount > 0 && Number.isFinite(targetAmount)) {
+            query.set("converted_amount", targetAmount.toString());
+            query.set("exchange_rate", (targetAmount / sourceAmount).toString());
+          }
+        }
+        const url = query.toString()
+          ? `/api/transactions/${editingTransactionId}?${query.toString()}`
+          : `/api/transactions/${editingTransactionId}`;
         const updatePayload: TransactionUpdate = {
           account_id: Number(form.accountId),
           amount: Number(form.amount),
@@ -406,11 +423,21 @@ export default function TransactionsPage() {
           category_id: form.type === "transfer" ? null : form.categoryId ? Number(form.categoryId) : null,
         };
 
-        await authenticatedRequest(`/api/transactions/${editingTransactionId}`, {
+        await authenticatedRequest(url, {
           method: "PATCH",
           body: updatePayload,
         });
       } else {
+        const query = new URLSearchParams();
+        if (form.type === "transfer" && form.targetAmount) {
+          const sourceAmount = Number(form.amount);
+          const targetAmount = Number(form.targetAmount);
+          if (Number.isFinite(sourceAmount) && sourceAmount > 0 && Number.isFinite(targetAmount)) {
+            query.set("converted_amount", targetAmount.toString());
+            query.set("exchange_rate", (targetAmount / sourceAmount).toString());
+          }
+        }
+        const url = query.toString() ? `/api/transactions?${query.toString()}` : "/api/transactions";
         const createPayload: TransactionCreate = {
           type: form.type,
           account_id: Number(form.accountId),
@@ -421,7 +448,7 @@ export default function TransactionsPage() {
           category_id: form.type === "transfer" ? null : form.categoryId ? Number(form.categoryId) : null,
         };
 
-        await authenticatedRequest("/api/transactions", {
+        await authenticatedRequest(url, {
           method: "POST",
           body: createPayload,
         });

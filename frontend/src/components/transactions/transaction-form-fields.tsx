@@ -1,7 +1,8 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import { useAuth } from "@/features/auth/auth-context";
 import { getIconOption } from "@/lib/icon-catalog";
 import type {
   AccountBalanceResponse,
@@ -16,6 +17,7 @@ type TransactionFormFieldsState = {
   targetAccountId: string;
   categoryId: string;
   amount: string;
+  targetAmount: string;
   description: string;
   transactionDate: string;
 };
@@ -88,16 +90,127 @@ export function TransactionFormFields({
   showTypeSelector = false,
   className,
 }: TransactionFormFieldsProps) {
+  const { authenticatedRequest } = useAuth();
   const selectedAccount = form.accountId
     ? accounts.find((account) => String(account.id) === form.accountId) ?? null
+    : null;
+  const targetAccount = form.targetAccountId
+    ? accounts.find((account) => String(account.id) === form.targetAccountId) ?? null
     : null;
   const selectedCurrency = selectedAccount
     ? currencies.find((currency) => currency.id === selectedAccount.currency_id) ?? null
     : null;
+  const targetCurrency = targetAccount
+    ? currencies.find((currency) => currency.id === targetAccount.currency_id) ?? null
+    : null;
+  const sameCurrency =
+    Boolean(selectedCurrency && targetCurrency) &&
+    selectedCurrency?.code === targetCurrency?.code;
   const formCategories =
     transactionType === "transfer"
       ? []
       : categories.filter((category) => category.type === transactionType);
+  const [exchangeRate, setExchangeRate] = useState<number | null>(null);
+  const [isRateLoading, setIsRateLoading] = useState(false);
+  const [lastEdited, setLastEdited] = useState<"source" | "target">("source");
+  const [showTransferDelta, setShowTransferDelta] = useState(false);
+  const transferAccountsRef = useRef({ accountId: "", targetAccountId: "" });
+  const transferInitializedRef = useRef(false);
+  const sourceAmount = normalizeAmountInput(form.amount);
+  const targetAmount = normalizeAmountInput(form.targetAmount);
+  const hasTargetOverride = form.targetAmount !== "" && targetAmount !== sourceAmount;
+  const showTargetAmount =
+    transactionType === "transfer" && targetAccount && (!sameCurrency || showTransferDelta);
+  const derivedRate =
+    sourceAmount > 0 && targetAmount > 0 ? targetAmount / sourceAmount : null;
+  const effectiveRate =
+    lastEdited === "target" && derivedRate ? derivedRate : exchangeRate ?? derivedRate;
+  const percentDelta =
+    sourceAmount > 0 && targetAmount > 0 ? ((targetAmount - sourceAmount) / sourceAmount) * 100 : null;
+
+  useEffect(() => {
+    if (transactionType !== "transfer" || !selectedCurrency || !targetCurrency) {
+      setExchangeRate(null);
+      return;
+    }
+    if (sameCurrency) {
+      setExchangeRate(1);
+      return;
+    }
+
+    let active = true;
+    const loadRate = async () => {
+      setIsRateLoading(true);
+      try {
+        const response = await authenticatedRequest<{ rate: string | number }>(
+          `/api/currencies/rate?from_currency=${selectedCurrency.code}&to_currency=${targetCurrency.code}`,
+        );
+        if (active) {
+          setExchangeRate(Number(response.rate));
+        }
+      } catch {
+        if (active) {
+          setExchangeRate(null);
+        }
+      } finally {
+        if (active) {
+          setIsRateLoading(false);
+        }
+      }
+    };
+
+    void loadRate();
+    return () => {
+      active = false;
+    };
+  }, [authenticatedRequest, sameCurrency, selectedCurrency, targetCurrency, transactionType]);
+
+  useEffect(() => {
+    if (transactionType !== "transfer") {
+      return;
+    }
+    if (!transferInitializedRef.current) {
+      transferInitializedRef.current = true;
+      transferAccountsRef.current = {
+        accountId: form.accountId,
+        targetAccountId: form.targetAccountId,
+      };
+      return;
+    }
+    const prev = transferAccountsRef.current;
+    if (prev.accountId === form.accountId && prev.targetAccountId === form.targetAccountId) {
+      return;
+    }
+    transferAccountsRef.current = {
+      accountId: form.accountId,
+      targetAccountId: form.targetAccountId,
+    };
+    setLastEdited("source");
+    setShowTransferDelta(false);
+    setForm((prevForm) => ({ ...prevForm, targetAmount: "" }));
+  }, [form.accountId, form.targetAccountId, setForm, transactionType]);
+
+  useEffect(() => {
+    if (transactionType !== "transfer") {
+      return;
+    }
+    if (sameCurrency && hasTargetOverride && !showTransferDelta) {
+      setShowTransferDelta(true);
+    }
+  }, [hasTargetOverride, sameCurrency, showTransferDelta, transactionType]);
+
+  useEffect(() => {
+    if (!showTargetAmount || lastEdited !== "source") {
+      return;
+    }
+    if (!sourceAmount || !effectiveRate) {
+      return;
+    }
+    const next = formatAmountInput(sourceAmount * effectiveRate);
+    if (next !== form.targetAmount) {
+      setForm((prev) => ({ ...prev, targetAmount: next }));
+    }
+  }, [effectiveRate, form.targetAmount, lastEdited, setForm, showTargetAmount, sourceAmount]);
 
   return (
     <div className={className ?? ""}>
@@ -144,7 +257,10 @@ export function TransactionFormFields({
               autoComplete="off"
               placeholder="0.00…"
               value={form.amount}
-              onChange={(event) => setForm((prev) => ({ ...prev, amount: event.target.value }))}
+              onChange={(event) => {
+                setLastEdited("source");
+                setForm((prev) => ({ ...prev, amount: event.target.value }));
+              }}
               required
             />
             <span className="text-sm font-semibold text-[var(--text-secondary)]">
@@ -305,7 +421,7 @@ export function TransactionFormFields({
                     </div>
                   </button>
                 );
-              })}
+            })}
           </div>
         </section>
       ) : (
@@ -362,6 +478,87 @@ export function TransactionFormFields({
           </div>
         </section>
       )}
+
+      {transactionType === "transfer" && targetAccount ? (
+        <section className="mt-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-[var(--text-secondary)]">You receive</span>
+            <span className="badge">
+              {targetCurrency ? `${targetCurrency.code} ${targetCurrency.symbol}` : "Currency"}
+            </span>
+          </div>
+          {sameCurrency ? (
+            <button
+              type="button"
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)] ${
+                showTransferDelta
+                  ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/15 text-[var(--accent-primary)]"
+                  : "border-[color:var(--border-soft)] bg-[var(--bg-card)] text-[var(--text-secondary)]"
+              }`}
+              onClick={() => {
+                setShowTransferDelta((prev) => !prev);
+                if (showTransferDelta) {
+                  setForm((prev) => ({ ...prev, targetAmount: "" }));
+                } else {
+                  setLastEdited("source");
+                  if (form.amount) {
+                    setForm((prev) => ({ ...prev, targetAmount: prev.amount }));
+                  }
+                }
+              }}
+            >
+              Amounts differ
+            </button>
+          ) : null}
+          {showTargetAmount ? (
+            <div className="rounded-2xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] p-3 transition focus-within:shadow-[0_0_0_3px_var(--ring-primary)]">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-secondary)]">
+                  Receive
+                </span>
+                <div className="h-px flex-1 bg-[color:var(--border-soft)]" />
+                {isRateLoading ? (
+                  <span className="text-xs text-[var(--text-secondary)]">Loading…</span>
+                ) : null}
+              </div>
+              <div className="mt-3 flex items-end gap-2">
+                <input
+                  className="w-full bg-transparent text-3xl font-extrabold tracking-tight text-[var(--text-primary)] outline-none"
+                  inputMode="decimal"
+                  name="targetAmount"
+                  autoComplete="off"
+                  placeholder="0.00…"
+                  value={form.targetAmount}
+                  onChange={(event) => {
+                    setLastEdited("target");
+                    setForm((prev) => ({ ...prev, targetAmount: event.target.value }));
+                  }}
+                  required={!sameCurrency}
+                />
+                <span className="text-sm font-semibold text-[var(--text-secondary)]">
+                  {targetCurrency?.symbol ?? ""}
+                </span>
+              </div>
+              {effectiveRate ? (
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)]">
+                  <span className="badge">
+                    Rate {selectedCurrency?.code} → {targetCurrency?.code}
+                  </span>
+                  <span>
+                    1 {selectedCurrency?.code} = {effectiveRate.toFixed(6)} {targetCurrency?.code}
+                  </span>
+                  {sameCurrency && percentDelta !== null ? (
+                    <span className="badge" style={badgeStyle("#0EA5E9")}>
+                      {percentDelta >= 0 ? "+" : ""}
+                      {percentDelta.toFixed(2)}%
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       <label className="mt-3 block text-sm text-slate-700">
         Description (Optional)

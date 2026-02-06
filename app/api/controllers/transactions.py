@@ -81,12 +81,27 @@ async def get_transaction(
 @router.post("", response_model=TransactionResponse, status_code=201)
 async def create_transaction(
     data: TransactionCreate,
+    converted_amount: Decimal | None = Query(None, description="Сумма получения"),
+    exchange_rate: Decimal | None = Query(None, description="Курс обмена"),
     current_user: User = Depends(get_current_active_user),
 ):
     """Создать новую транзакцию."""
-    exchange_rate: Decimal | None = None
+    exchange_rate_override = exchange_rate
+    converted_amount_override = converted_amount
 
-    if data.type == TransactionType.TRANSFER and data.target_account_id:
+    if (
+        data.type == TransactionType.TRANSFER
+        and data.target_account_id
+        and exchange_rate_override is None
+        and converted_amount_override is not None
+    ):
+        exchange_rate_override = converted_amount_override / data.amount
+
+    if (
+        data.type == TransactionType.TRANSFER
+        and data.target_account_id
+        and exchange_rate_override is None
+    ):
         async with ExchangeRateService() as exchange_service:
             from app.services.account_service import AccountService
 
@@ -109,13 +124,16 @@ async def create_transaction(
                             target.currency_id
                         )
 
-                    exchange_rate = await exchange_service.get_rate(
+                    exchange_rate_override = await exchange_service.get_rate(
                         source_currency.code, target_currency.code
                     )
 
     async with TransactionService() as service:
         return await service.create(
-            user_id=current_user.id, data=data, exchange_rate=exchange_rate
+            user_id=current_user.id,
+            data=data,
+            exchange_rate=exchange_rate_override,
+            converted_amount=converted_amount_override,
         )
 
 
@@ -123,12 +141,18 @@ async def create_transaction(
 async def update_transaction(
     transaction_id: int,
     data: TransactionUpdate,
+    converted_amount: Decimal | None = Query(None, description="Сумма получения"),
+    exchange_rate: Decimal | None = Query(None, description="Курс обмена"),
     current_user: User = Depends(get_current_active_user),
 ):
     """Обновить транзакцию."""
     async with TransactionService() as service:
         return await service.update(
-            transaction_id=transaction_id, user_id=current_user.id, data=data
+            transaction_id=transaction_id,
+            user_id=current_user.id,
+            data=data,
+            exchange_rate_override=exchange_rate,
+            converted_amount_override=converted_amount,
         )
 
 

@@ -38,6 +38,7 @@ type EditTransactionForm = {
   accountId: string;
   targetAccountId: string;
   amount: string;
+  targetAmount: string;
   description: string;
   transactionDate: string;
   categoryId: string;
@@ -457,6 +458,7 @@ export default function DashboardPage() {
       accountId: String(transaction.account_id),
       targetAccountId: transaction.target_account_id ? String(transaction.target_account_id) : "",
       amount: transaction.amount,
+      targetAmount: transaction.type === "transfer" ? transaction.converted_amount ?? "" : "",
       description: transaction.description ?? "",
       transactionDate: toLocalDateTimeValue(transaction.transaction_date),
       categoryId: transaction.category_id ? String(transaction.category_id) : "",
@@ -513,7 +515,20 @@ export default function DashboardPage() {
               : null,
       };
 
-      await authenticatedRequest(`/api/transactions/${editingTransaction.id}`, {
+      const query = new URLSearchParams();
+      if (editingTransaction.type === "transfer" && editForm.targetAmount) {
+        const sourceAmount = Number(editForm.amount);
+        const targetAmount = Number(editForm.targetAmount);
+        if (Number.isFinite(sourceAmount) && sourceAmount > 0 && Number.isFinite(targetAmount)) {
+          query.set("converted_amount", targetAmount.toString());
+          query.set("exchange_rate", (targetAmount / sourceAmount).toString());
+        }
+      }
+      const url = query.toString()
+        ? `/api/transactions/${editingTransaction.id}?${query.toString()}`
+        : `/api/transactions/${editingTransaction.id}`;
+
+      await authenticatedRequest(url, {
         method: "PATCH",
         body: payload,
       });
