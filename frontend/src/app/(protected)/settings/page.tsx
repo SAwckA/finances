@@ -38,21 +38,24 @@ const SETTINGS_LINKS: SettingLink[] = [
     title: "Categories",
     description: "Manage expense categories",
     icon: Tags,
-    iconClassName: "bg-blue-50 text-blue-600",
+    iconClassName:
+      "bg-[color:color-mix(in_srgb,#3b82f6_18%,transparent)] text-[#3b82f6]",
   },
   {
     href: "/accounts",
     title: "Payment Sources",
     description: "Banks, cards & wallets",
     icon: Wallet,
-    iconClassName: "bg-emerald-50 text-emerald-600",
+    iconClassName:
+      "bg-[color:color-mix(in_srgb,#10b981_18%,transparent)] text-[#10b981]",
   },
   {
     href: "/settings/api-keys",
     title: "API Keys",
     description: "External integrations",
     icon: KeyRound,
-    iconClassName: "bg-violet-50 text-violet-600",
+    iconClassName:
+      "bg-[color:color-mix(in_srgb,#8b5cf6_18%,transparent)] text-[#8b5cf6]",
     disabled: true,
   },
   {
@@ -60,7 +63,8 @@ const SETTINGS_LINKS: SettingLink[] = [
     title: "Budget Settings",
     description: "Limits & alerts",
     icon: PieChart,
-    iconClassName: "bg-orange-50 text-orange-600",
+    iconClassName:
+      "bg-[color:color-mix(in_srgb,#f59e0b_18%,transparent)] text-[#f59e0b]",
     disabled: true,
   },
   {
@@ -68,7 +72,8 @@ const SETTINGS_LINKS: SettingLink[] = [
     title: "Notifications",
     description: "Alerts & reminders",
     icon: Bell,
-    iconClassName: "bg-rose-50 text-rose-600",
+    iconClassName:
+      "bg-[color:color-mix(in_srgb,#f43f5e_18%,transparent)] text-[#f43f5e]",
     disabled: true,
   },
   {
@@ -76,7 +81,8 @@ const SETTINGS_LINKS: SettingLink[] = [
     title: "Data Export",
     description: "CSV, PDF reports",
     icon: Upload,
-    iconClassName: "bg-indigo-50 text-indigo-600",
+    iconClassName:
+      "bg-[color:color-mix(in_srgb,#6366f1_18%,transparent)] text-[#6366f1]",
     disabled: true,
   },
   {
@@ -84,7 +90,8 @@ const SETTINGS_LINKS: SettingLink[] = [
     title: "Privacy & Security",
     description: "Permissions & backup",
     icon: Shield,
-    iconClassName: "bg-slate-100 text-slate-600",
+    iconClassName:
+      "bg-[color:color-mix(in_srgb,var(--text-secondary)_12%,transparent)] text-[var(--text-secondary)]",
     disabled: true,
   },
 ];
@@ -143,17 +150,17 @@ export default function SettingsPage() {
           <p className="mt-1 text-xs font-semibold text-emerald-300">Active • {stats.sources} sources connected</p>
         </div>
         <div className="grid grid-cols-3 gap-2 p-3">
-          <article className="rounded-xl border border-slate-200 bg-white p-2.5 text-center">
-            <p className="text-2xl font-bold text-indigo-600">{stats.categories}</p>
-            <p className="text-xs font-semibold text-slate-500">Categories</p>
+          <article className="rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] p-2.5 text-center">
+            <p className="text-2xl font-bold text-[#6366f1]">{stats.categories}</p>
+            <p className="text-xs font-semibold text-[var(--text-secondary)]">Categories</p>
           </article>
-          <article className="rounded-xl border border-slate-200 bg-white p-2.5 text-center">
-            <p className="text-2xl font-bold text-emerald-600">{stats.sources}</p>
-            <p className="text-xs font-semibold text-slate-500">Sources</p>
+          <article className="rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] p-2.5 text-center">
+            <p className="text-2xl font-bold text-[#10b981]">{stats.sources}</p>
+            <p className="text-xs font-semibold text-[var(--text-secondary)]">Sources</p>
           </article>
-          <article className="rounded-xl border border-slate-200 bg-white p-2.5 text-center">
-            <p className="text-2xl font-bold text-orange-600">{stats.apiKeys}</p>
-            <p className="text-xs font-semibold text-slate-500">API Keys</p>
+          <article className="rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] p-2.5 text-center">
+            <p className="text-2xl font-bold text-[#f59e0b]">{stats.apiKeys}</p>
+            <p className="text-xs font-semibold text-[var(--text-secondary)]">API Keys</p>
           </article>
         </div>
       </header>
@@ -176,11 +183,11 @@ export default function SettingsPage() {
                       <Icon className="h-4.5 w-4.5" />
                     </span>
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-slate-800">{item.title}</p>
-                      <p className="truncate text-xs text-slate-500">{item.description}</p>
+                      <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{item.title}</p>
+                      <p className="truncate text-xs text-[var(--text-secondary)]">{item.description}</p>
                     </div>
                   </div>
-                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold uppercase text-slate-500">
+                  <span className="rounded-full bg-[color:color-mix(in_srgb,var(--text-secondary)_12%,transparent)] px-2 py-1 text-[10px] font-semibold uppercase text-[var(--text-secondary)]">
                     Soon
                   </span>
                 </article>
@@ -194,11 +201,11 @@ export default function SettingsPage() {
                     <Icon className="h-4.5 w-4.5" />
                   </span>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-slate-800">{item.title}</p>
-                    <p className="truncate text-xs text-slate-500">{item.description}</p>
+                    <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{item.title}</p>
+                    <p className="truncate text-xs text-[var(--text-secondary)]">{item.description}</p>
                   </div>
                 </div>
-                <ChevronRight className="h-4 w-4 text-slate-400" />
+                <ChevronRight className="h-4 w-4 text-[var(--text-secondary)]" />
               </Link>
             );
           })}

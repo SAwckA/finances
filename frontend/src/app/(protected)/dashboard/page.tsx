@@ -661,7 +661,7 @@ export default function DashboardPage() {
               href="/transactions?create=1&type=transfer"
             />
             <ActionTile
-              label="Budget"
+              label="Shopping list"
               icon={WalletCards}
               iconClassName="bg-amber-500/15 text-amber-600"
               href="/shopping-lists"

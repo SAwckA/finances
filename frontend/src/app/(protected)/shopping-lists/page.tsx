@@ -18,7 +18,7 @@ import type {
   ShoppingListStatus,
 } from "@/lib/types";
 
-type StatusFilter = ShoppingListStatus | "all";
+type StatusFilter = ShoppingListStatus | "all" | "active";
 
 
 function getErrorMessage(error: unknown): string {
@@ -99,7 +99,7 @@ export default function ShoppingListsPage() {
   const [accounts, setAccounts] = useState<AccountResponse[]>([]);
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
   const [currencies, setCurrencies] = useState<CurrencyResponse[]>([]);
-  const [filter, setFilter] = useState<StatusFilter>("all");
+  const [filter, setFilter] = useState<StatusFilter>("active");
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -126,7 +126,8 @@ export default function ShoppingListsPage() {
     setIsRefreshing(true);
 
     try {
-      const statusQuery = filter === "all" ? "" : `?status=${filter}`;
+      const statusQuery =
+        filter === "all" || filter === "active" ? "" : `?status=${filter}`;
       const [listsData, accountsData, categoriesData, currenciesData] = await Promise.all([
         authenticatedRequest<ShoppingListResponse[]>(`/api/shopping-lists${statusQuery}`),
         authenticatedRequest<AccountResponse[]>("/api/accounts?skip=0&limit=300"),
@@ -219,10 +220,9 @@ export default function ShoppingListsPage() {
           <section className="space-y-3">
             <SegmentedControl
               options={[
-                { key: "all", label: "All" },
-                { key: "draft", label: "Draft" },
-                { key: "confirmed", label: "Confirmed" },
+                { key: "active", label: "Active" },
                 { key: "completed", label: "Completed" },
+                { key: "all", label: "All" },
               ]}
               value={filter}
               onChange={setFilter}
@@ -238,10 +238,23 @@ export default function ShoppingListsPage() {
               {!isLoading && lists.length === 0 ? (
                 <EmptyState message="Списков пока нет." />
               ) : null}
+              {!isLoading && filter === "active" && lists.length > 0 ? (
+                lists.some(
+                  (list) => list.status === "draft" || list.status === "confirmed",
+                ) ? null : (
+                  <EmptyState message="Списков нет." />
+                )
+              ) : null}
 
               {!isLoading && lists.length > 0 ? (
                 <div className="space-y-2">
-                  {lists.map((list) => {
+                  {(filter === "active"
+                    ? lists.filter(
+                        (list) =>
+                          list.status === "draft" || list.status === "confirmed",
+                      )
+                    : lists
+                  ).map((list) => {
                     const status = statusMeta(list.status);
                     const account = accountById.get(list.account_id);
                     const currency = account ? currencyById.get(account.currency_id) : null;
