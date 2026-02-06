@@ -37,7 +37,7 @@ export function EmptyState({ message, className }: AsyncStateProps) {
     <div
       className={
         className ??
-        "rounded-2xl border border-dashed border-[color:var(--border-soft)] bg-white/75 p-4 text-sm text-[var(--text-secondary)]"
+        "rounded-2xl border border-dashed border-[color:var(--border-soft)] bg-[color:color-mix(in_srgb,var(--bg-card)_85%,transparent)] p-4 text-sm text-[var(--text-secondary)]"
       }
     >
       {message}

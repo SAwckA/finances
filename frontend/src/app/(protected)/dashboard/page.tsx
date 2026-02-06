@@ -627,7 +627,7 @@ export default function DashboardPage() {
               label="Budget"
               icon={WalletCards}
               iconClassName="bg-amber-500/15 text-amber-600"
-              href="/analytics"
+              href="/shopping-lists"
             />
           </section>
 
@@ -880,7 +880,7 @@ export default function DashboardPage() {
                       </p>
                     </div>
                     <Link
-                      href={`/shopping-lists?open=${editingTransaction.shopping_list_id}`}
+                      href={`/shopping-lists/${editingTransaction.shopping_list_id}`}
                       className="rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] transition hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/30"
                     >
                       Open

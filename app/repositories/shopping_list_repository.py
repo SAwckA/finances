@@ -1,7 +1,7 @@
 from typing import Sequence
 
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, with_loader_criteria
 
 from app.models.shopping_list import ShoppingItem, ShoppingList, ShoppingListStatus
 from app.repositories.base_repository import BaseRepository
@@ -18,6 +18,11 @@ class ShoppingListRepository(BaseRepository[ShoppingList]):
             .options(
                 selectinload(ShoppingList.items),
                 selectinload(ShoppingList.transaction),
+                with_loader_criteria(
+                    ShoppingItem,
+                    ShoppingItem.deleted_at.is_(None),
+                    include_aliases=True,
+                ),
             )
         )
         result = await self.session.execute(query)
@@ -37,6 +42,11 @@ class ShoppingListRepository(BaseRepository[ShoppingList]):
             .options(
                 selectinload(ShoppingList.items),
                 selectinload(ShoppingList.transaction),
+                with_loader_criteria(
+                    ShoppingItem,
+                    ShoppingItem.deleted_at.is_(None),
+                    include_aliases=True,
+                ),
             )
         )
         if status:
@@ -54,6 +64,11 @@ class ShoppingListRepository(BaseRepository[ShoppingList]):
             .options(
                 selectinload(ShoppingList.items),
                 selectinload(ShoppingList.transaction),
+                with_loader_criteria(
+                    ShoppingItem,
+                    ShoppingItem.deleted_at.is_(None),
+                    include_aliases=True,
+                ),
             )
         )
         result = await self.session.execute(query)

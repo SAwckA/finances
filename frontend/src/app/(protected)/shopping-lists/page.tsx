@@ -1,29 +1,26 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Accordion,
   AccordionItem,
   Button,
   Input,
-  Modal,
-  ModalBody,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
   useDisclosure,
 } from "@heroui/react";
-import { Check, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, Plus, Trash2 } from "lucide-react";
 import { EmptyState, ErrorState, LoadingState } from "@/components/async-state";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import { TransactionEditorHeader } from "@/components/transactions/transaction-editor-header";
 import { useAuth } from "@/features/auth/auth-context";
 import { ApiError } from "@/lib/api-client";
+import { getIconOption } from "@/lib/icon-catalog";
 import type {
   AccountResponse,
   CategoryResponse,
   CurrencyResponse,
-  ShoppingItemCreate,
-  ShoppingItemResponse,
   ShoppingListCreate,
   ShoppingListResponse,
   ShoppingListStatus,
@@ -38,22 +35,12 @@ type ListFormState = {
   categoryId: string;
 };
 
-type ItemDraftState = {
-  name: string;
-  quantity: string;
-  price: string;
-};
+const FORM_ID = "shopping-list-form";
 
 const DEFAULT_LIST_FORM: ListFormState = {
   name: "",
   accountId: "",
   categoryId: "",
-};
-
-const DEFAULT_ITEM_DRAFT: ItemDraftState = {
-  name: "",
-  quantity: "1",
-  price: "",
 };
 
 function getErrorMessage(error: unknown): string {
@@ -86,6 +73,13 @@ function formatAmount(value: string | null, currencyCode: string): string {
   }).format(numeric);
 }
 
+function shortAccountBadge(account: AccountResponse | null): string | null {
+  if (!account?.short_identifier) {
+    return null;
+  }
+  return account.short_identifier;
+}
+
 function statusMeta(status: ShoppingListStatus): { label: string; className: string } {
   if (status === "confirmed") {
     return {
@@ -109,7 +103,9 @@ function statusMeta(status: ShoppingListStatus): { label: string; className: str
 
 export default function ShoppingListsPage() {
   const { authenticatedRequest } = useAuth();
-  const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { isOpen, onOpen, onClose } = useDisclosure();
   const [lists, setLists] = useState<ShoppingListResponse[]>([]);
   const [accounts, setAccounts] = useState<AccountResponse[]>([]);
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
@@ -121,8 +117,6 @@ export default function ShoppingListsPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [editingListId, setEditingListId] = useState<number | null>(null);
   const [listForm, setListForm] = useState<ListFormState>(DEFAULT_LIST_FORM);
-  const [itemDrafts, setItemDrafts] = useState<Record<number, ItemDraftState>>({});
-  const [itemPendingKey, setItemPendingKey] = useState<string | null>(null);
 
   const accountById = useMemo(
     () => new Map(accounts.map((account) => [account.id, account])),
@@ -158,13 +152,6 @@ export default function ShoppingListsPage() {
       setAccounts(accountsData);
       setCategories(categoriesData);
       setCurrencies(currenciesData);
-      setItemDrafts((prev) => {
-        const next: Record<number, ItemDraftState> = {};
-        for (const list of listsData) {
-          next[list.id] = prev[list.id] ?? DEFAULT_ITEM_DRAFT;
-        }
-        return next;
-      });
     } catch (error) {
       setErrorMessage(getErrorMessage(error));
     } finally {
@@ -173,9 +160,24 @@ export default function ShoppingListsPage() {
     }
   }, [authenticatedRequest, filter]);
 
+  const handleBack = useCallback(() => {
+    router.back();
+  }, [router]);
+
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    const openParam = searchParams.get("open");
+    if (!openParam) {
+      return;
+    }
+    const parsed = Number(openParam);
+    if (Number.isFinite(parsed)) {
+      router.replace(`/shopping-lists/${parsed}`);
+    }
+  }, [router, searchParams]);
 
   const resetListForm = () => {
     setEditingListId(null);
@@ -263,349 +265,287 @@ export default function ShoppingListsPage() {
 
   const handleTransition = async (listId: number, action: "confirm" | "complete") => {
     setErrorMessage(null);
-    setItemPendingKey(`${action}:${listId}`);
 
     try {
       await authenticatedRequest(`/api/shopping-lists/${listId}/${action}`, { method: "POST" });
       await loadData();
     } catch (error) {
       setErrorMessage(getErrorMessage(error));
-    } finally {
-      setItemPendingKey(null);
-    }
-  };
-
-  const updateItemDraft = (listId: number, patch: Partial<ItemDraftState>) => {
-    setItemDrafts((prev) => ({
-      ...prev,
-      [listId]: { ...(prev[listId] ?? DEFAULT_ITEM_DRAFT), ...patch },
-    }));
-  };
-
-  const handleAddItem = async (listId: number) => {
-    const draft = itemDrafts[listId] ?? DEFAULT_ITEM_DRAFT;
-    if (!draft.name.trim()) {
-      setErrorMessage("Введите название товара.");
-      return;
-    }
-
-    setErrorMessage(null);
-    setItemPendingKey(`add:${listId}`);
-    try {
-      const payload: ShoppingItemCreate = {
-        name: draft.name.trim(),
-        quantity: Math.max(1, Number(draft.quantity) || 1),
-        price: draft.price ? Number(draft.price) : null,
-      };
-      await authenticatedRequest(`/api/shopping-lists/${listId}/items`, { method: "POST", body: payload });
-      setItemDrafts((prev) => ({ ...prev, [listId]: DEFAULT_ITEM_DRAFT }));
-      await loadData();
-    } catch (error) {
-      setErrorMessage(getErrorMessage(error));
-    } finally {
-      setItemPendingKey(null);
-    }
-  };
-
-  const handleToggleItem = async (listId: number, item: ShoppingItemResponse) => {
-    setErrorMessage(null);
-    setItemPendingKey(`check:${item.id}`);
-    try {
-      await authenticatedRequest(`/api/shopping-lists/${listId}/items/${item.id}`, {
-        method: "PATCH",
-        body: { is_checked: !item.is_checked },
-      });
-      await loadData();
-    } catch (error) {
-      setErrorMessage(getErrorMessage(error));
-    } finally {
-      setItemPendingKey(null);
-    }
-  };
-
-  const handleDeleteItem = async (listId: number, itemId: number) => {
-    setErrorMessage(null);
-    setItemPendingKey(`delete:${itemId}`);
-    try {
-      await authenticatedRequest(`/api/shopping-lists/${listId}/items/${itemId}`, { method: "DELETE" });
-      await loadData();
-    } catch (error) {
-      setErrorMessage(getErrorMessage(error));
-    } finally {
-      setItemPendingKey(null);
     }
   };
 
   return (
-    <section className="space-y-3">
-      <section className="mobile-card p-3">
-        <h1 className="section-title text-[1.35rem]">Shopping Lists</h1>
-        <p className="section-caption">Draft, confirm, complete and post spending automatically.</p>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex gap-2">
-            <Button size="sm" variant="flat" isLoading={isRefreshing} onPress={() => void loadData()}>
-              Refresh
-            </Button>
-            <Button color="primary" size="sm" startContent={<Plus className="h-4 w-4" />} onPress={openCreateModal}>
+    <section className="fixed inset-0 z-40 overscroll-contain bg-[var(--bg-app)]">
+      <div className="mx-auto flex h-full w-full max-w-[430px] flex-col">
+        <header className="sticky top-0 z-10 rounded-[var(--radius-lg)] border-b border-[color:var(--border-soft)] bg-[color:color-mix(in_srgb,var(--bg-card)_88%,transparent)] px-3 py-2.5 backdrop-blur">
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={handleBack}
+              className="surface-hover tap-highlight-none inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] text-[var(--text-secondary)] transition"
+              aria-label="Back"
+            >
+              <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+            </button>
+            <h2 className="text-base font-bold text-[var(--text-primary)]">Shopping Lists</h2>
+            <button
+              type="button"
+              onClick={openCreateModal}
+              className="inline-flex items-center gap-1 rounded-xl bg-[var(--accent-primary)] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[var(--accent-primary-strong)]"
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" />
               New list
-            </Button>
+            </button>
           </div>
-        </div>
-      </section>
+        </header>
 
-      <SegmentedControl
-        options={[
-          { key: "all", label: "All" },
-          { key: "draft", label: "Draft" },
-          { key: "confirmed", label: "Confirmed" },
-          { key: "completed", label: "Completed" },
-        ]}
-        value={filter}
-        onChange={setFilter}
-      />
+        <div className="flex-1 overflow-y-auto px-3 py-3">
+          <section className="space-y-3">
+            <section className="mobile-card p-3">
+              <p className="text-sm font-semibold text-[var(--text-primary)]">Manage shopping flows</p>
+              <p className="section-caption">Draft, confirm, complete and post spending automatically.</p>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex gap-2">
+                  <Button size="sm" variant="flat" isLoading={isRefreshing} onPress={() => void loadData()}>
+                    Refresh
+                  </Button>
+                </div>
+              </div>
+            </section>
 
-      {errorMessage ? <ErrorState className="mb-3" message={errorMessage} /> : null}
+            <SegmentedControl
+              options={[
+                { key: "all", label: "All" },
+                { key: "draft", label: "Draft" },
+                { key: "confirmed", label: "Confirmed" },
+                { key: "completed", label: "Completed" },
+              ]}
+              value={filter}
+              onChange={setFilter}
+            />
 
-      <section>
-        {isLoading ? (
-          <LoadingState message="Загружаем списки..." />
-        ) : null}
+            {errorMessage ? <ErrorState className="mb-3" message={errorMessage} /> : null}
 
-        {!isLoading && lists.length === 0 ? (
-          <EmptyState message="Списков пока нет." />
-        ) : null}
+            <section>
+              {isLoading ? (
+                <LoadingState message="Загружаем списки..." />
+              ) : null}
 
-        {!isLoading && lists.length > 0 ? (
-          <Accordion variant="bordered" isCompact>
-            {lists.map((list) => {
-              const status = statusMeta(list.status);
-              const account = accountById.get(list.account_id);
-              const currency = account ? currencyById.get(account.currency_id) : null;
-              const category = categoryById.get(list.category_id);
-              const draft = itemDrafts[list.id] ?? DEFAULT_ITEM_DRAFT;
+              {!isLoading && lists.length === 0 ? (
+                <EmptyState message="Списков пока нет." />
+              ) : null}
 
-              return (
-                <AccordionItem
-                  key={list.id}
-                  aria-label={`Список ${list.name}`}
-                  title={
-                    <div className="flex items-start justify-between gap-2 pr-1">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-slate-900">{list.name}</p>
-                        <p className="truncate text-xs text-slate-600">
-                          {account?.name ?? "Счет"} · {category?.name ?? "Категория"}
-                        </p>
-                      </div>
-                      <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${status.className}`}>
-                        {status.label}
-                      </span>
-                    </div>
-                  }
-                  subtitle={
-                    <p className="text-xs text-slate-600">
-                      Итого: {formatAmount(list.total_amount, currency?.code ?? "RUB")}
-                    </p>
-                  }
-                >
-                  <div className="space-y-3">
-                    <div className="flex flex-wrap gap-2">
-                      <Button size="sm" variant="flat" onPress={() => openEditModal(list)}>
-                        Изменить
-                      </Button>
-                      {list.status === "draft" ? (
-                        <Button
-                          size="sm"
-                          color="primary"
-                          variant="flat"
-                          isLoading={itemPendingKey === `confirm:${list.id}`}
-                          onPress={() => void handleTransition(list.id, "confirm")}
-                        >
-                          Подтвердить
-                        </Button>
-                      ) : null}
-                      {list.status === "confirmed" ? (
-                        <Button
-                          size="sm"
-                          color="success"
-                          variant="flat"
-                          isLoading={itemPendingKey === `complete:${list.id}`}
-                          onPress={() => void handleTransition(list.id, "complete")}
-                        >
-                          Завершить
-                        </Button>
-                      ) : null}
-                      <Button
-                        size="sm"
-                        color="danger"
-                        variant="flat"
-                        onPress={() => void handleDeleteList(list.id)}
-                      >
-                        Удалить
-                      </Button>
-                    </div>
-
-                    <div className="space-y-2">
-                      {list.items.length === 0 ? (
-                        <p className="text-sm text-slate-600">Товаров пока нет.</p>
-                      ) : (
-                        list.items.map((item) => (
-                          <article
-                            key={item.id}
-                            className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2"
-                          >
-                            <button
-                              type="button"
-                              className="flex min-w-0 items-center gap-2 text-left"
-                              onClick={() => void handleToggleItem(list.id, item)}
-                            >
-                              <span
-                                className={`inline-flex h-5 w-5 items-center justify-center rounded-md border ${
-                                  item.is_checked
-                                    ? "border-emerald-400 bg-emerald-500 text-white"
-                                    : "border-slate-300 bg-white text-slate-400"
-                                }`}
-                              >
-                                <Check className="h-3 w-3" />
-                              </span>
-                              <span className={`text-sm ${item.is_checked ? "line-through text-slate-500" : "text-slate-800"}`}>
-                                {item.name} · {item.quantity} шт.
-                              </span>
-                            </button>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-medium text-slate-700">
-                                {formatAmount(item.total_price, currency?.code ?? "RUB")}
-                              </span>
-                              <Button
-                                isIconOnly
-                                size="sm"
-                                variant="light"
-                                color="danger"
-                                isLoading={itemPendingKey === `delete:${item.id}`}
-                                onPress={() => void handleDeleteItem(list.id, item.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+              {!isLoading && lists.length > 0 ? (
+                <Accordion variant="bordered" isCompact>
+                  {lists.map((list) => {
+                    const status = statusMeta(list.status);
+                    const account = accountById.get(list.account_id);
+                    const currency = account ? currencyById.get(account.currency_id) : null;
+                    const category = categoryById.get(list.category_id);
+                    return (
+                      <AccordionItem
+                        key={list.id}
+                        aria-label={`Список ${list.name}`}
+                        title={
+                          <div className="flex items-start justify-between gap-2 pr-1">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{list.name}</p>
+                              <p className="truncate text-xs text-[var(--text-secondary)]">
+                                {account?.name ?? "Счет"} · {category?.name ?? "Категория"}
+                              </p>
                             </div>
-                          </article>
-                        ))
-                      )}
-                    </div>
-
-                    {list.status === "draft" ? (
-                      <form
-                        className="rounded-xl border border-slate-200 bg-white p-2.5"
-                        onSubmit={(event) => {
-                          event.preventDefault();
-                          void handleAddItem(list.id);
-                        }}
+                            <span
+                              className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${status.className}`}
+                            >
+                              {status.label}
+                            </span>
+                          </div>
+                        }
+                        subtitle={
+                          <p className="text-xs text-[var(--text-secondary)]">
+                            Итого: {formatAmount(list.total_amount, currency?.code ?? "RUB")}
+                          </p>
+                        }
                       >
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                          <Input
-                            size="sm"
-                            label="Товар"
-                            value={draft.name}
-                            onValueChange={(value) => updateItemDraft(list.id, { name: value })}
-                          />
-                          <Input
-                            size="sm"
-                            label="Кол-во"
-                            type="number"
-                            min="1"
-                            value={draft.quantity}
-                            onValueChange={(value) => updateItemDraft(list.id, { quantity: value })}
-                          />
-                          <Input
-                            size="sm"
-                            label={`Цена${currency ? ` (${currency.code})` : ""}`}
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={draft.price}
-                            onValueChange={(value) => updateItemDraft(list.id, { price: value })}
-                          />
-                        </div>
-                        <div className="mt-2 flex justify-end">
-                          <Button
-                            type="submit"
-                            color="primary"
-                            size="sm"
-                            isLoading={itemPendingKey === `add:${list.id}`}
-                            startContent={<Plus className="h-4 w-4" />}
-                          >
-                            Добавить товар
-                          </Button>
-                        </div>
-                      </form>
-                    ) : null}
+                        <div className="space-y-3">
+                          <div className="flex flex-wrap gap-2">
+                            <Button size="sm" variant="flat" onPress={() => openEditModal(list)}>
+                              Изменить
+                            </Button>
+                            <Link
+                              href={`/shopping-lists/${list.id}`}
+                              className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]"
+                            >
+                              Открыть
+                            </Link>
+                            {list.status === "draft" ? (
+                              <Button
+                                size="sm"
+                                color="primary"
+                                variant="flat"
+                                onPress={() => void handleTransition(list.id, "confirm")}
+                              >
+                                Подтвердить
+                              </Button>
+                            ) : null}
+                            {list.status === "confirmed" ? (
+                              <Button
+                                size="sm"
+                                color="success"
+                                variant="flat"
+                                onPress={() => void handleTransition(list.id, "complete")}
+                              >
+                                Завершить
+                              </Button>
+                            ) : null}
+                            <Button
+                              size="sm"
+                              color="danger"
+                              variant="flat"
+                              onPress={() => void handleDeleteList(list.id)}
+                            >
+                              Удалить
+                            </Button>
+                          </div>
 
-                    {list.status === "completed" && list.transaction_id ? (
-                      <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-xs text-emerald-800">
-                        Список завершен, транзакция создана: #{list.transaction_id}
-                      </p>
-                    ) : null}
-                  </div>
-                </AccordionItem>
-              );
-            })}
-          </Accordion>
-        ) : null}
-      </section>
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-2.5 py-2">
+                              <span className="text-xs font-semibold text-[var(--text-secondary)]">
+                                Товаров: {list.items.length}
+                              </span>
+                              <span className="text-xs font-semibold text-[var(--text-secondary)]">
+                                Итого: {formatAmount(list.total_amount, currency?.code ?? "RUB")}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </AccordionItem>
+                    );
+                  })}
+                </Accordion>
+              ) : null}
+            </section>
+          </section>
+        </div>
 
-      <Modal isOpen={isOpen} onOpenChange={onOpenChange} scrollBehavior="inside" placement="center">
-        <ModalContent>
-          <form onSubmit={handleSaveList}>
-            <ModalHeader>{editingListId ? "Редактировать список" : "Новый список"}</ModalHeader>
-            <ModalBody className="space-y-2">
-              <Input
-                label="Название"
-                value={listForm.name}
-                onValueChange={(value) => setListForm((prev) => ({ ...prev, name: value }))}
-                isRequired
+        {isOpen ? (
+          <section className="fixed inset-0 z-50 overscroll-contain bg-[var(--bg-app)]">
+            <div className="mx-auto flex h-full w-full max-w-[430px] flex-col">
+              <TransactionEditorHeader
+                title={editingListId ? "Edit List" : "New List"}
+                onBack={closeModal}
+                formId={FORM_ID}
+                isSaving={isSubmitting}
               />
-              <label className="block text-sm text-slate-700">
-                Счет *
-                <select
-                  className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-                  value={listForm.accountId}
-                  onChange={(event) => setListForm((prev) => ({ ...prev, accountId: event.target.value }))}
-                  required
-                >
-                  <option value="">Выберите счет</option>
-                  {accounts.map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {account.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-sm text-slate-700">
-                Категория расходов *
-                <select
-                  className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-                  value={listForm.categoryId}
-                  onChange={(event) => setListForm((prev) => ({ ...prev, categoryId: event.target.value }))}
-                  required
-                >
-                  <option value="">Выберите категорию</option>
-                  {expenseCategories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </ModalBody>
-            <ModalFooter>
-              <Button variant="flat" type="button" onPress={closeModal}>
-                Отмена
-              </Button>
-              <Button color="primary" type="submit" isLoading={isSubmitting}>
-                {editingListId ? "Сохранить" : "Создать"}
-              </Button>
-            </ModalFooter>
-          </form>
-        </ModalContent>
-      </Modal>
+              <div className="flex-1 overflow-y-auto px-3 py-3">
+                <form id={FORM_ID} className="mobile-card space-y-3 p-3" onSubmit={handleSaveList}>
+                  <label className="block text-sm text-[var(--text-secondary)]">
+                    Название
+                    <input
+                      className="mt-1 block w-full rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
+                      value={listForm.name}
+                      name="listName"
+                      autoComplete="off"
+                      onChange={(event) => setListForm((prev) => ({ ...prev, name: event.target.value }))}
+                      placeholder="Название списка…"
+                      required
+                    />
+                  </label>
+
+                  <section>
+                    <p className="mb-1.5 text-sm font-semibold text-[var(--text-secondary)]">Счет</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {accounts.map((account) => {
+                        const selected = String(account.id) === listForm.accountId;
+                        const Icon = getIconOption(account.icon).icon;
+                        const badge = shortAccountBadge(account);
+                        return (
+                          <button
+                            key={account.id}
+                            type="button"
+                            className={`flex items-center gap-2 rounded-2xl border px-3 py-2.5 text-left transition ${
+                              selected
+                                ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/10"
+                                : "border-[color:var(--border-soft)] bg-[var(--bg-card)]"
+                            }`}
+                            onClick={() =>
+                              setListForm((prev) => ({
+                                ...prev,
+                                accountId: String(account.id),
+                              }))
+                            }
+                          >
+                            <span
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-xl"
+                              style={{ backgroundColor: `${account.color}22`, color: account.color }}
+                            >
+                              <Icon className="h-4.5 w-4.5" aria-hidden="true" />
+                            </span>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="truncate text-xs font-semibold text-[var(--text-primary)]">
+                                  {account.name}
+                                </span>
+                                {badge ? (
+                                  <span className="badge">{badge}</span>
+                                ) : (
+                                  <span className="text-xs text-[var(--text-secondary)]">No ID</span>
+                                )}
+                              </div>
+                              <span className="mt-1 block text-xs text-[var(--text-secondary)]">
+                                {account.type ?? "Payment source"}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+
+                  <section>
+                    <p className="mb-1.5 text-sm font-semibold text-[var(--text-secondary)]">Категория расходов</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {expenseCategories.map((category) => {
+                        const selected = String(category.id) === listForm.categoryId;
+                        const Icon = getIconOption(category.icon).icon;
+                        return (
+                          <button
+                            key={category.id}
+                            type="button"
+                            className={`flex items-center gap-2 rounded-2xl border px-3 py-2.5 text-left transition ${
+                              selected
+                                ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/10"
+                                : "border-[color:var(--border-soft)] bg-[var(--bg-card)]"
+                            }`}
+                            onClick={() =>
+                              setListForm((prev) => ({
+                                ...prev,
+                                categoryId: String(category.id),
+                              }))
+                            }
+                          >
+                            <span
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-xl"
+                              style={{ backgroundColor: `${category.color}22`, color: category.color }}
+                            >
+                              <Icon className="h-4.5 w-4.5" aria-hidden="true" />
+                            </span>
+                            <span className="text-sm font-semibold text-[var(--text-primary)]">
+                              {category.name}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+
+                  {errorMessage ? <ErrorState message={errorMessage} /> : null}
+                </form>
+              </div>
+            </div>
+          </section>
+        ) : null}
+      </div>
     </section>
   );
 }

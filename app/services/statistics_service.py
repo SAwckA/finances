@@ -233,12 +233,14 @@ class StatisticsService(BaseService):
         target_currency_code: str,
     ) -> Decimal:
         exchange_service = ExchangeRateService()
-        totals_by_account = await self.transaction_repository.get_sum_by_type_by_account(
-            user_id=user_id,
-            start_date=start_date,
-            end_date=end_date,
-            transaction_type=transaction_type,
-            account_ids=account_ids,
+        totals_by_account = (
+            await self.transaction_repository.get_sum_by_type_by_account(
+                user_id=user_id,
+                start_date=start_date,
+                end_date=end_date,
+                transaction_type=transaction_type,
+                account_ids=account_ids,
+            )
         )
         accounts = await self.account_repository.get_by_user_id(user_id)
         account_map = {account.id: account for account in accounts}

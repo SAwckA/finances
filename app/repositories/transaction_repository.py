@@ -158,7 +158,9 @@ class TransactionRepository(BaseRepository[Transaction]):
     ) -> Sequence[tuple[int, Decimal]]:
         """Получить суммы по типу с разбивкой по счетам за период."""
         query = (
-            select(Transaction.account_id, func.coalesce(func.sum(Transaction.amount), 0))
+            select(
+                Transaction.account_id, func.coalesce(func.sum(Transaction.amount), 0)
+            )
             .where(Transaction.deleted_at.is_(None))
             .where(Transaction.user_id == user_id)
             .where(Transaction.type == transaction_type)
