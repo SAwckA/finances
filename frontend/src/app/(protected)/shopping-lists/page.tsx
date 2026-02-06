@@ -109,7 +109,7 @@ export default function ShoppingListsPage() {
     [accounts],
   );
   const currencyById = useMemo(
-    () => new Map(currencies.map((currency) => [currency.id, currency])),
+    () => new Map(currencies.map((currency) => [currency.code, currency])),
     [currencies],
   );
   const categoryById = useMemo(
@@ -257,7 +257,7 @@ export default function ShoppingListsPage() {
                   ).map((list) => {
                     const status = statusMeta(list.status);
                     const account = accountById.get(list.account_id);
-                    const currency = account ? currencyById.get(account.currency_id) : null;
+                    const currency = account ? currencyById.get(account.currency_code) : null;
                     const category = categoryById.get(list.category_id);
                     const CategoryIcon = category ? getIconOption(category.icon).icon : null;
                     const AccountIcon = account ? getIconOption(account.icon).icon : null;

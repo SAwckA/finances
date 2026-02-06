@@ -98,10 +98,10 @@ export function TransactionFormFields({
     ? accounts.find((account) => String(account.id) === form.targetAccountId) ?? null
     : null;
   const selectedCurrency = selectedAccount
-    ? currencies.find((currency) => currency.id === selectedAccount.currency_id) ?? null
+    ? currencies.find((currency) => currency.code === selectedAccount.currency_code) ?? null
     : null;
   const targetCurrency = targetAccount
-    ? currencies.find((currency) => currency.id === targetAccount.currency_id) ?? null
+    ? currencies.find((currency) => currency.code === targetAccount.currency_code) ?? null
     : null;
   const sameCurrency =
     Boolean(selectedCurrency && targetCurrency) &&

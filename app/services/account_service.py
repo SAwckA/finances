@@ -56,13 +56,15 @@ class AccountService(BaseService):
 
     async def create(self, user_id: int, data: AccountCreate):
         """Создать новый счёт."""
-        currency = await self.currency_repository.get_by_id(data.currency_id)
+        currency_code = data.currency_code.upper()
+        currency = await self.currency_repository.get_by_code(currency_code)
         if not currency:
             raise CurrencyNotFoundForAccountException(
-                details={"currency_id": data.currency_id}
+                details={"currency_code": currency_code}
             )
 
         account_data = data.model_dump()
+        account_data["currency_code"] = currency_code
         account_data["user_id"] = user_id
         logger.info(f"Creating account '{data.name}' for user {user_id}")
         return await self.account_repository.create(account_data)
@@ -72,13 +74,14 @@ class AccountService(BaseService):
         account = await self.get_by_id(account_id, user_id)
 
         update_data = data.model_dump(exclude_unset=True)
-        if "currency_id" in update_data:
-            currency = await self.currency_repository.get_by_id(
-                update_data["currency_id"]
+        if "currency_code" in update_data:
+            update_data["currency_code"] = update_data["currency_code"].upper()
+            currency = await self.currency_repository.get_by_code(
+                update_data["currency_code"]
             )
             if not currency:
                 raise CurrencyNotFoundForAccountException(
-                    details={"currency_id": update_data["currency_id"]}
+                    details={"currency_code": update_data["currency_code"]}
                 )
 
         updated = await self.account_repository.update(account.id, update_data)

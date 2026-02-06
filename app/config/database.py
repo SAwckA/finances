@@ -14,7 +14,7 @@ Base = declarative_base()
 
 engine: AsyncEngine = create_async_engine(
     settings.database_url,
-    echo=settings.debug,
+    echo=settings.sqlalchemy_echo,
     pool_size=20,
     max_overflow=10,
     pool_pre_ping=True,

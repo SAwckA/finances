@@ -19,7 +19,6 @@ export type UserUpdate = {
 };
 
 export type CurrencyResponse = {
-  id: number;
   code: string;
   name: string;
   symbol: string;
@@ -32,7 +31,7 @@ export type AccountResponse = {
   name: string;
   color: string;
   icon: string;
-  currency_id: number;
+  currency_code: string;
   short_identifier: string | null;
   created_at: string;
 };
@@ -41,7 +40,7 @@ export type AccountCreate = {
   name: string;
   color: string;
   icon: string;
-  currency_id: number;
+  currency_code: string;
   short_identifier?: string | null;
 };
 

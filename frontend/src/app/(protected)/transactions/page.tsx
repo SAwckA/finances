@@ -112,6 +112,14 @@ function getErrorMessage(error: unknown): string {
   return "Что-то пошло не так. Попробуйте снова.";
 }
 
+function parsePositiveAmount(rawValue: string): number | null {
+  const parsed = Number(rawValue);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+  return parsed;
+}
+
 function sortByNewest(items: TransactionResponse[]): TransactionResponse[] {
   return [...items].sort((first, second) => {
     return new Date(second.transaction_date).getTime() - new Date(first.transaction_date).getTime();
@@ -215,13 +223,13 @@ export default function TransactionsPage() {
     [categories],
   );
   const currencyById = useMemo(
-    () => new Map(currencies.map((currency) => [currency.id, currency])),
+    () => new Map(currencies.map((currency) => [currency.code, currency])),
     [currencies],
   );
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const selectedAccount = form.accountId ? accountById.get(Number(form.accountId)) : null;
-  const selectedCurrency = selectedAccount ? currencyById.get(selectedAccount.currency_id) : null;
+  const selectedCurrency = selectedAccount ? currencyById.get(selectedAccount.currency_code) : null;
 
   const loadReferenceData = useCallback(async () => {
     const [accountsData, categoriesData, currenciesData, balancesData] = await Promise.all([
@@ -440,6 +448,11 @@ export default function TransactionsPage() {
       setErrorMessage("Для перевода нужно выбрать целевой счет.");
       return;
     }
+    const parsedAmount = parsePositiveAmount(form.amount);
+    if (parsedAmount === null) {
+      setErrorMessage("Укажите корректную сумму.");
+      return;
+    }
 
     setIsSubmitting(true);
     setErrorMessage(null);
@@ -460,7 +473,7 @@ export default function TransactionsPage() {
           : `/api/transactions/${editingTransactionId}`;
         const updatePayload: TransactionUpdate = {
           account_id: Number(form.accountId),
-          amount: Number(form.amount),
+          amount: parsedAmount,
           description: form.description.trim() || null,
           transaction_date: new Date(form.transactionDate).toISOString(),
           category_id: form.type === "transfer" ? null : form.categoryId ? Number(form.categoryId) : null,
@@ -484,7 +497,7 @@ export default function TransactionsPage() {
         const createPayload: TransactionCreate = {
           type: form.type,
           account_id: Number(form.accountId),
-          amount: Number(form.amount),
+          amount: parsedAmount,
           description: form.description.trim() || null,
           transaction_date: new Date(form.transactionDate).toISOString(),
           target_account_id: form.type === "transfer" ? Number(form.targetAccountId) : null,

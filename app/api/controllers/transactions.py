@@ -113,19 +113,9 @@ async def create_transaction(
                     data.target_account_id, current_user.id
                 )
 
-                if source.currency_id != target.currency_id:
-                    from app.services.currency_service import CurrencyService
-
-                    async with CurrencyService() as currency_service:
-                        source_currency = await currency_service.get_by_id(
-                            source.currency_id
-                        )
-                        target_currency = await currency_service.get_by_id(
-                            target.currency_id
-                        )
-
+                if source.currency_code != target.currency_code:
                     exchange_rate_override = await exchange_service.get_rate(
-                        source_currency.code, target_currency.code
+                        source.currency_code, target.currency_code
                     )
 
     async with TransactionService() as service:

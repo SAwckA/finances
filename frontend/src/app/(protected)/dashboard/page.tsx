@@ -115,6 +115,14 @@ function getErrorMessage(error: unknown): string {
   return "Что-то пошло не так. Попробуйте снова.";
 }
 
+function parsePositiveAmount(rawValue: string): number | null {
+  const parsed = Number(rawValue);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+  return parsed;
+}
+
 function formatDateLabel(isoValue: string): string {
   const date = new Date(isoValue);
   if (Number.isNaN(date.getTime())) {
@@ -229,14 +237,14 @@ export default function DashboardPage() {
     [categories],
   );
   const currencyById = useMemo(
-    () => new Map(currencies.map((currency) => [currency.id, currency])),
+    () => new Map(currencies.map((currency) => [currency.code, currency])),
     [currencies],
   );
   const accountCurrencies = useMemo(() => {
     const seen = new Set<string>();
     const ordered: CurrencyResponse[] = [];
     accounts.forEach((account) => {
-      const currency = currencyById.get(account.currency_id);
+      const currency = currencyById.get(account.currency_code);
       if (!currency || seen.has(currency.code)) {
         return;
       }
@@ -528,7 +536,8 @@ export default function DashboardPage() {
       return;
     }
 
-    if (!editForm.amount || Number(editForm.amount) <= 0) {
+    const parsedAmount = parsePositiveAmount(editForm.amount);
+    if (parsedAmount === null) {
       setEditErrorMessage("Укажите корректную сумму.");
       return;
     }
@@ -541,7 +550,7 @@ export default function DashboardPage() {
         account_id: Number(editForm.accountId),
         target_account_id:
           editingTransaction.type === "transfer" ? Number(editForm.targetAccountId) : null,
-        amount: Number(editForm.amount),
+        amount: parsedAmount,
         description: editForm.description.trim() || null,
         transaction_date: new Date(editForm.transactionDate).toISOString(),
         category_id:
@@ -620,7 +629,7 @@ export default function DashboardPage() {
               const active = currency.code === selectedCurrency;
               return (
                 <button
-                  key={currency.id}
+                  key={currency.code}
                   type="button"
                   className={`rounded-full border px-3 py-1 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)] ${
                     active
@@ -807,7 +816,7 @@ export default function DashboardPage() {
                   ? categoryById.get(transaction.category_id)
                   : null;
                 const accountCurrency = account
-                  ? currencyById.get(account.currency_id)?.code ?? selectedCurrency
+                  ? currencyById.get(account.currency_code)?.code ?? selectedCurrency
                   : selectedCurrency;
                 const fromBadge = shortAccountBadge(account);
                 const toBadge = shortAccountBadge(targetAccount);

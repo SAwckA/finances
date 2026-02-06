@@ -3,12 +3,12 @@ disable_existing_loggers: false
 
 formatters:
   standard:
-    format: "%(asctime)s | %(levelname)-8s | %(name)s:%(lineno)d | %(message)s"
-    datefmt: "%Y-%m-%d %H:%M:%S"
+    format: "%(asctime)s | %(levelname)-8s | [%(name)s] | %(message)s"
+    datefmt: "%H:%M:%S"
   colored:
     "()": app.config.logging.ColoredFormatter
-    format: "%(asctime)s | %(levelname)-8s | %(name)s:%(lineno)d | %(message)s"
-    datefmt: "%Y-%m-%d %H:%M:%S"
+    format: "%(asctime)s | %(levelname)-8s | [%(name)s] | %(message)s"
+    datefmt: "%H:%M:%S"
 
 handlers:
   console:
@@ -27,14 +27,18 @@ loggers:
     level: INFO
     handlers: [console]
     propagate: false
+  uvicorn.error:
+    level: INFO
+    handlers: [console]
+    propagate: false
 
   uvicorn.access:
-    level: WARNING
+    level: INFO
     handlers: [console]
     propagate: false
 
   sqlalchemy.engine:
-    level: WARNING
+    level: ERROR
     handlers: [console]
     propagate: false
 
@@ -51,4 +55,3 @@ loggers:
 root:
   level: INFO
   handlers: [console]
-

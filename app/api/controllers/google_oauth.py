@@ -16,5 +16,7 @@ async def google_callback(
     async with AuthService() as service:
         auth_code = await service.finish_google_oauth(code=code, state=state)
 
-    redirect_url = f"{settings.frontend_base_url.rstrip('/')}/dashboard?auth_code={auth_code}"
+    redirect_url = (
+        f"{settings.frontend_base_url.rstrip('/')}/dashboard?auth_code={auth_code}"
+    )
     return RedirectResponse(url=redirect_url, status_code=302)

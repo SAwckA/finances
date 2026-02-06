@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 import logging
 
+import uvicorn
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -59,3 +60,11 @@ app.add_middleware(
 async def health_check():
     """Проверка работоспособности сервиса."""
     return {"status": "ok"}
+
+
+uvicorn.run(
+    app,
+    port=8000,
+    log_config=None,
+    access_log=True,
+)

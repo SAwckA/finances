@@ -146,7 +146,7 @@ export default function ShoppingListDetailPage() {
     [accountBalances],
   );
   const currencyById = useMemo(
-    () => new Map(currencies.map((currency) => [currency.id, currency])),
+    () => new Map(currencies.map((currency) => [currency.code, currency])),
     [currencies],
   );
   const categoryById = useMemo(
@@ -492,7 +492,7 @@ export default function ShoppingListDetailPage() {
 
   const account = list ? accountById.get(list.account_id) : null;
   const category = list ? categoryById.get(list.category_id) : null;
-  const currency = account ? currencyById.get(account.currency_id) : null;
+  const currency = account ? currencyById.get(account.currency_code) : null;
   const status = list ? statusMeta(list.status) : null;
   const CategoryIcon = category ? getIconOption(category.icon).icon : null;
   const AccountIcon = account ? getIconOption(account.icon).icon : null;

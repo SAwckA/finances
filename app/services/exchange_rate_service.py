@@ -1,13 +1,12 @@
 import logging
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from app.exceptions import NotFoundException
+from app.repositories.exchange_rate_repository import ExchangeRateRepository
 from app.services.base_service import BaseService
 
 logger = logging.getLogger(__name__)
-
-
-# === EXCEPTIONS ===
 
 
 class ExchangeRateNotFoundException(NotFoundException):
@@ -16,180 +15,59 @@ class ExchangeRateNotFoundException(NotFoundException):
     message = "Курс обмена для указанной валютной пары не найден"
 
 
-# === SERVICE ===
-
-
 class ExchangeRateService(BaseService):
-    """
-    Мок-сервис для получения курсов валют.
+    """Сервис получения курсов из исторических данных в БД."""
 
-    TODO: В будущем будет интегрирован с биржевым API.
-    """
+    exchange_rate_repository: ExchangeRateRepository
 
-    MOCK_RATES: dict[str, dict[str, Decimal]] = {
-        "USD": {
-            "RUB": Decimal("92.50"),
-            "EUR": Decimal("0.92"),
-            "GBP": Decimal("0.79"),
-            "CNY": Decimal("7.24"),
-            "JPY": Decimal("149.50"),
-            "KZT": Decimal("470.00"),
-            "BTC": Decimal("0.000011"),
-            "ETH": Decimal("0.00029"),
-            "USDT": Decimal("1.00"),
-        },
-        "EUR": {
-            "USD": Decimal("1.09"),
-            "RUB": Decimal("100.80"),
-            "GBP": Decimal("0.86"),
-            "CNY": Decimal("7.88"),
-            "JPY": Decimal("162.70"),
-            "KZT": Decimal("510.00"),
-            "BTC": Decimal("0.000012"),
-            "ETH": Decimal("0.00032"),
-            "USDT": Decimal("1.09"),
-        },
-        "RUB": {
-            "USD": Decimal("0.0108"),
-            "EUR": Decimal("0.0099"),
-            "GBP": Decimal("0.0085"),
-            "CNY": Decimal("0.078"),
-            "JPY": Decimal("1.62"),
-            "KZT": Decimal("5.10"),
-            "BTC": Decimal("0.00000012"),
-            "ETH": Decimal("0.0000031"),
-            "USDT": Decimal("0.0108"),
-        },
-        "GBP": {
-            "USD": Decimal("1.27"),
-            "EUR": Decimal("1.16"),
-            "RUB": Decimal("117.20"),
-            "CNY": Decimal("9.17"),
-            "JPY": Decimal("189.50"),
-            "KZT": Decimal("597.00"),
-            "BTC": Decimal("0.000014"),
-            "ETH": Decimal("0.00037"),
-            "USDT": Decimal("1.27"),
-        },
-        "CNY": {
-            "USD": Decimal("0.138"),
-            "EUR": Decimal("0.127"),
-            "RUB": Decimal("12.78"),
-            "GBP": Decimal("0.109"),
-            "JPY": Decimal("20.65"),
-            "KZT": Decimal("64.86"),
-            "BTC": Decimal("0.0000015"),
-            "ETH": Decimal("0.00004"),
-            "USDT": Decimal("0.138"),
-        },
-        "JPY": {
-            "USD": Decimal("0.0067"),
-            "EUR": Decimal("0.0061"),
-            "RUB": Decimal("0.619"),
-            "GBP": Decimal("0.0053"),
-            "CNY": Decimal("0.0484"),
-            "KZT": Decimal("3.15"),
-            "BTC": Decimal("0.000000074"),
-            "ETH": Decimal("0.0000019"),
-            "USDT": Decimal("0.0067"),
-        },
-        "KZT": {
-            "USD": Decimal("0.0021"),
-            "EUR": Decimal("0.0020"),
-            "RUB": Decimal("0.196"),
-            "GBP": Decimal("0.0017"),
-            "CNY": Decimal("0.0154"),
-            "JPY": Decimal("0.317"),
-            "BTC": Decimal("0.000000023"),
-            "ETH": Decimal("0.00000062"),
-            "USDT": Decimal("0.0021"),
-        },
-        "BTC": {
-            "USD": Decimal("91000"),
-            "EUR": Decimal("83500"),
-            "RUB": Decimal("8418500"),
-            "GBP": Decimal("71890"),
-            "CNY": Decimal("659000"),
-            "JPY": Decimal("13600000"),
-            "KZT": Decimal("42770000"),
-            "ETH": Decimal("26.5"),
-            "USDT": Decimal("91000"),
-        },
-        "ETH": {
-            "USD": Decimal("3450"),
-            "EUR": Decimal("3170"),
-            "RUB": Decimal("319125"),
-            "GBP": Decimal("2726"),
-            "CNY": Decimal("24978"),
-            "JPY": Decimal("515775"),
-            "KZT": Decimal("1621500"),
-            "BTC": Decimal("0.0377"),
-            "USDT": Decimal("3450"),
-        },
-        "USDT": {
-            "USD": Decimal("1.00"),
-            "EUR": Decimal("0.92"),
-            "RUB": Decimal("92.50"),
-            "GBP": Decimal("0.79"),
-            "CNY": Decimal("7.24"),
-            "JPY": Decimal("149.50"),
-            "KZT": Decimal("470.00"),
-            "BTC": Decimal("0.000011"),
-            "ETH": Decimal("0.00029"),
-        },
-    }
-
-    async def get_rate(self, from_currency: str, to_currency: str) -> Decimal:
-        """
-        Получить курс обмена между двумя валютами.
-
-        Args:
-            from_currency: Код исходной валюты (например, "USD")
-            to_currency: Код целевой валюты (например, "RUB")
-
-        Returns:
-            Курс обмена (сколько единиц to_currency за 1 единицу from_currency)
-
-        Raises:
-            ExchangeRateNotFoundException: Если курс для пары не найден
-        """
+    async def get_rate(
+        self,
+        from_currency: str,
+        to_currency: str,
+        at_datetime: datetime | None = None,
+    ) -> Decimal:
+        """Получить ближайший курс обмена для пары валют."""
         from_code = from_currency.upper()
         to_code = to_currency.upper()
+        lookup_at = at_datetime or datetime.now(timezone.utc)
 
         if from_code == to_code:
             return Decimal("1")
 
-        if from_code not in self.MOCK_RATES:
+        nearest_rate = await self.exchange_rate_repository.get_nearest_rate(
+            from_currency_code=from_code,
+            to_currency_code=to_code,
+            at_datetime=lookup_at,
+        )
+        if not nearest_rate:
             raise ExchangeRateNotFoundException(
-                details={"from_currency": from_code, "to_currency": to_code}
+                details={
+                    "from_currency": from_code,
+                    "to_currency": to_code,
+                    "at_datetime": lookup_at.isoformat(),
+                }
             )
 
-        rates = self.MOCK_RATES[from_code]
-        if to_code not in rates:
-            raise ExchangeRateNotFoundException(
-                details={"from_currency": from_code, "to_currency": to_code}
-            )
-
-        rate = rates[to_code]
-        logger.debug(f"Exchange rate {from_code} -> {to_code}: {rate}")
-        return rate
+        logger.debug(
+            "Exchange rate %s -> %s (%s): %s",
+            from_code,
+            to_code,
+            nearest_rate.effective_at.isoformat(),
+            nearest_rate.rate,
+        )
+        return Decimal(nearest_rate.rate)
 
     async def convert(
         self,
         amount: Decimal,
         from_currency: str,
         to_currency: str,
+        at_datetime: datetime | None = None,
     ) -> Decimal:
-        """
-        Конвертировать сумму из одной валюты в другую.
-
-        Args:
-            amount: Сумма для конвертации
-            from_currency: Код исходной валюты
-            to_currency: Код целевой валюты
-
-        Returns:
-            Сконвертированная сумма
-        """
-        rate = await self.get_rate(from_currency, to_currency)
+        """Конвертировать сумму из одной валюты в другую."""
+        rate = await self.get_rate(
+            from_currency=from_currency,
+            to_currency=to_currency,
+            at_datetime=at_datetime,
+        )
         return amount * rate

@@ -25,7 +25,7 @@ type AccountFormState = {
   accountNumber: string;
   initialBalance: string;
   color: string;
-  currencyId: string;
+  currencyCode: string;
 };
 
 const FORM_ID = "account-editor-form";
@@ -62,7 +62,7 @@ const DEFAULT_FORM: AccountFormState = {
   accountNumber: "",
   initialBalance: "",
   color: "#4F7EF6",
-  currencyId: "",
+  currencyCode: "",
 };
 
 function toSoftBackground(hexColor: string, alpha: number): string {
@@ -134,13 +134,13 @@ export default function AccountsPage() {
   const isModalOpen = isCreateMode || isEditMode;
 
   const currencyById = useMemo(
-    () => new Map(currencies.map((currency) => [currency.id, currency])),
+    () => new Map(currencies.map((currency) => [currency.code, currency])),
     [currencies],
   );
 
   const selectedSource = SOURCE_TYPE_OPTIONS.find((option) => option.key === form.sourceType) ?? SOURCE_TYPE_OPTIONS[0];
   const PreviewIcon = selectedSource.Icon;
-  const selectedCurrency = form.currencyId ? currencyById.get(Number(form.currencyId)) : null;
+  const selectedCurrency = form.currencyCode ? currencyById.get(form.currencyCode) : null;
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -153,15 +153,15 @@ export default function AccountsPage() {
       ]);
       setAccounts(accountsData);
       setCurrencies(currenciesData);
-      if (!form.currencyId && currenciesData[0]) {
-        setForm((prev) => ({ ...prev, currencyId: String(currenciesData[0].id) }));
+      if (!form.currencyCode && currenciesData[0]) {
+        setForm((prev) => ({ ...prev, currencyCode: currenciesData[0].code }));
       }
     } catch (error) {
       setErrorMessage(getErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
-  }, [authenticatedRequest, form.currencyId]);
+  }, [authenticatedRequest, form.currencyCode]);
 
   useEffect(() => {
     void loadData();
@@ -170,7 +170,7 @@ export default function AccountsPage() {
   const resetForm = useCallback(() => {
     setForm((prev) => ({
       ...DEFAULT_FORM,
-      currencyId: prev.currencyId || (currencies[0] ? String(currencies[0].id) : ""),
+      currencyCode: prev.currencyCode || (currencies[0] ? currencies[0].code : ""),
     }));
   }, [currencies]);
 
@@ -199,7 +199,7 @@ export default function AccountsPage() {
       accountNumber: account.short_identifier ?? "",
       initialBalance: "",
       color: account.color,
-      currencyId: String(account.currency_id),
+      currencyCode: String(account.currency_code),
     });
   }, [accounts, editingId, isCreateMode, isModalOpen, resetForm]);
 
@@ -230,7 +230,7 @@ export default function AccountsPage() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!form.name.trim() || !form.currencyId || !form.color) {
+    if (!form.name.trim() || !form.currencyCode || !form.color) {
       setErrorMessage("Заполните обязательные поля.");
       return;
     }
@@ -242,7 +242,7 @@ export default function AccountsPage() {
       name: form.name.trim(),
       color: form.color,
       icon: selectedSource.iconValue,
-      currency_id: Number(form.currencyId),
+      currency_code: form.currencyCode,
       short_identifier: shortIdentifierFromAccountNumber(form.accountNumber),
     };
 
@@ -403,20 +403,20 @@ export default function AccountsPage() {
                   Currency
                   <select
                     className="mt-1 block w-full rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
-                    value={form.currencyId}
-                    name="currencyId"
+                    value={form.currencyCode}
+                    name="currencyCode"
                     autoComplete="off"
                     onChange={(event) =>
                       setForm((prev) => ({
                         ...prev,
-                        currencyId: event.target.value,
+                        currencyCode: event.target.value,
                       }))
                     }
                     required
                   >
                     <option value="">Select currency</option>
                     {currencies.map((currency) => (
-                      <option key={currency.id} value={currency.id}>
+                      <option key={currency.code} value={currency.code}>
                         {currency.code} ({currency.symbol})
                       </option>
                     ))}
@@ -524,7 +524,7 @@ export default function AccountsPage() {
 
         {!isLoading
           ? accounts.map((account) => {
-              const currency = currencyById.get(account.currency_id);
+              const currency = currencyById.get(account.currency_code);
               const iconOption = getIconOption(account.icon);
               const AccountIcon = iconOption.icon;
               return (

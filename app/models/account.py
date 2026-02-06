@@ -21,7 +21,7 @@ class AccountBase(BaseModel):
         description="Цвет в формате HEX",
     )
     icon: str = Field(min_length=1, max_length=50, description="Название иконки")
-    currency_id: int = Field(description="ID валюты")
+    currency_code: str = Field(min_length=2, max_length=10, description="Код валюты")
     short_identifier: str | None = Field(
         None,
         max_length=20,
@@ -43,7 +43,7 @@ class AccountUpdate(BaseModel):
         None, min_length=4, max_length=7, pattern=r"^#[0-9A-Fa-f]{3,6}$"
     )
     icon: str | None = Field(None, min_length=1, max_length=50)
-    currency_id: int | None = None
+    currency_code: str | None = Field(None, min_length=2, max_length=10)
     short_identifier: str | None = Field(None, max_length=20)
 
 
@@ -70,7 +70,7 @@ class Account(SoftDeleteModel):
     name: Mapped[str] = mapped_column(String(100))
     color: Mapped[str] = mapped_column(String(7))
     icon: Mapped[str] = mapped_column(String(50))
-    currency_id: Mapped[int] = mapped_column(ForeignKey("currencies.id"))
+    currency_code: Mapped[str] = mapped_column(ForeignKey("currencies.code"))
     short_identifier: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
     user = relationship("User", back_populates="accounts")

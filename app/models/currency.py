@@ -35,7 +35,6 @@ class CurrencyUpdate(BaseModel):
 class CurrencyResponse(CurrencyBase):
     """Схема ответа с данными валюты."""
 
-    id: int
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -49,7 +48,6 @@ class Currency(ORMBaseModel):
 
     __tablename__ = "currencies"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    code: Mapped[str] = mapped_column(String(10), unique=True, index=True)
+    code: Mapped[str] = mapped_column(String(10), primary_key=True)
     name: Mapped[str] = mapped_column(String(100))
     symbol: Mapped[str] = mapped_column(String(5))

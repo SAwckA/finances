@@ -10,10 +10,10 @@ from app.config.env import settings
 class Colors:
     """ANSI цветовые коды для терминала."""
 
-    GREY = "\x1b[38;21m"
-    BLUE = "\x1b[38;5;39m"
-    YELLOW = "\x1b[38;5;226m"
-    RED = "\x1b[38;5;196m"
+    GREY = "\x1b[90m"
+    GREEN = "\x1b[32m"
+    YELLOW = "\x1b[33m"
+    RED = "\x1b[31m"
     BOLD_RED = "\x1b[31;1m"
     RESET = "\x1b[0m"
 
@@ -23,7 +23,7 @@ class ColoredFormatter(logging.Formatter):
 
     LEVEL_COLORS = {
         logging.DEBUG: Colors.GREY,
-        logging.INFO: Colors.BLUE,
+        logging.INFO: Colors.GREEN,
         logging.WARNING: Colors.YELLOW,
         logging.ERROR: Colors.RED,
         logging.CRITICAL: Colors.BOLD_RED,
@@ -42,9 +42,11 @@ def setup_logging() -> None:
     with open(config_path) as f:
         config = yaml.safe_load(f)
 
-    if not settings.debug:
+    if settings.debug:
+        config["handlers"]["console"]["formatter"] = "colored"
+        config["loggers"]["app"]["level"] = "DEBUG"
+    else:
         config["handlers"]["console"]["formatter"] = "standard"
-        config["handlers"]["console"]["level"] = "INFO"
         config["loggers"]["app"]["level"] = "INFO"
 
     logging.config.dictConfig(config)

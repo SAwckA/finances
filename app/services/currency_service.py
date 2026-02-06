@@ -35,18 +35,12 @@ class CurrencyService(BaseService):
         """Получить список всех валют."""
         return await self.currency_repository.get_all(skip=skip, limit=limit)
 
-    async def get_by_id(self, currency_id: int):
-        """Получить валюту по ID."""
-        currency = await self.currency_repository.get_by_id(currency_id)
-        if not currency:
-            raise CurrencyNotFoundException(details={"currency_id": currency_id})
-        return currency
-
     async def get_by_code(self, code: str):
         """Получить валюту по коду."""
-        currency = await self.currency_repository.get_by_code(code.upper())
+        normalized_code = code.upper()
+        currency = await self.currency_repository.get_by_code(normalized_code)
         if not currency:
-            raise CurrencyNotFoundException(details={"code": code})
+            raise CurrencyNotFoundException(details={"code": normalized_code})
         return currency
 
     async def create(self, data: CurrencyCreate):
@@ -60,24 +54,28 @@ class CurrencyService(BaseService):
         logger.info(f"Creating currency: {currency_data['code']}")
         return await self.currency_repository.create(currency_data)
 
-    async def update(self, currency_id: int, data: CurrencyUpdate):
+    async def update(self, code: str, data: CurrencyUpdate):
         """Обновить валюту."""
-        currency = await self.currency_repository.get_by_id(currency_id)
+        normalized_code = code.upper()
+        currency = await self.currency_repository.get_by_code(normalized_code)
         if not currency:
-            raise CurrencyNotFoundException(details={"currency_id": currency_id})
+            raise CurrencyNotFoundException(details={"code": normalized_code})
 
         update_data = data.model_dump(exclude_unset=True)
         if "code" in update_data:
             update_data["code"] = update_data["code"].upper()
             existing = await self.currency_repository.get_by_code(update_data["code"])
-            if existing and existing.id != currency_id:
+            if existing and existing.code != normalized_code:
                 raise CurrencyCodeExistsException(details={"code": update_data["code"]})
 
-        return await self.currency_repository.update(currency_id, update_data)
+        return await self.currency_repository.update_by_code(
+            normalized_code, update_data
+        )
 
-    async def delete(self, currency_id: int) -> bool:
+    async def delete(self, code: str) -> bool:
         """Удалить валюту."""
-        currency = await self.currency_repository.get_by_id(currency_id)
+        normalized_code = code.upper()
+        currency = await self.currency_repository.get_by_code(normalized_code)
         if not currency:
-            raise CurrencyNotFoundException(details={"currency_id": currency_id})
-        return await self.currency_repository.delete(currency_id)
+            raise CurrencyNotFoundException(details={"code": normalized_code})
+        return await self.currency_repository.delete_by_code(normalized_code)

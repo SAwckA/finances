@@ -103,7 +103,9 @@ class AuthService(BaseService):
     async def exchange_google_auth_code(self, auth_code: str) -> TokenResponse:
         """Обменивает одноразовый auth_code на JWT токены приложения."""
         code_hash = self._hash_auth_code(auth_code)
-        exchange_code = await self.auth_exchange_code_repository.consume_valid_code(code_hash)
+        exchange_code = await self.auth_exchange_code_repository.consume_valid_code(
+            code_hash
+        )
 
         if not exchange_code:
             raise InvalidAuthCodeException()
@@ -165,7 +167,9 @@ class AuthService(BaseService):
         email = payload.get("email")
 
         if not sub or not email:
-            raise GoogleAuthExchangeException(message="Google не вернул обязательные поля")
+            raise GoogleAuthExchangeException(
+                message="Google не вернул обязательные поля"
+            )
 
         return GoogleUserInfo(
             sub=sub,
@@ -199,7 +203,10 @@ class AuthService(BaseService):
             )
 
         if existing_by_email:
-            if existing_by_email.google_sub and existing_by_email.google_sub != profile.sub:
+            if (
+                existing_by_email.google_sub
+                and existing_by_email.google_sub != profile.sub
+            ):
                 raise GoogleAccountAlreadyLinkedException()
 
             updates = {

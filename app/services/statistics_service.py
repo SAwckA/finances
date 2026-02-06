@@ -75,7 +75,7 @@ class StatisticsService(BaseService):
 
             raise AccountNotFoundException(details={"account_id": account_id})
 
-        currency = await self.currency_repository.get_by_id(account.currency_id)
+        currency = await self.currency_repository.get_by_code(account.currency_code)
         balance = await self.transaction_repository.get_account_balance(account_id)
 
         return AccountBalance(
@@ -92,7 +92,7 @@ class StatisticsService(BaseService):
         balances = []
 
         for account in accounts:
-            currency = await self.currency_repository.get_by_id(account.currency_id)
+            currency = await self.currency_repository.get_by_code(account.currency_code)
             balance = await self.transaction_repository.get_account_balance(account.id)
             balances.append(
                 AccountBalance(
@@ -126,7 +126,7 @@ class StatisticsService(BaseService):
         total = Decimal("0")
 
         for account in accounts:
-            currency = await self.currency_repository.get_by_id(account.currency_id)
+            currency = await self.currency_repository.get_by_code(account.currency_code)
             balance = await self.transaction_repository.get_account_balance(account.id)
 
             if not currency:
@@ -251,7 +251,7 @@ class StatisticsService(BaseService):
             account = account_map.get(account_id)
             if not account:
                 continue
-            currency = await self.currency_repository.get_by_id(account.currency_id)
+            currency = await self.currency_repository.get_by_code(account.currency_code)
             if not currency:
                 continue
             if currency.code == target_code:

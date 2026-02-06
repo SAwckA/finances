@@ -12,6 +12,7 @@ from app.models.account import Account
 from app.models.auth_exchange_code import AuthExchangeCode
 from app.models.category import Category
 from app.models.currency import Currency
+from app.models.exchange_rate import ExchangeRate, ExchangeRateRun
 from app.models.recurring_transaction import RecurringTransaction
 from app.models.shopping_list import ShoppingItem, ShoppingList
 from app.models.shopping_template import ShoppingTemplate, ShoppingTemplateItem

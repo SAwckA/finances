@@ -12,7 +12,6 @@ from app.models.transaction import TransactionCreate, TransactionType, Transacti
 from app.repositories.account_repository import AccountRepository
 from app.repositories.category_repository import CategoryRepository
 from app.repositories.transaction_repository import TransactionRepository
-from app.repositories.currency_repository import CurrencyRepository
 from app.services.exchange_rate_service import ExchangeRateService
 from app.services.base_service import BaseService
 
@@ -79,7 +78,6 @@ class TransactionService(BaseService):
     transaction_repository: TransactionRepository
     account_repository: AccountRepository
     category_repository: CategoryRepository
-    currency_repository: CurrencyRepository
 
     async def get_user_transactions(
         self,
@@ -180,7 +178,9 @@ class TransactionService(BaseService):
             elif exchange_rate is not None:
                 transaction_data["exchange_rate"] = exchange_rate
                 transaction_data["converted_amount"] = data.amount * exchange_rate
-            elif target_account and account.currency_id != target_account.currency_id:
+            elif (
+                target_account and account.currency_code != target_account.currency_code
+            ):
                 raise ValidationException(
                     message="Для перевода между разными валютами требуется курс обмена"
                 )
@@ -321,19 +321,9 @@ class TransactionService(BaseService):
             elif exchange_rate_override is not None:
                 update_data["exchange_rate"] = exchange_rate_override
                 update_data["converted_amount"] = amount * exchange_rate_override
-            elif source_account.currency_id != target_account.currency_id:
-                source_currency = await self.currency_repository.get_by_id(
-                    source_account.currency_id
-                )
-                target_currency = await self.currency_repository.get_by_id(
-                    target_account.currency_id
-                )
-                if not source_currency or not target_currency:
-                    raise ValidationException(
-                        message="Не удалось определить валюты для перевода"
-                    )
+            elif source_account.currency_code != target_account.currency_code:
                 exchange_rate = await ExchangeRateService().get_rate(
-                    source_currency.code, target_currency.code
+                    source_account.currency_code, target_account.currency_code
                 )
                 update_data["exchange_rate"] = exchange_rate
                 update_data["converted_amount"] = amount * exchange_rate

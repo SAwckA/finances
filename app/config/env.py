@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     )
 
     debug: bool = False
+    sqlalchemy_echo: bool = False
     secret_key: str = "change-me-in-production"
 
     postgres_user: str = "finances"
@@ -30,6 +31,12 @@ class Settings(BaseSettings):
     frontend_base_url: str = "http://localhost:3000"
     google_oauth_state_expire_seconds: int = 600
     auth_exchange_code_ttl_seconds: int = 90
+    exchange_rate_job_timezone: str = "UTC"
+    exchange_http_timeout_seconds: int = 15
+    ecb_hist_rates_url: str = (
+        "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.xml"
+    )
+    cbr_dailyinfo_base_url: str = "https://www.cbr.ru/DailyInfoWebServ/DailyInfo.asmx"
 
     @property
     def database_url(self) -> str:
