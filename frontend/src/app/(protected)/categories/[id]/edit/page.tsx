@@ -1,4 +1,4 @@
-import { CategoryEditorScreen } from "@/components/categories/category-editor-screen";
+import { redirect } from "next/navigation";
 
 export default async function EditCategoryPage({
   params,
@@ -8,5 +8,9 @@ export default async function EditCategoryPage({
   const { id } = await params;
   const parsed = Number(id);
 
-  return <CategoryEditorScreen categoryId={Number.isFinite(parsed) ? parsed : undefined} />;
+  if (!Number.isFinite(parsed)) {
+    redirect("/categories");
+  }
+
+  redirect(`/categories?edit=${parsed}`);
 }

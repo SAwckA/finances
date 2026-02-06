@@ -624,13 +624,14 @@ export default function DashboardPage() {
               {(showAllSources ? accountBalances : accountBalances.slice(0, 2)).map((account) => {
                 const accountDetails = accountById.get(account.account_id);
                 const badge = shortAccountBadge(accountDetails);
-                return (
-                  <SourceCard
-                    key={account.account_id}
-                    name={account.account_name}
-                    identifier={
-                      badge ? (
-                        <span className="badge" style={badgeStyle(accountDetails?.color)}>
+                  return (
+                    <SourceCard
+                      key={account.account_id}
+                      name={account.account_name}
+                      icon={accountDetails?.icon ?? null}
+                      identifier={
+                        badge ? (
+                          <span className="badge" style={badgeStyle(accountDetails?.color)}>
                           {badge}
                         </span>
                       ) : (
@@ -790,6 +791,7 @@ export default function DashboardPage() {
                       dateLabel={formatDateLabel(transaction.transaction_date)}
                       type={transaction.type}
                       categoryIcon={category?.icon ?? null}
+                      categoryColor={category?.color ?? null}
                       metaBadge={shoppingBadge}
                       className="surface-hover"
                     />

@@ -10,6 +10,7 @@ type TransactionRowProps = {
   dateLabel: string;
   type: TransactionType;
   categoryIcon: string | null;
+  categoryColor?: string | null;
   metaBadge?: ReactNode;
   className?: string;
 };
@@ -53,12 +54,17 @@ export function TransactionRow({
   dateLabel,
   type,
   categoryIcon,
+  categoryColor,
   metaBadge,
   className,
 }: TransactionRowProps) {
   const meta = typeMeta(type);
   const categoryOption = categoryIcon ? getIconOption(categoryIcon) : null;
   const Icon = categoryOption ? categoryOption.icon : meta.fallbackIcon;
+  const iconStyle = categoryColor
+    ? { backgroundColor: `${categoryColor}22`, color: categoryColor }
+    : undefined;
+  const iconClassName = categoryColor ? "" : meta.iconClassName;
 
   return (
     <article
@@ -66,7 +72,10 @@ export function TransactionRow({
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2.5">
-          <span className={`inline-flex h-9 w-9 items-center justify-center rounded-xl ${meta.iconClassName}`}>
+          <span
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-xl ${iconClassName}`}
+            style={iconStyle}
+          >
             <Icon className="h-4.5 w-4.5" />
           </span>
           <div className="min-w-0">

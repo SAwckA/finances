@@ -1,8 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Banknote, CreditCard, Landmark, Pencil, Trash2 } from "lucide-react";
-import { EmptyState, LoadingState } from "@/components/async-state";
+import { EmptyState, ErrorState, LoadingState } from "@/components/async-state";
+import { TransactionEditorHeader } from "@/components/transactions/transaction-editor-header";
 import { ApiError } from "@/lib/api-client";
 import { getIconOption } from "@/lib/icon-catalog";
 import { useAuth } from "@/features/auth/auth-context";
@@ -24,6 +27,8 @@ type AccountFormState = {
   color: string;
   currencyId: string;
 };
+
+const FORM_ID = "account-editor-form";
 
 const ACCOUNT_COLOR_OPTIONS = [
   "#4F7EF6",
@@ -110,13 +115,23 @@ function shortIdentifierFromAccountNumber(accountNumber: string): string | null 
 
 export default function AccountsPage() {
   const { authenticatedRequest } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [accounts, setAccounts] = useState<AccountResponse[]>([]);
   const [currencies, setCurrencies] = useState<CurrencyResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<AccountFormState>(DEFAULT_FORM);
+
+  const createParam = searchParams.get("create");
+  const editParam = searchParams.get("edit");
+  const isCreateMode = createParam === "1" || createParam === "true";
+  const parsedEditId = editParam ? Number(editParam) : null;
+  const isEditMode = Number.isFinite(parsedEditId ?? Number.NaN);
+  const editingId = isEditMode ? (parsedEditId as number) : null;
+  const isModalOpen = isCreateMode || isEditMode;
 
   const currencyById = useMemo(
     () => new Map(currencies.map((currency) => [currency.id, currency])),
@@ -153,12 +168,64 @@ export default function AccountsPage() {
   }, [loadData]);
 
   const resetForm = useCallback(() => {
-    setEditingId(null);
     setForm((prev) => ({
       ...DEFAULT_FORM,
       currencyId: prev.currencyId || (currencies[0] ? String(currencies[0].id) : ""),
     }));
   }, [currencies]);
+
+  useEffect(() => {
+    if (!isModalOpen) {
+      return;
+    }
+
+    if (isCreateMode) {
+      resetForm();
+      return;
+    }
+
+    if (!editingId) {
+      return;
+    }
+
+    const account = accounts.find((item) => item.id === editingId);
+    if (!account) {
+      return;
+    }
+
+    setForm({
+      sourceType: sourceTypeFromIcon(account.icon),
+      name: account.name,
+      accountNumber: account.short_identifier ?? "",
+      initialBalance: "",
+      color: account.color,
+      currencyId: String(account.currency_id),
+    });
+  }, [accounts, editingId, isCreateMode, isModalOpen, resetForm]);
+
+  const buildHref = useCallback(
+    (name: string, value: string | null) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (value) {
+        params.set(name, value);
+      } else {
+        params.delete(name);
+      }
+      if (name === "create") {
+        params.delete("edit");
+      }
+      if (name === "edit") {
+        params.delete("create");
+      }
+      const query = params.toString();
+      return query ? `${pathname}?${query}` : pathname;
+    },
+    [pathname, searchParams],
+  );
+
+  const closeModal = () => {
+    router.back();
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -210,26 +277,13 @@ export default function AccountsPage() {
         }
       }
 
-      resetForm();
       await loadData();
+      closeModal();
     } catch (error) {
       setErrorMessage(getErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleEdit = (account: AccountResponse) => {
-    setEditingId(account.id);
-    setForm({
-      sourceType: sourceTypeFromIcon(account.icon),
-      name: account.name,
-      accountNumber: account.short_identifier ?? "",
-      initialBalance: "",
-      color: account.color,
-      currencyId: String(account.currency_id),
-    });
-    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleDelete = async (accountId: number) => {
@@ -242,7 +296,7 @@ export default function AccountsPage() {
     try {
       await authenticatedRequest(`/api/accounts/${accountId}`, { method: "DELETE" });
       if (editingId === accountId) {
-        resetForm();
+        closeModal();
       }
       await loadData();
     } catch (error) {
@@ -252,185 +306,209 @@ export default function AccountsPage() {
 
   return (
     <section className="space-y-3">
-      <form className="mobile-card space-y-3 p-3" onSubmit={handleSubmit}>
-        <div className="flex items-center justify-between">
-          <h1 className="section-title text-[1.35rem]">
-            {editingId ? "Edit Payment Source" : "New Payment Source"}
-          </h1>
-          {editingId ? (
-            <button
-              type="button"
-              className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-700"
-              onClick={resetForm}
-            >
-              Cancel
-            </button>
-          ) : null}
-        </div>
+      {isModalOpen ? (
+        <section className="fixed inset-0 z-50 overscroll-contain bg-[var(--bg-app)]">
+          <div className="mx-auto flex h-full w-full max-w-[430px] flex-col">
+            <TransactionEditorHeader
+              title={editingId ? "Edit Account" : "New Account"}
+              onBack={closeModal}
+              formId={FORM_ID}
+              isSaving={isSubmitting}
+            />
+            <div className="flex-1 overflow-y-auto px-3 py-3">
+              <form id={FORM_ID} className="mobile-card space-y-3 p-3" onSubmit={handleSubmit}>
+                <section>
+                  <p className="mb-1.5 text-sm font-semibold text-[var(--text-secondary)]">Source Type</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {SOURCE_TYPE_OPTIONS.map((option) => {
+                      const active = form.sourceType === option.key;
+                      return (
+                        <button
+                          key={option.key}
+                          type="button"
+                          className={`rounded-2xl border px-2 py-2.5 text-center transition ${
+                            active
+                              ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]"
+                              : "border-[color:var(--border-soft)] bg-[var(--bg-card)] text-[var(--text-secondary)]"
+                          }`}
+                          onClick={() =>
+                            setForm((prev) => ({
+                              ...prev,
+                              sourceType: option.key,
+                            }))
+                          }
+                        >
+                          <option.Icon className="mx-auto h-4.5 w-4.5" aria-hidden="true" />
+                          <p className="mt-1 text-sm font-semibold">{option.label}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
 
-        <section>
-          <p className="mb-1.5 text-base font-semibold text-slate-700">Source Type</p>
-          <div className="grid grid-cols-3 gap-2">
-            {SOURCE_TYPE_OPTIONS.map((option) => {
-              const active = form.sourceType === option.key;
-              return (
+                <label className="block text-sm text-[var(--text-secondary)]">
+                  Source Name
+                  <input
+                    className="mt-1 block w-full rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
+                    value={form.name}
+                    name="sourceName"
+                    autoComplete="off"
+                    onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+                    placeholder="Enter source name…"
+                    required
+                  />
+                </label>
+
+                <label className="block text-sm text-[var(--text-secondary)]">
+                  Account Number (Optional)
+                  <input
+                    className="mt-1 block w-full rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
+                    value={form.accountNumber}
+                    name="accountNumber"
+                    autoComplete="off"
+                    onChange={(event) => setForm((prev) => ({ ...prev, accountNumber: event.target.value }))}
+                    placeholder="**** **** **** 1234…"
+                  />
+                </label>
+
+                {!editingId ? (
+                  <label className="block text-sm text-[var(--text-secondary)]">
+                    Initial Balance
+                    <div className="mt-1 flex items-center gap-2 rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2">
+                      <span className="text-lg font-semibold text-[var(--text-secondary)]">
+                        {selectedCurrency?.symbol ?? "$"}
+                      </span>
+                      <input
+                        className="w-full border-none bg-transparent text-2xl font-bold text-[var(--text-primary)] outline-none"
+                        type="number"
+                        inputMode="decimal"
+                        step="0.01"
+                        min="0"
+                        name="initialBalance"
+                        autoComplete="off"
+                        value={form.initialBalance}
+                        onChange={(event) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            initialBalance: event.target.value,
+                          }))
+                        }
+                        placeholder="0.00…"
+                      />
+                    </div>
+                  </label>
+                ) : null}
+
+                <label className="block text-sm text-[var(--text-secondary)]">
+                  Currency
+                  <select
+                    className="mt-1 block w-full rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
+                    value={form.currencyId}
+                    name="currencyId"
+                    autoComplete="off"
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        currencyId: event.target.value,
+                      }))
+                    }
+                    required
+                  >
+                    <option value="">Select currency</option>
+                    {currencies.map((currency) => (
+                      <option key={currency.id} value={currency.id}>
+                        {currency.code} ({currency.symbol})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <section>
+                  <p className="mb-1.5 text-sm font-semibold text-[var(--text-secondary)]">Choose Color</p>
+                  <div className="grid grid-cols-6 gap-2">
+                    {ACCOUNT_COLOR_OPTIONS.map((color) => {
+                      const active = color === form.color;
+                      return (
+                        <button
+                          key={color}
+                          type="button"
+                          className={`h-10 rounded-xl border-2 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)] ${
+                            active ? "border-[var(--text-primary)]" : "border-transparent"
+                          }`}
+                          style={{ backgroundColor: color }}
+                          onClick={() => setForm((prev) => ({ ...prev, color }))}
+                          aria-label={color}
+                        />
+                      );
+                    })}
+                  </div>
+                </section>
+
+                <section className="rounded-2xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] p-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-secondary)]">
+                    Preview
+                  </p>
+                  <div className="rounded-2xl border border-[color:var(--border-soft)] bg-[var(--bg-app)] px-3 py-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <span
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-white"
+                          style={{ backgroundColor: form.color }}
+                        >
+                          <PreviewIcon className="h-4.5 w-4.5" aria-hidden="true" />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
+                            {form.name.trim() || "Payment Source"}
+                          </p>
+                          <p className="truncate text-xs text-[var(--text-secondary)]">
+                            {shortIdentifierFromAccountNumber(form.accountNumber) ?? "New source"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-[var(--text-primary)]">
+                          {form.initialBalance ? Number(form.initialBalance).toFixed(2) : "0.00"}
+                        </p>
+                        <p className="text-xs text-[var(--text-secondary)]">
+                          {selectedCurrency?.code ?? "Balance"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                {errorMessage ? <p className="text-sm font-medium text-rose-600">{errorMessage}</p> : null}
+
                 <button
-                  key={option.key}
-                  type="button"
-                  className={`rounded-2xl border px-2 py-2.5 text-center ${
-                    active
-                      ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]"
-                      : "border-slate-200 bg-white text-slate-600"
-                  }`}
-                  onClick={() =>
-                    setForm((prev) => ({
-                      ...prev,
-                      sourceType: option.key,
-                    }))
-                  }
+                  type="submit"
+                  className="w-full rounded-xl bg-[var(--accent-primary)] px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-primary-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)] disabled:cursor-not-allowed disabled:opacity-70"
+                  disabled={isSubmitting}
                 >
-                  <option.Icon className="mx-auto h-4.5 w-4.5" />
-                  <p className="mt-1 text-sm font-semibold">{option.label}</p>
+                  {isSubmitting ? "Saving…" : editingId ? "Save Changes" : "Save"}
                 </button>
-              );
-            })}
+              </form>
+            </div>
           </div>
         </section>
+      ) : null}
 
-        <label className="block text-sm text-slate-700">
-          Source Name
-          <input
-            className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-            value={form.name}
-            onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-            placeholder="Enter source name"
-            required
-          />
-        </label>
-
-        <label className="block text-sm text-slate-700">
-          Account Number (Optional)
-          <input
-            className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-            value={form.accountNumber}
-            onChange={(event) => setForm((prev) => ({ ...prev, accountNumber: event.target.value }))}
-            placeholder="**** **** **** 1234"
-          />
-        </label>
-
-        {!editingId ? (
-          <label className="block text-sm text-slate-700">
-            Initial Balance
-            <div className="mt-1 flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2">
-              <span className="text-lg font-semibold text-slate-500">
-                {selectedCurrency?.symbol ?? "$"}
-              </span>
-              <input
-                className="w-full border-none bg-transparent text-2xl font-bold text-slate-500 outline-none"
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.initialBalance}
-                onChange={(event) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    initialBalance: event.target.value,
-                  }))
-                }
-                placeholder="0.00"
-              />
-            </div>
-          </label>
-        ) : null}
-
-        <label className="block text-sm text-slate-700">
-          Currency
-          <select
-            className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-            value={form.currencyId}
-            onChange={(event) =>
-              setForm((prev) => ({
-                ...prev,
-                currencyId: event.target.value,
-              }))
-            }
-            required
+      <section className="mobile-card p-3">
+        <div className="flex items-center justify-between">
+          <h1 className="section-title text-[1.35rem] text-[var(--text-primary)]">Payment Sources</h1>
+          <Link
+            href={buildHref("create", "1")}
+            scroll={false}
+            className="rounded-xl bg-[var(--accent-primary)] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[var(--accent-primary-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
           >
-            <option value="">Select currency</option>
-            {currencies.map((currency) => (
-              <option key={currency.id} value={currency.id}>
-                {currency.code} ({currency.symbol})
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <section>
-          <p className="mb-1.5 text-base font-semibold text-slate-700">Choose Color</p>
-          <div className="grid grid-cols-6 gap-2">
-            {ACCOUNT_COLOR_OPTIONS.map((color) => {
-              const active = color === form.color;
-              return (
-                <button
-                  key={color}
-                  type="button"
-                  className={`h-10 rounded-xl border-2 transition ${active ? "border-slate-700" : "border-transparent"}`}
-                  style={{ backgroundColor: color }}
-                  onClick={() => setForm((prev) => ({ ...prev, color }))}
-                  aria-label={color}
-                />
-              );
-            })}
-          </div>
-        </section>
-
-        <section className="mobile-card p-3">
-          <p className="mb-2 text-sm font-semibold text-slate-600">Preview</p>
-          <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <span
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-white"
-                  style={{ backgroundColor: form.color }}
-                >
-                  <PreviewIcon className="h-4.5 w-4.5" />
-                </span>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-slate-800">
-                    {form.name.trim() || "Payment Source"}
-                  </p>
-                  <p className="truncate text-xs text-slate-500">
-                    {shortIdentifierFromAccountNumber(form.accountNumber)
-                      ? `**** ${shortIdentifierFromAccountNumber(form.accountNumber)}`
-                      : "New source"}
-                  </p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-lg font-bold text-slate-800">
-                  {form.initialBalance ? Number(form.initialBalance).toFixed(2) : "0.00"}
-                </p>
-                <p className="text-xs text-slate-500">
-                  {selectedCurrency?.code ?? "Balance"}
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {errorMessage ? <p className="text-sm font-medium text-rose-700">{errorMessage}</p> : null}
-
-        <button
-          type="submit"
-          className="w-full rounded-xl bg-[var(--accent-primary)] px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-primary-strong)] disabled:cursor-not-allowed disabled:opacity-70"
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? "Saving..." : editingId ? "Save Changes" : "Save"}
-        </button>
-      </form>
+            New
+          </Link>
+        </div>
+      </section>
 
       <section className="space-y-2">
-        {isLoading ? <LoadingState message="Загружаем счета..." /> : null}
+        {errorMessage ? <ErrorState message={errorMessage} /> : null}
+                {isLoading ? <LoadingState message="Загружаем счета…" /> : null}
         {!isLoading && accounts.length === 0 ? <EmptyState message="Счета еще не добавлены." /> : null}
 
         {!isLoading
@@ -444,47 +522,56 @@ export default function AccountsPage() {
                   className="mobile-card p-3"
                   style={{ backgroundColor: toSoftBackground(account.color, 0.12) }}
                 >
-                  <div className="mb-2 flex items-start justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <span
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-white"
-                        style={{ backgroundColor: account.color }}
-                      >
-                        <AccountIcon className="h-4.5 w-4.5" />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-slate-800">{account.name}</p>
-                        <p className="truncate text-xs text-slate-500">
-                          {currency ? `${currency.code} (${currency.symbol})` : "Unknown currency"}
-                        </p>
-                      </div>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <span
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-white"
+                      style={{ backgroundColor: account.color }}
+                    >
+                      <AccountIcon className="h-4.5 w-4.5" aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{account.name}</p>
+                      <p className="truncate text-xs text-[var(--text-secondary)]">
+                        {currency ? `${currency.code} (${currency.symbol})` : "Unknown currency"}
+                      </p>
                     </div>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-2">
                     {account.short_identifier ? (
-                      <span className="rounded-lg bg-white/70 px-2 py-1 text-xs font-semibold text-slate-700">
-                        **** {account.short_identifier}
+                      <span
+                        className="rounded-lg border px-2 py-1 text-xs font-semibold"
+                        style={{
+                          backgroundColor: `${account.color}22`,
+                          borderColor: `${account.color}55`,
+                          color: account.color,
+                        }}
+                      >
+                        {account.short_identifier}
                       </span>
                     ) : null}
+                    <div className="flex gap-2">
+                      <Link
+                        href={buildHref("edit", String(account.id))}
+                        scroll={false}
+                        className="surface-hover inline-flex items-center gap-1 rounded-lg border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-2.5 py-1.5 text-xs font-semibold text-[var(--text-secondary)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
+                      >
+                        <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                        Edit
+                      </Link>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 rounded-lg border border-rose-400/40 bg-rose-500/10 px-2.5 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
+                        onClick={() => void handleDelete(account.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        Delete
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 rounded-lg bg-white/80 px-2.5 py-1.5 text-xs font-semibold text-slate-700"
-                      onClick={() => handleEdit(account)}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-2.5 py-1.5 text-xs font-semibold text-rose-700"
-                      onClick={() => void handleDelete(account.id)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      Delete
-                    </button>
-                  </div>
-                </article>
-              );
+                </div>
+              </article>
+            );
             })
           : null}
       </section>

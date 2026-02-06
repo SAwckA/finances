@@ -1,5 +1,5 @@
-import { CategoryEditorScreen } from "@/components/categories/category-editor-screen";
+import { redirect } from "next/navigation";
 
 export default function NewCategoryPage() {
-  return <CategoryEditorScreen />;
+  redirect("/categories?create=1");
 }
