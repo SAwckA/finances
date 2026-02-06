@@ -1,8 +1,7 @@
 import logging
 
-from app.auth.password import hash_password
-from app.exceptions import ConflictException, NotFoundException
-from app.models.user import User, UserCreate, UserUpdate
+from app.exceptions import NotFoundException
+from app.models.user import User, UserUpdate
 from app.repositories.user_repository import UserRepository
 from app.services.base_service import BaseService
 
@@ -11,10 +10,6 @@ logger = logging.getLogger(__name__)
 
 class UserNotFoundException(NotFoundException):
     message = "Пользователь не найден"
-
-
-class EmailAlreadyExistsException(ConflictException):
-    message = "Пользователь с таким email уже существует"
 
 
 class UserService(BaseService):
@@ -27,30 +22,6 @@ class UserService(BaseService):
         user = await self.user_repository.get_by_id(user_id)
         if not user:
             raise UserNotFoundException(details={"user_id": user_id})
-        return user
-
-    async def get_user_by_email(self, email: str) -> User:
-        """Получение пользователя по email."""
-        user = await self.user_repository.get_by_email(email)
-        if not user:
-            raise UserNotFoundException(details={"email": email})
-        return user
-
-    async def create_user(self, data: UserCreate) -> User:
-        """Создание нового пользователя."""
-        logger.debug(f"Creating user with email: {data.email}")
-
-        existing = await self.user_repository.get_by_email(data.email)
-        if existing:
-            logger.warning(f"Email already exists: {data.email}")
-            raise EmailAlreadyExistsException(details={"email": data.email})
-
-        user_data = data.model_dump()
-        user_data["hashed_password"] = hash_password(user_data.pop("password"))
-
-        user = await self.user_repository.create(user_data)
-        logger.info(f"User created: id={user.id}, email={user.email}")
-
         return user
 
     async def update_user(self, user_id: int, data: UserUpdate) -> User:
