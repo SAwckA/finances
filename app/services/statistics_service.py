@@ -149,6 +149,8 @@ class StatisticsService(BaseService):
         user_id: int,
         start_date: datetime,
         end_date: datetime,
+        account_ids: list[int] | None = None,
+        target_currency_code: str | None = None,
     ) -> PeriodStatistics:
         """
         Получить статистику за период.
@@ -157,6 +159,7 @@ class StatisticsService(BaseService):
             user_id: ID пользователя
             start_date: Начало периода
             end_date: Конец периода
+            target_currency_code: Целевая валюта для итоговых сумм
 
         Returns:
             Статистика с доходами/расходами по категориям
@@ -166,6 +169,7 @@ class StatisticsService(BaseService):
             start_date=start_date,
             end_date=end_date,
             transaction_type=TransactionType.INCOME,
+            account_ids=account_ids,
         )
 
         expense_by_category = await self._get_category_summary(
@@ -173,10 +177,41 @@ class StatisticsService(BaseService):
             start_date=start_date,
             end_date=end_date,
             transaction_type=TransactionType.EXPENSE,
+            account_ids=account_ids,
         )
 
-        total_income = sum((cat.amount for cat in income_by_category), Decimal("0"))
-        total_expense = sum((cat.amount for cat in expense_by_category), Decimal("0"))
+        if target_currency_code:
+            total_income = await self._get_total_by_type_in_currency(
+                user_id=user_id,
+                start_date=start_date,
+                end_date=end_date,
+                transaction_type=TransactionType.INCOME,
+                account_ids=account_ids,
+                target_currency_code=target_currency_code,
+            )
+            total_expense = await self._get_total_by_type_in_currency(
+                user_id=user_id,
+                start_date=start_date,
+                end_date=end_date,
+                transaction_type=TransactionType.EXPENSE,
+                account_ids=account_ids,
+                target_currency_code=target_currency_code,
+            )
+        else:
+            total_income = await self.transaction_repository.get_sum_by_type(
+                user_id=user_id,
+                start_date=start_date,
+                end_date=end_date,
+                transaction_type=TransactionType.INCOME,
+                account_ids=account_ids,
+            )
+            total_expense = await self.transaction_repository.get_sum_by_type(
+                user_id=user_id,
+                start_date=start_date,
+                end_date=end_date,
+                transaction_type=TransactionType.EXPENSE,
+                account_ids=account_ids,
+            )
 
         return PeriodStatistics(
             start_date=start_date,
@@ -188,12 +223,54 @@ class StatisticsService(BaseService):
             expense_by_category=expense_by_category,
         )
 
+    async def _get_total_by_type_in_currency(
+        self,
+        user_id: int,
+        start_date: datetime,
+        end_date: datetime,
+        transaction_type: TransactionType,
+        account_ids: list[int] | None,
+        target_currency_code: str,
+    ) -> Decimal:
+        exchange_service = ExchangeRateService()
+        totals_by_account = await self.transaction_repository.get_sum_by_type_by_account(
+            user_id=user_id,
+            start_date=start_date,
+            end_date=end_date,
+            transaction_type=transaction_type,
+            account_ids=account_ids,
+        )
+        accounts = await self.account_repository.get_by_user_id(user_id)
+        account_map = {account.id: account for account in accounts}
+        total = Decimal("0")
+        target_code = target_currency_code.upper()
+
+        for account_id, amount in totals_by_account:
+            account = account_map.get(account_id)
+            if not account:
+                continue
+            currency = await self.currency_repository.get_by_id(account.currency_id)
+            if not currency:
+                continue
+            if currency.code == target_code:
+                total += amount
+            else:
+                converted = await exchange_service.convert(
+                    amount=amount,
+                    from_currency=currency.code,
+                    to_currency=target_code,
+                )
+                total += converted
+
+        return total
+
     async def _get_category_summary(
         self,
         user_id: int,
         start_date: datetime,
         end_date: datetime,
         transaction_type: TransactionType,
+        account_ids: list[int] | None = None,
     ) -> list[CategorySummary]:
         """Получить суммы по категориям."""
         category_sums = await self.transaction_repository.get_sum_by_category(
@@ -201,6 +278,7 @@ class StatisticsService(BaseService):
             start_date=start_date,
             end_date=end_date,
             transaction_type=transaction_type,
+            account_ids=account_ids,
         )
 
         summaries = []

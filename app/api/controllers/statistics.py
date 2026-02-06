@@ -109,6 +109,8 @@ async def get_total_balance(
 async def get_period_statistics(
     start_date: datetime = Query(..., description="Начало периода"),
     end_date: datetime = Query(..., description="Конец периода"),
+    account_ids: list[int] | None = Query(None, description="Фильтр по счетам"),
+    currency: str | None = Query(None, description="Целевая валюта для итогов"),
     current_user: User = Depends(get_current_active_user),
 ):
     """Получить статистику доходов и расходов за период."""
@@ -117,6 +119,8 @@ async def get_period_statistics(
             user_id=current_user.id,
             start_date=start_date,
             end_date=end_date,
+            account_ids=account_ids,
+            target_currency_code=currency,
         )
         return PeriodStatisticsResponse(
             start_date=stats.start_date,

@@ -228,6 +228,19 @@ export default function DashboardPage() {
     () => new Map(currencies.map((currency) => [currency.id, currency])),
     [currencies],
   );
+  const accountCurrencies = useMemo(() => {
+    const seen = new Set<string>();
+    const ordered: CurrencyResponse[] = [];
+    accounts.forEach((account) => {
+      const currency = currencyById.get(account.currency_id);
+      if (!currency || seen.has(currency.code)) {
+        return;
+      }
+      seen.add(currency.code);
+      ordered.push(currency);
+    });
+    return ordered;
+  }, [accounts, currencyById]);
   const filteredTransactions = useMemo(() => {
     if (selectedAccountIds.length === 0) {
       return transactions;
@@ -299,6 +312,10 @@ export default function DashboardPage() {
         start_date: toApiDate(range.start, false),
         end_date: toApiDate(range.end, true),
       });
+      query.set("currency", selectedCurrency);
+      if (selectedAccountIds.length > 0) {
+        selectedAccountIds.forEach((accountId) => query.append("account_ids", String(accountId)));
+      }
 
       const [totalData, balancesData, summaryData, accountsData, categoriesData, currenciesData] =
         await Promise.all([
@@ -331,7 +348,7 @@ export default function DashboardPage() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [authenticatedRequest, range.end, range.start, selectedCurrency]);
+  }, [authenticatedRequest, range.end, range.start, selectedAccountIds, selectedCurrency]);
 
   const loadTransactionsPage = useCallback(
     async (reset: boolean) => {
@@ -372,7 +389,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     void loadDashboardData();
-  }, [loadDashboardData]);
+  }, [loadDashboardData, preset, selectedCurrency, startDate, endDate, selectedAccountIds]);
 
   useEffect(() => {
     if (!editingTransaction) {
@@ -546,32 +563,24 @@ export default function DashboardPage() {
           expenses={summary ? formatAmount(summary.total_expense, selectedCurrency) : "$0.00"}
         />
 
-        <div className="grid grid-cols-[1fr_auto] items-end gap-2">
-          <label className="text-xs font-semibold text-[var(--text-secondary)]">
-            Currency
-            <select
-              className="mt-1 block w-full px-2.5 py-2 text-sm"
-              name="currency"
-              autoComplete="off"
-              value={selectedCurrency}
-              onChange={(event) => setSelectedCurrency(event.target.value)}
-            >
-              {currencies.map((currency) => (
-                <option key={currency.id} value={currency.code}>
-                  {currency.code} ({currency.symbol})
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <button
-            type="button"
-            className="rounded-xl bg-[var(--accent-primary)] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[var(--accent-primary-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/40"
-            onClick={() => void loadDashboardData()}
-            disabled={isRefreshing}
-          >
-            {isRefreshing ? "Refreshing…" : "Refresh"}
-          </button>
+        <div className="flex flex-wrap justify-center gap-1.5">
+            {accountCurrencies.map((currency) => {
+              const active = currency.code === selectedCurrency;
+              return (
+                <button
+                  key={currency.id}
+                  type="button"
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)] ${
+                    active
+                      ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/15 text-[var(--accent-primary)]"
+                      : "border-[color:var(--border-soft)] bg-[var(--bg-card)] text-[var(--text-secondary)]"
+                  }`}
+                  onClick={() => setSelectedCurrency(currency.code)}
+                >
+                  {currency.code}
+                </button>
+              );
+            })}
         </div>
       </section>
 

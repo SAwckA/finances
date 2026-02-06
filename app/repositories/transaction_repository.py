@@ -108,6 +108,7 @@ class TransactionRepository(BaseRepository[Transaction]):
         start_date: datetime,
         end_date: datetime,
         transaction_type: TransactionType,
+        account_ids: Sequence[int] | None = None,
     ) -> Sequence[tuple[int | None, Decimal]]:
         """Получить суммы по категориям за период."""
         query = (
@@ -120,5 +121,52 @@ class TransactionRepository(BaseRepository[Transaction]):
             .where(Transaction.category_id.is_not(None))
             .group_by(Transaction.category_id)
         )
+        if account_ids:
+            query = query.where(Transaction.account_id.in_(account_ids))
+        result = await self.session.execute(query)
+        return [(row[0], row[1]) for row in result.all()]
+
+    async def get_sum_by_type(
+        self,
+        user_id: int,
+        start_date: datetime,
+        end_date: datetime,
+        transaction_type: TransactionType,
+        account_ids: Sequence[int] | None = None,
+    ) -> Decimal:
+        """Получить сумму по типу транзакции за период."""
+        query = (
+            select(func.coalesce(func.sum(Transaction.amount), 0))
+            .where(Transaction.deleted_at.is_(None))
+            .where(Transaction.user_id == user_id)
+            .where(Transaction.type == transaction_type)
+            .where(Transaction.transaction_date >= start_date)
+            .where(Transaction.transaction_date <= end_date)
+        )
+        if account_ids:
+            query = query.where(Transaction.account_id.in_(account_ids))
+        result = await self.session.execute(query)
+        return result.scalar() or Decimal("0")
+
+    async def get_sum_by_type_by_account(
+        self,
+        user_id: int,
+        start_date: datetime,
+        end_date: datetime,
+        transaction_type: TransactionType,
+        account_ids: Sequence[int] | None = None,
+    ) -> Sequence[tuple[int, Decimal]]:
+        """Получить суммы по типу с разбивкой по счетам за период."""
+        query = (
+            select(Transaction.account_id, func.coalesce(func.sum(Transaction.amount), 0))
+            .where(Transaction.deleted_at.is_(None))
+            .where(Transaction.user_id == user_id)
+            .where(Transaction.type == transaction_type)
+            .where(Transaction.transaction_date >= start_date)
+            .where(Transaction.transaction_date <= end_date)
+            .group_by(Transaction.account_id)
+        )
+        if account_ids:
+            query = query.where(Transaction.account_id.in_(account_ids))
         result = await self.session.execute(query)
         return [(row[0], row[1]) for row in result.all()]
