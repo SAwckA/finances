@@ -166,22 +166,12 @@ function badgeStyle(color: string | undefined): React.CSSProperties | undefined 
 
 function typeBadgeClass(type: TransactionResponse["type"]): string {
   if (type === "income") {
-    return "border-emerald-400/30 bg-emerald-500/15 text-emerald-200";
+    return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-500/15 dark:text-emerald-200";
   }
   if (type === "expense") {
-    return "border-rose-400/30 bg-rose-500/15 text-rose-200";
+    return "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-400/30 dark:bg-rose-500/15 dark:text-rose-200";
   }
-  return "border-sky-400/30 bg-sky-500/15 text-sky-200";
-}
-
-function typeBadgeStyle(type: TransactionResponse["type"]): React.CSSProperties {
-  if (type === "income") {
-    return { backgroundColor: "rgba(16,185,129,0.18)", borderColor: "rgba(16,185,129,0.4)", color: "#bbf7d0" };
-  }
-  if (type === "expense") {
-    return { backgroundColor: "rgba(244,63,94,0.18)", borderColor: "rgba(244,63,94,0.4)", color: "#fecdd3" };
-  }
-  return { backgroundColor: "rgba(14,165,233,0.18)", borderColor: "rgba(14,165,233,0.4)", color: "#bae6fd" };
+  return "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-400/30 dark:bg-sky-500/15 dark:text-sky-200";
 }
 
 export default function DashboardPage() {
@@ -327,6 +317,27 @@ export default function DashboardPage() {
   useEffect(() => {
     void loadDashboardData();
   }, [loadDashboardData]);
+
+  useEffect(() => {
+    if (!editingTransaction) {
+      return;
+    }
+
+    const scrollY = window.scrollY;
+    const { body } = document;
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.width = "100%";
+
+    return () => {
+      const top = body.style.top;
+      body.style.position = "";
+      body.style.top = "";
+      body.style.width = "";
+      const restored = top ? Number.parseInt(top.replace("px", ""), 10) : 0;
+      window.scrollTo(0, Math.abs(restored));
+    };
+  }, [editingTransaction]);
 
   useEffect(() => {
     transactionOffsetRef.current = 0;
@@ -724,10 +735,7 @@ export default function DashboardPage() {
                 <div className="mobile-card space-y-3 p-3">
                   <div className="flex items-center justify-between">
                     <div className="text-sm font-semibold text-[var(--text-primary)]">Details</div>
-                    <span
-                      className={`badge ${typeBadgeClass(editingTransaction.type)}`}
-                      style={typeBadgeStyle(editingTransaction.type)}
-                    >
+                    <span className={`badge ${typeBadgeClass(editingTransaction.type)}`}>
                       {editingTransaction.type === "income"
                         ? "Income"
                         : editingTransaction.type === "expense"
