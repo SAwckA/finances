@@ -4,7 +4,6 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowRightLeft,
-  Check,
   ChevronRight,
   Copy,
   Pencil,
@@ -13,11 +12,12 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { EmptyState, ErrorState, LoadingState } from "@/components/async-state";
-import { SegmentedControl } from "@/components/ui/segmented-control";
+import { TransactionFormFields } from "@/components/transactions/transaction-form-fields";
+import { TransactionEditorHeader } from "@/components/transactions/transaction-editor-header";
 import { useAuth } from "@/features/auth/auth-context";
 import { ApiError } from "@/lib/api-client";
-import { getIconOption } from "@/lib/icon-catalog";
 import type {
+  AccountBalanceResponse,
   AccountResponse,
   CategoryResponse,
   CurrencyResponse,
@@ -180,6 +180,7 @@ export default function TransactionsPage() {
   const router = useRouter();
   const [transactions, setTransactions] = useState<TransactionResponse[]>([]);
   const [accounts, setAccounts] = useState<AccountResponse[]>([]);
+  const [accountBalances, setAccountBalances] = useState<AccountBalanceResponse[]>([]);
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
   const [currencies, setCurrencies] = useState<CurrencyResponse[]>([]);
   const [filters, setFilters] = useState<TransactionFilters>(DEFAULT_FILTERS);
@@ -190,6 +191,7 @@ export default function TransactionsPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [editingTransactionId, setEditingTransactionId] = useState<number | null>(null);
   const [form, setForm] = useState<TransactionFormState>(DEFAULT_FORM);
+  const [createMode, setCreateMode] = useState(false);
 
   const accountById = useMemo(() => new Map(accounts.map((account) => [account.id, account])), [accounts]);
   const categoryById = useMemo(
@@ -201,28 +203,22 @@ export default function TransactionsPage() {
     [currencies],
   );
 
-  const formCategories = useMemo(() => {
-    if (form.type === "transfer") {
-      return [];
-    }
-
-    return categories.filter((category) => category.type === form.type);
-  }, [categories, form.type]);
-
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const selectedAccount = form.accountId ? accountById.get(Number(form.accountId)) : null;
   const selectedCurrency = selectedAccount ? currencyById.get(selectedAccount.currency_id) : null;
 
   const loadReferenceData = useCallback(async () => {
-    const [accountsData, categoriesData, currenciesData] = await Promise.all([
+    const [accountsData, categoriesData, currenciesData, balancesData] = await Promise.all([
       authenticatedRequest<AccountResponse[]>("/api/accounts?skip=0&limit=300"),
       authenticatedRequest<CategoryResponse[]>("/api/categories?skip=0&limit=300"),
       authenticatedRequest<CurrencyResponse[]>("/api/currencies?skip=0&limit=300"),
+      authenticatedRequest<AccountBalanceResponse[]>("/api/statistics/balance"),
     ]);
 
     setAccounts(accountsData);
     setCategories(categoriesData);
     setCurrencies(currenciesData);
+    setAccountBalances(balancesData);
   }, [authenticatedRequest]);
 
   const loadTransactions = useCallback(async () => {
@@ -303,13 +299,15 @@ export default function TransactionsPage() {
   }, [filters]);
 
   useEffect(() => {
-    if (searchParams.get("create") !== "1") {
+    const createParam = searchParams.get("create");
+    if (createParam === "1" || createParam === "true") {
+      setCreateMode(true);
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    router.replace("/transactions", { scroll: false });
-  }, [router, searchParams]);
+    setCreateMode(false);
+  }, [searchParams]);
 
   const resetForm = useCallback(() => {
     setEditingTransactionId(null);
@@ -317,10 +315,12 @@ export default function TransactionsPage() {
       ...DEFAULT_FORM,
       accountId: accounts[0] ? String(accounts[0].id) : "",
     });
+    setCreateMode(false);
   }, [accounts]);
 
   const handleEdit = (transaction: TransactionResponse) => {
     setEditingTransactionId(transaction.id);
+    setCreateMode(false);
     setForm({
       type: transaction.type,
       accountId: String(transaction.account_id),
@@ -335,6 +335,7 @@ export default function TransactionsPage() {
 
   const handleClone = (transaction: TransactionResponse) => {
     setEditingTransactionId(null);
+    setCreateMode(true);
     setForm({
       type: transaction.type,
       accountId: String(transaction.account_id),
@@ -381,6 +382,7 @@ export default function TransactionsPage() {
     try {
       if (editingTransactionId) {
         const updatePayload: TransactionUpdate = {
+          account_id: Number(form.accountId),
           amount: Number(form.amount),
           description: form.description.trim() || null,
           transaction_date: new Date(form.transactionDate).toISOString(),
@@ -410,6 +412,7 @@ export default function TransactionsPage() {
 
       resetForm();
       await loadTransactions();
+      setCreateMode(false);
     } catch (error) {
       setErrorMessage(getErrorMessage(error));
     } finally {
@@ -419,399 +422,293 @@ export default function TransactionsPage() {
 
   return (
     <section className="space-y-3">
-      <form className="mobile-card space-y-3 p-3" onSubmit={handleSubmit}>
-        <div className="flex items-center justify-between">
-          <h1 className="section-title text-[1.35rem]">
-            {editingTransactionId ? "Edit Transaction" : "Add Transaction"}
-          </h1>
-          {editingTransactionId ? (
-            <button
-              type="button"
-              className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-700"
-              onClick={resetForm}
-            >
-              Cancel edit
-            </button>
-          ) : null}
-        </div>
-
-        <SegmentedControl
-          options={[
-            { key: "expense", label: "Expense" },
-            { key: "income", label: "Income" },
-            { key: "transfer", label: "Transfer" },
-          ]}
-          value={form.type}
-          onChange={(nextType) =>
-            setForm((prev) => ({
-              ...prev,
-              type: nextType,
-              categoryId: nextType === "transfer" ? "" : prev.categoryId,
-              targetAccountId: nextType === "transfer" ? prev.targetAccountId : "",
-            }))
-          }
-        />
-
-        <div className="text-center">
-          <p className="text-sm font-medium text-slate-500">Amount</p>
-          <label className="mt-1 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-            <span className="text-2xl font-semibold text-slate-400">$</span>
-            <input
-              className="w-36 border-none bg-transparent text-4xl font-bold tracking-tight text-slate-500 outline-none"
-              type="number"
-              step="0.01"
-              min="0.01"
-              value={form.amount}
-              onChange={(event) => setForm((prev) => ({ ...prev, amount: event.target.value }))}
-              placeholder="0.00"
-              required
+      {createMode ? (
+        <section className="fixed inset-0 z-50 bg-[var(--bg-app)]">
+          <div className="mx-auto flex h-full w-full max-w-[430px] flex-col">
+            <TransactionEditorHeader
+              title="Add Transaction"
+              onBack={() => router.back()}
+              formId="transaction-form"
+              isSaving={isSubmitting}
             />
-          </label>
-        </div>
-
-        <section>
-          <p className="mb-1.5 text-base font-semibold text-slate-700">Payment Source</p>
-          <div className="space-y-2">
-            {accounts.map((account) => {
-              const selected = String(account.id) === form.accountId;
-              const Icon = getIconOption(account.icon).icon;
-              return (
-                <button
-                  key={account.id}
-                  type="button"
-                  className={`flex w-full items-center justify-between rounded-2xl border px-3 py-2.5 text-left ${
-                    selected
-                      ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/5"
-                      : "border-slate-200 bg-white"
-                  }`}
-                  onClick={() =>
+            <div className="flex-1 overflow-y-auto px-3 py-3">
+              <form
+                id="transaction-form"
+                className="mobile-card space-y-3 p-3"
+                onSubmit={handleSubmit}
+              >
+                <TransactionFormFields
+                  form={form}
+                  setForm={setForm}
+                  transactionType={form.type}
+                  onTypeChange={(nextType) =>
                     setForm((prev) => ({
                       ...prev,
-                      accountId: String(account.id),
+                      type: nextType,
+                      categoryId: nextType === "transfer" ? "" : prev.categoryId,
+                      targetAccountId: nextType === "transfer" ? prev.targetAccountId : "",
                     }))
                   }
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-                      <Icon className="h-4.5 w-4.5" />
-                    </span>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-800">{account.name}</p>
-                      <p className="text-xs text-slate-500">
-                        {account.short_identifier ? `***${account.short_identifier}` : "No short id"}
-                      </p>
-                    </div>
-                  </div>
-                  {selected ? <Check className="h-4.5 w-4.5 text-[var(--accent-primary)]" /> : null}
-                </button>
-              );
-            })}
+                  accounts={accounts}
+                  accountBalances={accountBalances}
+                  categories={categories}
+                  currencies={currencies}
+                  showTypeSelector
+                />
+              </form>
+            </div>
           </div>
         </section>
+      ) : null}
 
-        {form.type === "transfer" ? (
-          <section>
-            <p className="mb-1.5 text-base font-semibold text-slate-700">Target Source</p>
-            <div className="space-y-2">
-              {accounts
-                .filter((account) => String(account.id) !== form.accountId)
-                .map((account) => {
-                  const selected = String(account.id) === form.targetAccountId;
-                  const Icon = getIconOption(account.icon).icon;
-                  return (
-                    <button
-                      key={account.id}
-                      type="button"
-                      className={`flex w-full items-center justify-between rounded-2xl border px-3 py-2.5 text-left ${
-                        selected
-                          ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/5"
-                          : "border-slate-200 bg-white"
-                      }`}
-                      onClick={() =>
-                        setForm((prev) => ({
-                          ...prev,
-                          targetAccountId: String(account.id),
-                        }))
-                      }
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-                          <Icon className="h-4.5 w-4.5" />
-                        </span>
-                        <div>
-                          <p className="text-sm font-semibold text-slate-800">{account.name}</p>
-                          <p className="text-xs text-slate-500">
-                            {account.short_identifier ? `***${account.short_identifier}` : "No short id"}
-                          </p>
-                        </div>
-                      </div>
-                      {selected ? <Check className="h-4.5 w-4.5 text-[var(--accent-primary)]" /> : null}
-                    </button>
-                  );
-                })}
-            </div>
-          </section>
-        ) : (
-          <section>
-            <p className="mb-1.5 text-base font-semibold text-slate-700">Category</p>
-            <div className="grid grid-cols-3 gap-2">
-              {formCategories.map((category) => {
-                const selected = String(category.id) === form.categoryId;
-                const Icon = getIconOption(category.icon).icon;
-                return (
-                  <button
-                    key={category.id}
-                    type="button"
-                    className={`rounded-2xl border px-2 py-2.5 text-center ${
-                      selected
-                        ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/5"
-                        : "border-slate-200 bg-white"
-                    }`}
-                    onClick={() =>
-                      setForm((prev) => ({
-                        ...prev,
-                        categoryId: String(category.id),
-                      }))
-                    }
-                  >
-                    <span
-                      className="mx-auto inline-flex h-8 w-8 items-center justify-center rounded-xl"
-                      style={{ backgroundColor: `${category.color}22`, color: category.color }}
-                    >
-                      <Icon className="h-4.5 w-4.5" />
-                    </span>
-                    <p className="mt-1 text-xs font-semibold text-slate-700">{category.name}</p>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        <label className="block text-sm text-slate-700">
-          Description (Optional)
-          <input
-            className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-            value={form.description}
-            onChange={(event) =>
-              setForm((prev) => ({
-                ...prev,
-                description: event.target.value,
-              }))
-            }
-          />
-        </label>
-
-        <label className="block text-sm text-slate-700">
-          Date and time
-          <input
-            className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-            type="datetime-local"
-            value={form.transactionDate}
-            onChange={(event) =>
-              setForm((prev) => ({
-                ...prev,
-                transactionDate: event.target.value,
-              }))
-            }
-          />
-        </label>
-
-        <button
-          type="submit"
-          className="w-full rounded-xl bg-[var(--accent-primary)] px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-primary-strong)] disabled:cursor-not-allowed disabled:opacity-70"
-          disabled={isSubmitting}
+      {!createMode ? (
+        <form
+          id="transaction-form"
+          className="mobile-card space-y-3 p-3"
+          onSubmit={handleSubmit}
         >
-          {isSubmitting
-            ? "Saving..."
-            : editingTransactionId
-              ? "Save Transaction"
-              : `Create ${form.type === "income" ? "Income" : form.type === "expense" ? "Expense" : "Transfer"}`}
-        </button>
+          <div className="flex items-center justify-between">
+            <h1 className="section-title text-[1.35rem]">
+              {editingTransactionId ? "Edit Transaction" : "Add Transaction"}
+            </h1>
+            {editingTransactionId ? (
+              <button
+                type="button"
+                className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-700"
+                onClick={resetForm}
+              >
+                Cancel edit
+              </button>
+            ) : null}
+          </div>
+
+          <TransactionFormFields
+            form={form}
+            setForm={setForm}
+            transactionType={form.type}
+            onTypeChange={(nextType) =>
+              setForm((prev) => ({
+                ...prev,
+                type: nextType,
+                categoryId: nextType === "transfer" ? "" : prev.categoryId,
+                targetAccountId: nextType === "transfer" ? prev.targetAccountId : "",
+              }))
+            }
+            accounts={accounts}
+            accountBalances={accountBalances}
+            categories={categories}
+            currencies={currencies}
+            showTypeSelector
+          />
+
+          <button
+            type="submit"
+            className="w-full rounded-xl bg-[var(--accent-primary)] px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-primary-strong)] disabled:cursor-not-allowed disabled:opacity-70"
+            disabled={isSubmitting}
+          >
+            {isSubmitting
+              ? "Saving..."
+              : editingTransactionId
+                ? "Save Transaction"
+                : `Create ${form.type === "income" ? "Income" : form.type === "expense" ? "Expense" : "Transfer"}`}
+          </button>
 
         {selectedCurrency ? (
           <p className="text-center text-xs text-slate-500">
             Account currency: {selectedCurrency.code} ({selectedCurrency.symbol})
           </p>
         ) : null}
-      </form>
+        </form>
+      ) : null}
 
-      <section className="mobile-card p-3">
-        <p className="mb-2 text-base font-semibold text-slate-800">Filters</p>
-        <div className="grid grid-cols-2 gap-2">
-          <label className="text-sm text-slate-700">
-            Type
-            <select
-              className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-              value={filters.type}
-              onChange={(event) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  type: event.target.value as TransactionTypeFilter,
-                }))
-              }
+      {!createMode ? (
+        <>
+          <section className="mobile-card p-3">
+            <p className="mb-2 text-base font-semibold text-slate-800">Filters</p>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-sm text-slate-700">
+                Type
+                <select
+                  className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  value={filters.type}
+                  onChange={(event) =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      type: event.target.value as TransactionTypeFilter,
+                    }))
+                  }
+                >
+                  <option value="all">All</option>
+                  <option value="expense">Expense</option>
+                  <option value="income">Income</option>
+                  <option value="transfer">Transfer</option>
+                </select>
+              </label>
+              <label className="text-sm text-slate-700">
+                Source
+                <select
+                  className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  value={filters.accountId}
+                  onChange={(event) =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      accountId: event.target.value,
+                    }))
+                  }
+                >
+                  <option value="all">All accounts</option>
+                  {accounts.map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {account.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-sm text-slate-700">
+                Start
+                <input
+                  className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  type="date"
+                  value={filters.startDate}
+                  onChange={(event) =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      startDate: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label className="text-sm text-slate-700">
+                End
+                <input
+                  className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  type="date"
+                  value={filters.endDate}
+                  onChange={(event) =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      endDate: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+            </div>
+            <button
+              type="button"
+              className="mt-2 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-700"
+              onClick={() => setFilters(DEFAULT_FILTERS)}
             >
-              <option value="all">All</option>
-              <option value="expense">Expense</option>
-              <option value="income">Income</option>
-              <option value="transfer">Transfer</option>
-            </select>
-          </label>
-          <label className="text-sm text-slate-700">
-            Source
-            <select
-              className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-              value={filters.accountId}
-              onChange={(event) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  accountId: event.target.value,
-                }))
-              }
-            >
-              <option value="all">All accounts</option>
-              {accounts.map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-sm text-slate-700">
-            Start
-            <input
-              className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-              type="date"
-              value={filters.startDate}
-              onChange={(event) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  startDate: event.target.value,
-                }))
-              }
-            />
-          </label>
-          <label className="text-sm text-slate-700">
-            End
-            <input
-              className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-              type="date"
-              value={filters.endDate}
-              onChange={(event) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  endDate: event.target.value,
-                }))
-              }
-            />
-          </label>
-        </div>
-        <button
-          type="button"
-          className="mt-2 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-700"
-          onClick={() => setFilters(DEFAULT_FILTERS)}
-        >
-          Reset filters
-        </button>
-      </section>
+              Reset filters
+            </button>
+          </section>
 
-      {errorMessage ? <ErrorState message={errorMessage} /> : null}
+          {errorMessage ? <ErrorState message={errorMessage} /> : null}
 
-      <section className="space-y-2">
-        {isLoading ? <LoadingState message="Загружаем операции..." /> : null}
-        {!isLoading && transactions.length === 0 ? <EmptyState message="Операции не найдены." /> : null}
+          <section className="space-y-2">
+            {isLoading ? <LoadingState message="Загружаем операции..." /> : null}
+            {!isLoading && transactions.length === 0 ? (
+              <EmptyState message="Операции не найдены." />
+            ) : null}
 
-        {!isLoading
-          ? transactions.map((transaction) => {
-              const account = accountById.get(transaction.account_id);
-              const targetAccount = transaction.target_account_id
-                ? accountById.get(transaction.target_account_id)
-                : null;
-              const category = transaction.category_id ? categoryById.get(transaction.category_id) : null;
-              const meta = transactionMeta(transaction.type);
-              const MetaIcon = meta.icon;
+            {!isLoading
+              ? transactions.map((transaction) => {
+                  const account = accountById.get(transaction.account_id);
+                  const targetAccount = transaction.target_account_id
+                    ? accountById.get(transaction.target_account_id)
+                    : null;
+                  const category = transaction.category_id
+                    ? categoryById.get(transaction.category_id)
+                    : null;
+                  const meta = transactionMeta(transaction.type);
+                  const MetaIcon = meta.icon;
 
-              return (
-                <article key={transaction.id} className="mobile-card p-3">
-                  <div className="mb-2 flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-600">
-                          <MetaIcon className="h-3.5 w-3.5" />
-                        </span>
-                        <p className="truncate text-sm font-semibold text-slate-800">{meta.label}</p>
+                  return (
+                    <article key={transaction.id} className="mobile-card p-3">
+                      <div className="mb-2 flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-600">
+                              <MetaIcon className="h-3.5 w-3.5" />
+                            </span>
+                            <p className="truncate text-sm font-semibold text-slate-800">{meta.label}</p>
+                          </div>
+                          <p className="mt-0.5 text-xs text-slate-500">
+                            {formatDateLabel(transaction.transaction_date)}
+                          </p>
+                        </div>
+                        <p className={`text-right text-lg font-bold ${meta.amountClassName}`}>
+                          {meta.sign}
+                          {formatAmount(transaction.amount)}
+                        </p>
                       </div>
-                      <p className="mt-0.5 text-xs text-slate-500">{formatDateLabel(transaction.transaction_date)}</p>
-                    </div>
-                    <p className={`text-right text-lg font-bold ${meta.amountClassName}`}>
-                      {meta.sign}
-                      {formatAmount(transaction.amount)}
-                    </p>
-                  </div>
 
-                  <div className="text-sm text-slate-700">
-                    <p>
-                      {account?.name ?? "Unknown account"}
-                      {targetAccount ? ` -> ${targetAccount.name}` : ""}
-                    </p>
-                    {category ? <p className="text-xs text-slate-500">{category.name}</p> : null}
-                    {transaction.description ? <p className="mt-1 text-xs text-slate-500">{transaction.description}</p> : null}
-                  </div>
+                      <div className="text-sm text-slate-700">
+                        <p>
+                          {account?.name ?? "Unknown account"}
+                          {targetAccount ? ` -> ${targetAccount.name}` : ""}
+                        </p>
+                        {category ? <p className="text-xs text-slate-500">{category.name}</p> : null}
+                        {transaction.description ? (
+                          <p className="mt-1 text-xs text-slate-500">{transaction.description}</p>
+                        ) : null}
+                      </div>
 
-                  <div className="mt-2 flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700"
-                      onClick={() => handleEdit(transaction)}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700"
-                      onClick={() => handleClone(transaction)}
-                    >
-                      <Copy className="h-3.5 w-3.5" />
-                      Clone
-                    </button>
-                    <button
-                      type="button"
-                      className="ml-auto inline-flex items-center gap-1 rounded-lg bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700"
-                      onClick={() => void handleDelete(transaction.id)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      Delete
-                    </button>
-                  </div>
-                </article>
-              );
-            })
-          : null}
-      </section>
+                      <div className="mt-2 flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700"
+                          onClick={() => handleEdit(transaction)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700"
+                          onClick={() => handleClone(transaction)}
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                          Clone
+                        </button>
+                        <button
+                          type="button"
+                          className="ml-auto inline-flex items-center gap-1 rounded-lg bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700"
+                          onClick={() => void handleDelete(transaction.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Delete
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })
+              : null}
+          </section>
 
-      <section className="mobile-card flex items-center justify-between px-3 py-2">
-        <button
-          type="button"
-          className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-60"
-          disabled={page <= 1 || isLoading}
-          onClick={() => setPage((prev) => prev - 1)}
-        >
-          Back
-        </button>
-        <p className="text-sm text-slate-700">
-          Page {Math.min(page, totalPages)} / {totalPages}
-        </p>
-        <button
-          type="button"
-          className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-60"
-          disabled={isLoading || page >= totalPages}
-          onClick={() => setPage((prev) => prev + 1)}
-        >
-          Next
-          <ChevronRight className="h-3.5 w-3.5" />
-        </button>
-      </section>
+          <section className="mobile-card flex items-center justify-between px-3 py-2">
+            <button
+              type="button"
+              className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-60"
+              disabled={page <= 1 || isLoading}
+              onClick={() => setPage((prev) => prev - 1)}
+            >
+              Back
+            </button>
+            <p className="text-sm text-slate-700">
+              Page {Math.min(page, totalPages)} / {totalPages}
+            </p>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-60"
+              disabled={isLoading || page >= totalPages}
+              onClick={() => setPage((prev) => prev + 1)}
+            >
+              Next
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </section>
+        </>
+      ) : null}
     </section>
   );
 }

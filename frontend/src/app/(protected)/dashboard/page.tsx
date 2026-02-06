@@ -6,10 +6,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRightLeft,
   CalendarDays,
-  ChevronLeft,
   ListChecks,
   Plus,
-  Save,
   Send,
   WalletCards,
 } from "lucide-react";
@@ -19,9 +17,10 @@ import { BalanceHeroCard } from "@/components/ui/balance-hero-card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { SourceCard } from "@/components/ui/source-card";
 import { TransactionRow } from "@/components/ui/transaction-row";
+import { TransactionFormFields } from "@/components/transactions/transaction-form-fields";
+import { TransactionEditorHeader } from "@/components/transactions/transaction-editor-header";
 import { useAuth } from "@/features/auth/auth-context";
 import { ApiError } from "@/lib/api-client";
-import { getIconOption } from "@/lib/icon-catalog";
 import type {
   AccountBalanceResponse,
   AccountResponse,
@@ -37,6 +36,7 @@ type PeriodPreset = "7d" | "30d" | "custom";
 
 type EditTransactionForm = {
   accountId: string;
+  targetAccountId: string;
   amount: string;
   description: string;
   transactionDate: string;
@@ -184,16 +184,6 @@ function typeBadgeStyle(type: TransactionResponse["type"]): React.CSSProperties 
   return { backgroundColor: "rgba(14,165,233,0.18)", borderColor: "rgba(14,165,233,0.4)", color: "#bae6fd" };
 }
 
-function normalizeAmountInput(value: string): number {
-  const normalized = value.replace(",", ".").trim();
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function formatAmountInput(value: number): string {
-  return value.toFixed(2);
-}
-
 export default function DashboardPage() {
   const router = useRouter();
   const { authenticatedRequest } = useAuth();
@@ -253,14 +243,6 @@ export default function DashboardPage() {
 
     return transactions.find((item) => item.id === editingTransactionId) ?? null;
   }, [editingTransactionId, transactions]);
-
-  const editingCategories = useMemo(() => {
-    if (!editingTransaction || editingTransaction.type === "transfer") {
-      return [];
-    }
-
-    return categories.filter((category) => category.type === editingTransaction.type);
-  }, [categories, editingTransaction]);
 
   const loadDashboardData = useCallback(async () => {
     setErrorMessage(null);
@@ -389,6 +371,7 @@ export default function DashboardPage() {
     setEditErrorMessage(null);
     setEditForm({
       accountId: String(transaction.account_id),
+      targetAccountId: transaction.target_account_id ? String(transaction.target_account_id) : "",
       amount: transaction.amount,
       description: transaction.description ?? "",
       transactionDate: toLocalDateTimeValue(transaction.transaction_date),
@@ -412,6 +395,16 @@ export default function DashboardPage() {
       return;
     }
 
+    if (!editForm.accountId) {
+      setEditErrorMessage("Выберите счет.");
+      return;
+    }
+
+    if (editingTransaction.type === "transfer" && !editForm.targetAccountId) {
+      setEditErrorMessage("Для перевода нужно выбрать целевой счет.");
+      return;
+    }
+
     if (!editForm.amount || Number(editForm.amount) <= 0) {
       setEditErrorMessage("Укажите корректную сумму.");
       return;
@@ -423,6 +416,8 @@ export default function DashboardPage() {
     try {
       const payload: TransactionUpdate = {
         account_id: Number(editForm.accountId),
+        target_account_id:
+          editingTransaction.type === "transfer" ? Number(editForm.targetAccountId) : null,
         amount: Number(editForm.amount),
         description: editForm.description.trim() || null,
         transaction_date: new Date(editForm.transactionDate).toISOString(),
@@ -717,28 +712,12 @@ export default function DashboardPage() {
       {editingTransaction && editForm ? (
         <section className="fixed inset-0 z-50 bg-[var(--bg-app)]">
           <div className="mx-auto flex h-full w-full max-w-[430px] flex-col">
-            <header className="sticky top-0 z-10 border-b border-[color:var(--border-soft)] bg-[color:color-mix(in_srgb,var(--bg-app)_85%,transparent)] px-3 py-2.5 backdrop-blur">
-              <div className="flex items-center justify-between gap-2">
-                <button
-                  type="button"
-                  onClick={closeEditor}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] text-[var(--text-secondary)]"
-                  aria-label="Back"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
-                <h2 className="text-base font-bold text-[var(--text-primary)]">Edit Transaction</h2>
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1 rounded-xl bg-[var(--accent-primary)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-70"
-                  onClick={() => void saveEditedTransaction()}
-                  disabled={isSavingEdit}
-                >
-                  <Save className="h-4 w-4" />
-                  {isSavingEdit ? "Saving..." : "Save"}
-                </button>
-              </div>
-            </header>
+            <TransactionEditorHeader
+              title="Edit Transaction"
+              onBack={closeEditor}
+              onSave={() => void saveEditedTransaction()}
+              isSaving={isSavingEdit}
+            />
 
             <div className="flex-1 overflow-y-auto px-3 py-3">
               <section className="space-y-3">
@@ -757,339 +736,16 @@ export default function DashboardPage() {
                     </span>
                   </div>
 
-                  <label className="block text-sm text-[var(--text-secondary)]">
-                    <div className="flex items-center justify-between gap-2">
-                      <span>Account</span>
-                      {(() => {
-                        const selectedAccount = accounts.find(
-                          (account) => String(account.id) === editForm.accountId,
-                        );
-                        const currency = selectedAccount
-                          ? currencyById.get(selectedAccount.currency_id)
-                          : null;
-                        const badge = shortAccountBadge(selectedAccount);
-                        return (
-                          <div className="flex items-center gap-2">
-                            {selectedAccount?.color ? (
-                              <span
-                                className="h-2.5 w-2.5 rounded-full border"
-                                style={{
-                                  backgroundColor: selectedAccount.color,
-                                  borderColor: selectedAccount.color,
-                                }}
-                              />
-                            ) : null}
-                            {badge ? (
-                              <span className="badge" style={badgeStyle(selectedAccount?.color)}>
-                                {badge}
-                              </span>
-                            ) : null}
-                            <span className="text-xs text-[var(--text-secondary)]">
-                              {currency ? `${currency.code} · ${currency.symbol}` : "Currency unknown"}
-                            </span>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                    <div className="mt-2 grid grid-cols-2 gap-2">
-                      {accounts.map((account) => {
-                        const selected = String(account.id) === editForm.accountId;
-                        const Icon = getIconOption(account.icon).icon;
-                        const badge = shortAccountBadge(account);
-                        return (
-                          <button
-                            key={account.id}
-                            type="button"
-                            className={`flex items-center gap-2 rounded-2xl border px-3 py-2.5 text-left transition ${
-                              selected
-                                ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/10"
-                                : "border-[color:var(--border-soft)] bg-[var(--bg-card)]"
-                            }`}
-                            onClick={() =>
-                              setEditForm((prev) =>
-                                prev
-                                  ? {
-                                      ...prev,
-                                      accountId: String(account.id),
-                                    }
-                                  : prev,
-                              )
-                            }
-                          >
-                            <span
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-xl"
-                              style={{
-                                backgroundColor: `${account.color}22`,
-                                color: account.color,
-                              }}
-                            >
-                              <Icon className="h-4.5 w-4.5" />
-                            </span>
-                            <div className="min-w-0">
-                              {badge ? (
-                                <span className="badge" style={badgeStyle(account.color)}>
-                                  {badge}
-                                </span>
-                              ) : (
-                                <span className="text-xs text-[var(--text-secondary)]">No ID</span>
-                              )}
-                              <span className="mt-1 block text-xs text-[var(--text-secondary)]">
-                                {(() => {
-                                  const balance = accountBalances.find(
-                                    (item) => item.account_id === account.id,
-                                  );
-                                  if (!balance) {
-                                    return "Balance unknown";
-                                  }
-                                  return formatAmount(balance.balance, balance.currency_code);
-                                })()}
-                              </span>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </label>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-[var(--text-secondary)]">Amount</span>
-                      {(() => {
-                        const selectedAccount = accounts.find(
-                          (account) => String(account.id) === editForm.accountId,
-                        );
-                        const currency = selectedAccount
-                          ? currencyById.get(selectedAccount.currency_id)
-                          : null;
-                        return (
-                          <span className="badge">
-                            {currency ? `${currency.code} ${currency.symbol}` : "Currency"}
-                          </span>
-                        );
-                      })()}
-                    </div>
-
-                    <div className="rounded-2xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] p-3 transition focus-within:shadow-[0_0_0_3px_var(--ring-primary)]">
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-secondary)]">
-                          Total
-                        </span>
-                        <div className="h-px flex-1 bg-[color:var(--border-soft)]" />
-                        <button
-                          type="button"
-                          className="text-xs font-semibold text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]"
-                          onClick={() =>
-                            setEditForm((prev) =>
-                              prev
-                                ? {
-                                    ...prev,
-                                    amount: "",
-                                  }
-                                : prev,
-                            )
-                          }
-                        >
-                          Clear
-                        </button>
-                      </div>
-
-                      <div className="mt-3 flex items-end gap-2">
-                        <input
-                          className="w-full bg-transparent text-3xl font-extrabold tracking-tight text-[var(--text-primary)] outline-none"
-                          inputMode="decimal"
-                          name="amount"
-                          autoComplete="off"
-                          placeholder="0.00…"
-                          value={editForm.amount}
-                          onChange={(event) =>
-                            setEditForm((prev) =>
-                              prev
-                                ? {
-                                    ...prev,
-                                    amount: event.target.value,
-                                  }
-                                : prev,
-                            )
-                          }
-                        />
-                        <span className="text-sm font-semibold text-[var(--text-secondary)]">
-                          {(() => {
-                            const selectedAccount = accounts.find(
-                              (account) => String(account.id) === editForm.accountId,
-                            );
-                            const currency = selectedAccount
-                              ? currencyById.get(selectedAccount.currency_id)
-                              : null;
-                            return currency?.symbol ?? "";
-                          })()}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-[color:var(--border-soft)] bg-[var(--bg-card)]/70 p-1.5">
-                      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
-                        <div className="flex flex-wrap items-center justify-start gap-1.5">
-                          {[-100, -25, -5].map((value) => (
-                            <button
-                              key={value}
-                              type="button"
-                              className="surface-hover rounded-full border border-[color:var(--border-soft)] px-2.5 py-0.5 text-[11px] font-semibold text-rose-600 transition"
-                              onClick={() =>
-                                setEditForm((prev) => {
-                                  if (!prev) {
-                                    return prev;
-                                  }
-                                  const current = normalizeAmountInput(prev.amount);
-                                  const next = Math.max(0, current + value);
-                                  return {
-                                    ...prev,
-                                    amount: formatAmountInput(next),
-                                  };
-                                })
-                              }
-                            >
-                              {value}
-                            </button>
-                          ))}
-                        </div>
-                        <div className="flex flex-col items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.24em] text-[var(--text-secondary)]">
-                          <span>±</span>
-                          <span className="h-5 w-px bg-[color:var(--border-soft)]" />
-                        </div>
-                        <div className="flex flex-wrap items-center justify-end gap-1.5">
-                          {[5, 25, 100].map((value) => (
-                            <button
-                              key={value}
-                              type="button"
-                              className="surface-hover rounded-full border border-[color:var(--border-soft)] px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600 transition"
-                              onClick={() =>
-                                setEditForm((prev) => {
-                                  if (!prev) {
-                                    return prev;
-                                  }
-                                  const current = normalizeAmountInput(prev.amount);
-                                  return {
-                                    ...prev,
-                                    amount: formatAmountInput(current + value),
-                                  };
-                                })
-                              }
-                            >
-                              +{value}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {editingTransaction.type !== "transfer" ? (
-                    <label className="block text-sm text-[var(--text-secondary)]">
-                      Category
-                      <div className="mt-2 grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          className={`flex items-center gap-2 rounded-2xl border px-3 py-2.5 text-left transition ${
-                            editForm.categoryId === ""
-                              ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/10"
-                              : "border-[color:var(--border-soft)] bg-[var(--bg-card)]"
-                          }`}
-                          onClick={() =>
-                            setEditForm((prev) =>
-                              prev
-                                ? {
-                                    ...prev,
-                                    categoryId: "",
-                                  }
-                                : prev,
-                            )
-                          }
-                        >
-                          <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-                            <span className="text-xs font-semibold">—</span>
-                          </span>
-                          <span className="text-sm font-semibold text-[var(--text-primary)]">
-                            Without category
-                          </span>
-                        </button>
-                        {editingCategories.map((category) => {
-                          const selected = String(category.id) === editForm.categoryId;
-                          const Icon = getIconOption(category.icon).icon;
-                          return (
-                            <button
-                              key={category.id}
-                              type="button"
-                              className={`flex items-center gap-2 rounded-2xl border px-3 py-2.5 text-left transition ${
-                                selected
-                                  ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/10"
-                                  : "border-[color:var(--border-soft)] bg-[var(--bg-card)]"
-                              }`}
-                              onClick={() =>
-                                setEditForm((prev) =>
-                                  prev
-                                    ? {
-                                        ...prev,
-                                        categoryId: String(category.id),
-                                      }
-                                    : prev,
-                                )
-                              }
-                            >
-                              <span
-                                className="inline-flex h-9 w-9 items-center justify-center rounded-xl"
-                                style={{
-                                  backgroundColor: `${category.color}22`,
-                                  color: category.color,
-                                }}
-                              >
-                                <Icon className="h-4.5 w-4.5" />
-                              </span>
-                              <span className="text-sm font-semibold text-[var(--text-primary)]">
-                                {category.name}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </label>
-                  ) : null}
-
-                  <label className="block text-sm text-[var(--text-secondary)]">
-                    Description
-                    <input
-                      className="mt-1 block w-full px-3 py-2 text-sm"
-                      value={editForm.description}
-                      onChange={(event) =>
-                        setEditForm((prev) =>
-                          prev
-                            ? {
-                                ...prev,
-                                description: event.target.value,
-                              }
-                            : prev,
-                        )
-                      }
-                    />
-                  </label>
-
-                  <label className="block text-sm text-[var(--text-secondary)]">
-                    Date and time
-                    <input
-                      className="mt-1 block w-full px-3 py-2 text-sm"
-                      type="datetime-local"
-                      value={editForm.transactionDate}
-                      onChange={(event) =>
-                        setEditForm((prev) =>
-                          prev
-                            ? {
-                                ...prev,
-                                transactionDate: event.target.value,
-                              }
-                            : prev,
-                        )
-                      }
-                    />
-                  </label>
+                  <TransactionFormFields
+                    form={editForm}
+                    setForm={setEditForm}
+                    transactionType={editingTransaction.type}
+                    accounts={accounts}
+                    accountBalances={accountBalances}
+                    categories={categories}
+                    currencies={currencies}
+                    showTypeSelector={false}
+                  />
 
                   {editErrorMessage ? <ErrorState message={editErrorMessage} /> : null}
                 </div>

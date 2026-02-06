@@ -42,9 +42,17 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     signal: options.signal,
   });
 
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   const contentType = response.headers.get("content-type") ?? "";
+  const contentLength = response.headers.get("content-length");
+  const isEmpty = contentLength === "0";
   const payload = contentType.includes("application/json")
-    ? ((await response.json()) as unknown)
+    ? isEmpty
+      ? null
+      : ((await response.json()) as unknown)
     : ((await response.text()) as unknown);
 
   if (!response.ok) {

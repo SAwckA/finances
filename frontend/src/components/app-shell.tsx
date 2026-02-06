@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import type { ComponentType, ReactNode } from "react";
 import {
   BarChart3,
@@ -30,8 +30,13 @@ function isActive(pathname: string, href: string): boolean {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const quickAddActive = pathname === "/transactions" || pathname.startsWith("/transactions?");
-  const isEditorScreen = pathname.endsWith("/new") || pathname.endsWith("/edit");
+  const isCreateMode =
+    pathname === "/transactions" &&
+    (searchParams.get("create") === "1" || searchParams.get("create") === "true");
+  const isEditorScreen =
+    pathname.endsWith("/new") || pathname.endsWith("/edit") || isCreateMode;
 
   return (
     <div className={`mobile-page ${isEditorScreen ? "" : "pb-24"}`}>
