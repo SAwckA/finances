@@ -9,6 +9,10 @@ class UserRepository(BaseRepository[User]):
         """Получение пользователя по email."""
         return await self.get_by(email=email)
 
+    async def get_by_google_sub(self, google_sub: str) -> User | None:
+        """Получение пользователя по Google subject."""
+        return await self.get_by(google_sub=google_sub)
+
     async def get_active_users(self, skip: int = 0, limit: int = 100):
         """Получение списка активных пользователей."""
         return await self.get_many_by(skip=skip, limit=limit, is_active=True)

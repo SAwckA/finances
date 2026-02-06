@@ -23,7 +23,6 @@ class UserCreate(UserBase):
 class UserUpdate(BaseModel):
     """Схема для обновления пользователя."""
 
-    email: EmailStr | None = None
     name: str | None = None
 
 
@@ -31,6 +30,8 @@ class UserResponse(UserBase):
     """Схема ответа с данными пользователя."""
 
     id: int
+    auth_provider: str
+    avatar_url: str | None = None
     is_active: bool
     created_at: datetime
 
@@ -45,7 +46,15 @@ class User(SoftDeleteModel):
     id: Mapped[int] = mapped_column(primary_key=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(100))
-    hashed_password: Mapped[str] = mapped_column(String(255))
+    hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    auth_provider: Mapped[str] = mapped_column(String(50), default="google")
+    google_sub: Mapped[str | None] = mapped_column(
+        String(255),
+        unique=True,
+        index=True,
+        nullable=True,
+    )
+    avatar_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     is_active: Mapped[bool] = mapped_column(default=True)
 
     accounts = relationship("Account", back_populates="user")

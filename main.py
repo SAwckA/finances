@@ -8,6 +8,7 @@ from app.api.exception_handlers import (
     app_exception_handler,
     unhandled_exception_handler,
 )
+from app.api.controllers.google_oauth import router as google_oauth_router
 from app.api.router import router
 from app.config.env import settings
 from app.config.logging import setup_logging
@@ -44,6 +45,7 @@ async def handle_exception(request: Request, exc: Exception) -> Response:
 
 
 app.include_router(router)
+app.include_router(google_oauth_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],

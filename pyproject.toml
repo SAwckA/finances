@@ -16,6 +16,8 @@ dependencies = [
     "alembic>=1.14.0",
     "pyyaml>=6.0.0",
     "python-dateutil>=2.9.0.post0",
+    "authlib>=1.6.7",
+    "httpx>=0.28.1",
 ]
 
 [dependency-groups]

@@ -55,12 +55,7 @@ class UserService(BaseService):
 
     async def update_user(self, user_id: int, data: UserUpdate) -> User:
         """Обновление данных пользователя."""
-        user = await self.get_user_by_id(user_id)
-
-        if data.email and data.email != user.email:
-            existing = await self.user_repository.get_by_email(data.email)
-            if existing:
-                raise EmailAlreadyExistsException(details={"email": data.email})
+        await self.get_user_by_id(user_id)
 
         update_data = data.model_dump(exclude_unset=True)
         updated_user = await self.user_repository.update(user_id, update_data)

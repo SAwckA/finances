@@ -1,17 +1,9 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { apiRequest, ApiError } from "@/lib/api-client";
 import { clearStoredTokens, readStoredTokens, writeStoredTokens } from "@/lib/auth-storage";
-import type { LoginRequest, TokenResponseSchema, UserCreate, UserResponse } from "@/lib/types";
+import type { TokenResponseSchema, UserResponse } from "@/lib/types";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
@@ -19,14 +11,17 @@ type AuthContextValue = {
   status: AuthStatus;
   user: UserResponse | null;
   tokens: TokenResponseSchema | null;
-  login: (payload: LoginRequest) => Promise<void>;
-  register: (payload: UserCreate) => Promise<void>;
+  startGoogleLogin: () => Promise<void>;
   logout: () => void;
   refreshProfile: () => Promise<UserResponse>;
   authenticatedRequest: <T>(
     path: string,
     options?: { method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; body?: unknown },
   ) => Promise<T>;
+};
+
+type GoogleStartResponse = {
+  authorization_url: string;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -101,32 +96,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [refreshTokens, tokens],
   );
 
-  const login = useCallback(
-    async (payload: LoginRequest) => {
-      const nextTokens = await apiRequest<TokenResponseSchema>("/api/auth/login", {
-        method: "POST",
-        body: payload,
-      });
-      const nextUser = await loadProfile(nextTokens.access_token);
-      persistSession(nextTokens, nextUser);
-    },
-    [persistSession],
-  );
-
-  const register = useCallback(
-    async (payload: UserCreate) => {
-      await apiRequest<UserResponse>("/api/auth/register", {
-        method: "POST",
-        body: payload,
-      });
-      await login({ email: payload.email, password: payload.password });
-    },
-    [login],
-  );
-
-  const logout = useCallback(() => {
-    resetSession();
-  }, [resetSession]);
+  const startGoogleLogin = useCallback(async () => {
+    const response = await apiRequest<GoogleStartResponse>("/api/auth/google/start");
+    window.location.href = response.authorization_url;
+  }, []);
 
   const refreshProfile = useCallback(async (): Promise<UserResponse> => {
     if (!tokens?.access_token) {
@@ -140,6 +113,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const hydrate = async () => {
+      const url = new URL(window.location.href);
+      const authCode = url.searchParams.get("auth_code");
+
+      if (authCode) {
+        try {
+          const exchanged = await apiRequest<TokenResponseSchema>("/api/auth/google/exchange", {
+            method: "POST",
+            body: { auth_code: authCode },
+          });
+          const profile = await loadProfile(exchanged.access_token);
+          persistSession(exchanged, profile);
+          url.searchParams.delete("auth_code");
+          window.history.replaceState({}, "", url.toString());
+          return;
+        } catch {
+          resetSession();
+          return;
+        }
+      }
+
       const stored = readStoredTokens();
       if (!stored) {
         setStatus("unauthenticated");
@@ -176,13 +169,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       status,
       user,
       tokens,
-      login,
-      register,
-      logout,
+      startGoogleLogin,
+      logout: resetSession,
       refreshProfile,
       authenticatedRequest,
     }),
-    [authenticatedRequest, login, logout, refreshProfile, register, status, tokens, user],
+    [authenticatedRequest, refreshProfile, resetSession, startGoogleLogin, status, tokens, user],
   );
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;

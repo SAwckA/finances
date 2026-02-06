@@ -6,17 +6,6 @@ export type TokenResponseSchema = {
 
 export type CategoryType = "income" | "expense";
 
-export type LoginRequest = {
-  email: string;
-  password: string;
-};
-
-export type UserCreate = {
-  email: string;
-  name: string;
-  password: string;
-};
-
 export type UserResponse = {
   id: number;
   email: string;
@@ -26,7 +15,6 @@ export type UserResponse = {
 };
 
 export type UserUpdate = {
-  email?: string;
   name?: string;
 };
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button, Input } from "@heroui/react";
 import { ErrorState, LoadingState } from "@/components/async-state";
 import { ScreenHeader } from "@/components/screen-header";
@@ -11,7 +12,6 @@ import { ApiError } from "@/lib/api-client";
 import type { UserResponse, UserUpdate } from "@/lib/types";
 
 type ProfileFormState = {
-  email: string;
   name: string;
 };
 
@@ -28,10 +28,10 @@ function getErrorMessage(error: unknown): string {
 }
 
 export default function ProfilePage() {
-  const { user, refreshProfile, authenticatedRequest } = useAuth();
+  const { user, refreshProfile, authenticatedRequest, logout } = useAuth();
+  const router = useRouter();
   const { preference, resolvedTheme, setPreference } = useThemePreference();
   const [form, setForm] = useState<ProfileFormState>({
-    email: user?.email ?? "",
     name: user?.name ?? "",
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -45,7 +45,7 @@ export default function ProfilePage() {
 
     try {
       const current = await refreshProfile();
-      setForm({ email: current.email, name: current.name });
+      setForm({ name: current.name });
     } catch (error) {
       setErrorMessage(getErrorMessage(error));
     } finally {
@@ -60,8 +60,8 @@ export default function ProfilePage() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!form.email.trim() || !form.name.trim()) {
-      setErrorMessage("Укажите email и имя.");
+    if (!form.name.trim()) {
+      setErrorMessage("Укажите имя.");
       return;
     }
 
@@ -71,14 +71,13 @@ export default function ProfilePage() {
 
     try {
       const payload: UserUpdate = {
-        email: form.email.trim(),
         name: form.name.trim(),
       };
       const updated = await authenticatedRequest<UserResponse>("/api/users/me", {
         method: "PUT",
         body: payload,
       });
-      setForm({ email: updated.email, name: updated.name });
+      setForm({ name: updated.name });
       setSuccessMessage("Профиль обновлен.");
       await refreshProfile();
     } catch (error) {
@@ -91,64 +90,75 @@ export default function ProfilePage() {
   return (
     <>
       <ScreenHeader title="Профиль" description="Управление данными текущего пользователя." />
-
-      <section className="mobile-card p-4">
-        <div className="mb-4 space-y-2">
-          <h2 className="text-sm font-semibold text-[var(--text-primary)]">Тема приложения</h2>
-          <SegmentedControl
-            options={[
-              { key: "system", label: "Система" },
-              { key: "light", label: "Светлая" },
-              { key: "dark", label: "Темная" },
-            ]}
-            value={preference}
-            onChange={setPreference}
-          />
-          <p className="text-xs text-[var(--text-secondary)]">
-            Текущая тема: {resolvedTheme === "dark" ? "темная" : "светлая"}.
-          </p>
-        </div>
-
-        {isLoading ? (
-          <LoadingState
-            className="rounded-none border-none bg-transparent p-0"
-            message="Загружаем профиль..."
-          />
-        ) : (
-          <form className="space-y-3" onSubmit={handleSubmit}>
-            <Input
-              label="Email"
-              type="email"
-              isRequired
-              value={form.email}
-              onValueChange={(value) => setForm((prev) => ({ ...prev, email: value }))}
+      <div className="space-y-4">
+        <section className="mobile-card p-4">
+          <div className="mb-4 space-y-2">
+            <h2 className="text-sm font-semibold text-[var(--text-primary)]">Тема приложения</h2>
+            <SegmentedControl
+              options={[
+                { key: "system", label: "Система" },
+                { key: "light", label: "Светлая" },
+                { key: "dark", label: "Темная" },
+              ]}
+              value={preference}
+              onChange={setPreference}
             />
-            <Input
-              label="Имя"
-              isRequired
-              value={form.name}
-              onValueChange={(value) => setForm((prev) => ({ ...prev, name: value }))}
-            />
+            <p className="text-xs text-[var(--text-secondary)]">
+              Текущая тема: {resolvedTheme === "dark" ? "темная" : "светлая"}.
+            </p>
+          </div>
+        </section>
 
-            {errorMessage ? (
-              <ErrorState
-                className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-2 text-sm text-rose-700"
-                message={errorMessage}
+        <section className="mobile-card p-4">
+          {isLoading ? (
+            <LoadingState
+              className="rounded-none border-none bg-transparent p-0"
+              message="Загружаем профиль..."
+            />
+          ) : (
+            <form className="space-y-3" onSubmit={handleSubmit}>
+              <Input label="Email" type="email" value={user?.email ?? ""} isReadOnly />
+              <Input
+                label="Имя"
+                isRequired
+                value={form.name}
+                onValueChange={(value) => setForm((prev) => ({ ...prev, name: value }))}
               />
-            ) : null}
-            {successMessage ? <p className="text-sm text-emerald-700">{successMessage}</p> : null}
 
-            <div className="flex flex-wrap gap-2">
-              <Button color="primary" type="submit" isLoading={isSubmitting}>
-                Сохранить
-              </Button>
-              <Button variant="flat" type="button" onPress={() => void loadProfile()}>
-                Обновить
-              </Button>
-            </div>
-          </form>
-        )}
-      </section>
+              {errorMessage ? (
+                <ErrorState
+                  className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-2 text-sm text-rose-700"
+                  message={errorMessage}
+                />
+              ) : null}
+              {successMessage ? <p className="text-sm text-emerald-700">{successMessage}</p> : null}
+
+              <div className="flex flex-wrap gap-2">
+                <Button color="primary" type="submit" isLoading={isSubmitting}>
+                  Сохранить
+                </Button>
+                <Button variant="flat" type="button" onPress={() => void loadProfile()}>
+                  Обновить
+                </Button>
+              </div>
+            </form>
+          )}
+        </section>
+
+        <section className="mobile-card p-4">
+          <Button
+            color="danger"
+            variant="flat"
+            type="button"
+            onPress={() => {
+              logout();
+              router.replace("/auth/login");
+            }}
+          >
+            Выйти из аккаунта
+          </Button>
+        </section>
+      </div>
     </>
   );
 }

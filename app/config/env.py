@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 30
     jwt_refresh_token_expire_days: int = 7
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_redirect_uri: str = "http://localhost:8000/auth/google/callback"
+    frontend_base_url: str = "http://localhost:3000"
+    google_oauth_state_expire_seconds: int = 600
+    auth_exchange_code_ttl_seconds: int = 90
 
     @property
     def database_url(self) -> str:

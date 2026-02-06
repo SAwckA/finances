@@ -1,23 +1,27 @@
 from fastapi import APIRouter
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel
 
-from app.models.user import UserCreate, UserResponse
 from app.services.auth_service import AuthService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-
-class LoginRequest(BaseModel):
-    """Схема запроса на вход."""
-
-    email: EmailStr
-    password: str = Field(min_length=1)
 
 
 class RefreshRequest(BaseModel):
     """Схема запроса на обновление токенов."""
 
     refresh_token: str
+
+
+class GoogleExchangeRequest(BaseModel):
+    """Схема запроса обмена одноразового auth_code на JWT."""
+
+    auth_code: str
+
+
+class GoogleStartResponse(BaseModel):
+    """Схема ответа с URL инициации Google OAuth."""
+
+    authorization_url: str
 
 
 class TokenResponseSchema(BaseModel):
@@ -28,18 +32,19 @@ class TokenResponseSchema(BaseModel):
     token_type: str = "bearer"
 
 
-@router.post("/register", response_model=UserResponse, status_code=201)
-async def register(data: UserCreate):
-    """Регистрация нового пользователя."""
+@router.get("/google/start", response_model=GoogleStartResponse)
+async def google_start():
+    """Инициация входа через Google OAuth2."""
     async with AuthService() as service:
-        return await service.register(data)
+        authorization_url = await service.build_google_authorization_url()
+        return GoogleStartResponse(authorization_url=authorization_url)
 
 
-@router.post("/login", response_model=TokenResponseSchema)
-async def login(data: LoginRequest):
-    """Вход в систему."""
+@router.post("/google/exchange", response_model=TokenResponseSchema)
+async def google_exchange(data: GoogleExchangeRequest):
+    """Обмен одноразового auth_code на access/refresh токены."""
     async with AuthService() as service:
-        result = await service.login(data.email, data.password)
+        result = await service.exchange_google_auth_code(data.auth_code)
         return TokenResponseSchema(
             access_token=result.access_token,
             refresh_token=result.refresh_token,
