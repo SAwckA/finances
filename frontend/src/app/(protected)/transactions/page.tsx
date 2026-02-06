@@ -21,6 +21,7 @@ import type {
   AccountResponse,
   CategoryResponse,
   CurrencyResponse,
+  ShoppingListResponse,
   TransactionCreate,
   TransactionResponse,
   TransactionType,
@@ -202,6 +203,9 @@ export default function TransactionsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [editingTransactionId, setEditingTransactionId] = useState<number | null>(null);
+  const [editingShoppingListId, setEditingShoppingListId] = useState<number | null>(null);
+  const [shoppingListDetails, setShoppingListDetails] = useState<ShoppingListResponse | null>(null);
+  const [isShoppingListLoading, setIsShoppingListLoading] = useState(false);
   const [form, setForm] = useState<TransactionFormState>(DEFAULT_FORM);
   const [createMode, setCreateMode] = useState(false);
 
@@ -331,6 +335,8 @@ export default function TransactionsPage() {
 
   const resetForm = useCallback(() => {
     setEditingTransactionId(null);
+    setEditingShoppingListId(null);
+    setShoppingListDetails(null);
     setForm({
       ...DEFAULT_FORM,
       accountId: accounts[0] ? String(accounts[0].id) : "",
@@ -340,6 +346,8 @@ export default function TransactionsPage() {
 
   const handleEdit = (transaction: TransactionResponse) => {
     setEditingTransactionId(transaction.id);
+    setEditingShoppingListId(transaction.shopping_list_id);
+    setShoppingListDetails(null);
     setCreateMode(false);
     setForm({
       type: transaction.type,
@@ -356,6 +364,8 @@ export default function TransactionsPage() {
 
   const handleClone = (transaction: TransactionResponse) => {
     setEditingTransactionId(null);
+    setEditingShoppingListId(null);
+    setShoppingListDetails(null);
     setCreateMode(true);
     setForm({
       type: transaction.type,
@@ -369,6 +379,39 @@ export default function TransactionsPage() {
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  useEffect(() => {
+    if (!editingShoppingListId) {
+      setShoppingListDetails(null);
+      return;
+    }
+
+    let active = true;
+    const loadShoppingList = async () => {
+      setIsShoppingListLoading(true);
+      try {
+        const data = await authenticatedRequest<ShoppingListResponse>(
+          `/api/shopping-lists/${editingShoppingListId}`,
+        );
+        if (active) {
+          setShoppingListDetails(data);
+        }
+      } catch {
+        if (active) {
+          setShoppingListDetails(null);
+        }
+      } finally {
+        if (active) {
+          setIsShoppingListLoading(false);
+        }
+      }
+    };
+
+    void loadShoppingList();
+    return () => {
+      active = false;
+    };
+  }, [authenticatedRequest, editingShoppingListId]);
 
   const handleDelete = async (transactionId: number) => {
     const confirmed = window.confirm("Удалить транзакцию?");
@@ -547,6 +590,37 @@ export default function TransactionsPage() {
             currencies={currencies}
             showTypeSelector
           />
+
+          {editingTransactionId && editingShoppingListId ? (
+            <section className="mobile-card space-y-2 p-3">
+              <p className="text-sm font-semibold text-slate-800">Shopping list</p>
+              {isShoppingListLoading ? (
+                <LoadingState message="Загружаем список покупок…" />
+              ) : null}
+              {!isShoppingListLoading && shoppingListDetails ? (
+                <>
+                  <p className="text-xs font-semibold text-slate-500">{shoppingListDetails.name}</p>
+                  <ul className="mt-2 space-y-1">
+                    {shoppingListDetails.items.length === 0 ? (
+                      <li className="text-xs text-slate-500">Список пуст.</li>
+                    ) : (
+                      shoppingListDetails.items.map((item) => (
+                        <li
+                          key={item.id}
+                          className="text-sm text-slate-500 line-through"
+                        >
+                          {item.name} · {item.quantity} шт.
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                </>
+              ) : null}
+              {!isShoppingListLoading && !shoppingListDetails ? (
+                <p className="text-xs text-slate-500">Список покупок не найден.</p>
+              ) : null}
+            </section>
+          ) : null}
 
           <button
             type="submit"

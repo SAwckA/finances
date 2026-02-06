@@ -171,7 +171,9 @@ class ShoppingListService(BaseService):
 
     async def delete(self, list_id: int, user_id: int) -> bool:
         """Удалить список покупок."""
-        await self.get_by_id(list_id, user_id)
+        shopping_list = await self.get_by_id(list_id, user_id)
+        if shopping_list.status == ShoppingListStatus.COMPLETED:
+            raise ShoppingListAlreadyCompletedException()
         result = await self.shopping_list_repository.delete(list_id)
         logger.info(f"Deleted shopping list {list_id}")
         return result

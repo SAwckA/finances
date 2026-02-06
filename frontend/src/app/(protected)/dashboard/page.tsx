@@ -27,6 +27,7 @@ import type {
   CategoryResponse,
   CurrencyResponse,
   PeriodStatisticsResponse,
+  ShoppingListResponse,
   TotalBalanceResponse,
   TransactionResponse,
   TransactionUpdate,
@@ -203,6 +204,8 @@ export default function DashboardPage() {
   const [editForm, setEditForm] = useState<EditTransactionForm | null>(null);
   const [editErrorMessage, setEditErrorMessage] = useState<string | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [shoppingListDetails, setShoppingListDetails] = useState<ShoppingListResponse | null>(null);
+  const [isShoppingListLoading, setIsShoppingListLoading] = useState(false);
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -469,7 +472,41 @@ export default function DashboardPage() {
     setEditingTransactionId(null);
     setEditForm(null);
     setEditErrorMessage(null);
+    setShoppingListDetails(null);
   };
+
+  useEffect(() => {
+    if (!editingTransaction?.shopping_list_id) {
+      setShoppingListDetails(null);
+      return;
+    }
+
+    let active = true;
+    const loadShoppingList = async () => {
+      setIsShoppingListLoading(true);
+      try {
+        const data = await authenticatedRequest<ShoppingListResponse>(
+          `/api/shopping-lists/${editingTransaction.shopping_list_id}`,
+        );
+        if (active) {
+          setShoppingListDetails(data);
+        }
+      } catch {
+        if (active) {
+          setShoppingListDetails(null);
+        }
+      } finally {
+        if (active) {
+          setIsShoppingListLoading(false);
+        }
+      }
+    };
+
+    void loadShoppingList();
+    return () => {
+      active = false;
+    };
+  }, [authenticatedRequest, editingTransaction?.shopping_list_id]);
 
   const saveEditedTransaction = async () => {
     if (!editingTransaction || !editForm) {
@@ -872,19 +909,54 @@ export default function DashboardPage() {
                 </div>
 
                 {editingTransaction.shopping_list_id ? (
-                  <section className="mobile-card flex items-center justify-between gap-3 p-3">
-                    <div>
-                      <p className="text-sm font-semibold text-[var(--text-primary)]">Shopping list</p>
-                      <p className="text-xs text-[var(--text-secondary)]">
-                        List ID: {editingTransaction.shopping_list_id}
-                      </p>
+                  <section className="mobile-card space-y-2 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--surface-hover)] text-[var(--text-secondary)]">
+                          <ListChecks className="h-4 w-4" aria-hidden="true" />
+                        </span>
+                        <p className="text-sm font-semibold text-[var(--text-primary)]">
+                          {shoppingListDetails?.name ?? "Список покупок"}
+                        </p>
+                      </div>
+                      <Link
+                        href={`/shopping-lists/${editingTransaction.shopping_list_id}`}
+                        className="rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] transition hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/30"
+                      >
+                        Open
+                      </Link>
                     </div>
-                    <Link
-                      href={`/shopping-lists/${editingTransaction.shopping_list_id}`}
-                      className="rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] transition hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/30"
-                    >
-                      Open
-                    </Link>
+                    {isShoppingListLoading ? (
+                      <LoadingState message="Загружаем список покупок…" />
+                    ) : null}
+                    {!isShoppingListLoading && shoppingListDetails ? (
+                      <ul className="space-y-1">
+                          {shoppingListDetails.items.length === 0 ? (
+                            <li className="text-xs text-[var(--text-secondary)]">Список пуст.</li>
+                          ) : (
+                            shoppingListDetails.items.map((item, index) => (
+                              <li
+                                key={item.id}
+                                className="flex items-baseline gap-2 text-sm text-[var(--text-secondary)]"
+                              >
+                                <span className="text-[var(--text-primary)]">
+                                  {index + 1}.
+                                </span>
+                                <span className="truncate text-[var(--text-primary)]">
+                                  {item.name}
+                                </span>
+                                <span className="mx-1 flex-1 border-b border-dotted border-[color:var(--border-soft)]" />
+                                <span className="shrink-0 text-[var(--text-secondary)]">
+                                  {item.quantity} шт.
+                                </span>
+                              </li>
+                            ))
+                          )}
+                      </ul>
+                    ) : null}
+                    {!isShoppingListLoading && !shoppingListDetails ? (
+                      <p className="text-xs text-[var(--text-secondary)]">Список покупок не найден.</p>
+                    ) : null}
                   </section>
                 ) : null}
 

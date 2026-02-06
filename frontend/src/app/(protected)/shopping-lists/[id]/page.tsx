@@ -230,6 +230,32 @@ export default function ShoppingListDetailPage() {
     }
   };
 
+  const handleDuplicateList = async () => {
+    if (!list) {
+      return;
+    }
+    setErrorMessage(null);
+    try {
+      const payload: ShoppingListCreate = {
+        name: `${list.name} (копия)`,
+        account_id: list.account_id,
+        category_id: list.category_id,
+        items: list.items.map((item) => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: null,
+        })),
+      };
+      const created = await authenticatedRequest<ShoppingListResponse>("/api/shopping-lists", {
+        method: "POST",
+        body: payload,
+      });
+      router.push(`/shopping-lists/${created.id}`);
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error));
+    }
+  };
+
   const openTitleEditor = () => {
     if (!list || list.status === "completed") {
       return;
@@ -493,7 +519,7 @@ export default function ShoppingListDetailPage() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-3 py-3">
+        <div className="flex-1 overflow-y-auto px-3 py-3 pb-24">
           {errorMessage ? <ErrorState className="mb-3" message={errorMessage} /> : null}
 
           {isLoading ? <LoadingState message="Загружаем список..." /> : null}
@@ -732,6 +758,9 @@ export default function ShoppingListDetailPage() {
                   Действия
                 </p>
                 <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="flat" onPress={() => void handleDuplicateList()}>
+                    Создать копию
+                  </Button>
                   {list.status === "draft" ? (
                     <Button
                       size="sm"
@@ -764,9 +793,11 @@ export default function ShoppingListDetailPage() {
                       Завершить
                     </Button>
                   ) : null}
-                  <Button size="sm" color="danger" variant="flat" onPress={handleDeleteList}>
-                    Удалить список
-                  </Button>
+                  {list.status !== "completed" ? (
+                    <Button size="sm" color="danger" variant="flat" onPress={handleDeleteList}>
+                      Удалить список
+                    </Button>
+                  ) : null}
                 </div>
               </section>
 
@@ -965,7 +996,7 @@ export default function ShoppingListDetailPage() {
               </section>
 
               {list.status === "completed" && list.transaction_id ? (
-                <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-xs text-emerald-800">
+                <p className="rounded-lg border border-[color:color-mix(in_srgb,#34d399_55%,transparent)] bg-[color:color-mix(in_srgb,#34d399_18%,transparent)] px-2.5 py-2 text-xs text-[color:color-mix(in_srgb,#047857_85%,var(--text-primary))]">
                   Список завершен, транзакция создана: #{list.transaction_id}
                 </p>
               ) : null}
