@@ -487,6 +487,17 @@ export default function AccountsPage() {
                 >
                   {isSubmitting ? "Saving…" : editingId ? "Save Changes" : "Save"}
                 </button>
+
+                {editingId ? (
+                  <button
+                    type="button"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-rose-400/40 bg-rose-500/10 px-3 py-2.5 text-sm font-semibold text-rose-600 transition hover:bg-rose-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
+                    onClick={() => void handleDelete(editingId)}
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    Delete Account
+                  </button>
+                ) : null}
               </form>
             </div>
           </div>
@@ -532,24 +543,24 @@ export default function AccountsPage() {
                     </span>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{account.name}</p>
-                      <p className="truncate text-xs text-[var(--text-secondary)]">
-                        {currency ? `${currency.code} (${currency.symbol})` : "Unknown currency"}
-                      </p>
+                      {account.short_identifier ? (
+                        <span
+                          className="mt-1 inline-flex max-w-full items-center rounded-lg border px-2 py-0.5 text-xs font-semibold"
+                          style={{
+                            backgroundColor: `${account.color}22`,
+                            borderColor: `${account.color}55`,
+                            color: account.color,
+                          }}
+                        >
+                          {account.short_identifier}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-2">
-                    {account.short_identifier ? (
-                      <span
-                        className="rounded-lg border px-2 py-1 text-xs font-semibold"
-                        style={{
-                          backgroundColor: `${account.color}22`,
-                          borderColor: `${account.color}55`,
-                          color: account.color,
-                        }}
-                      >
-                        {account.short_identifier}
-                      </span>
-                    ) : null}
+                    <span className="rounded-lg border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-2 py-1 text-xs font-semibold text-[var(--text-secondary)]">
+                      {currency ? `${currency.code} (${currency.symbol})` : "Unknown currency"}
+                    </span>
                     <div className="flex gap-2">
                       <Link
                         href={buildHref("edit", String(account.id))}
@@ -559,14 +570,6 @@ export default function AccountsPage() {
                         <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
                         Edit
                       </Link>
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1 rounded-lg border border-rose-400/40 bg-rose-500/10 px-2.5 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
-                        onClick={() => void handleDelete(account.id)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                        Delete
-                      </button>
                     </div>
                   </div>
                 </div>
