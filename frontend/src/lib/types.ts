@@ -80,6 +80,7 @@ export type TransactionResponse = {
   description: string | null;
   transaction_date: string;
   shopping_list_id: number | null;
+  recurring_transaction_id: number | null;
   created_at: string;
 };
 

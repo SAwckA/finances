@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 
 from dateutil.relativedelta import relativedelta
@@ -6,10 +7,11 @@ from dateutil.relativedelta import relativedelta
 from app.exceptions import BusinessLogicException, ForbiddenException, NotFoundException
 from app.models.recurring_transaction import (
     RecurringFrequency,
+    RecurringTransaction,
     RecurringTransactionCreate,
     RecurringTransactionUpdate,
 )
-from app.models.transaction import TransactionType
+from app.models.transaction import Transaction, TransactionType
 from app.repositories.account_repository import AccountRepository
 from app.repositories.category_repository import CategoryRepository
 from app.repositories.recurring_transaction_repository import (
@@ -72,6 +74,26 @@ class RecurringTransactionExpiredException(BusinessLogicException):
     message = "Период действия периодической транзакции истёк"
 
 
+@dataclass
+class RecurringExecutionError:
+    """Ошибки batch-исполнения recurring."""
+
+    recurring_id: int
+    user_id: int
+    message: str
+
+
+@dataclass
+class RecurringExecutionReport:
+    """Отчет о batch-исполнении recurring."""
+
+    as_of_date: date
+    processed_templates: int = 0
+    successful_executions: int = 0
+    failed_executions: int = 0
+    errors: list[RecurringExecutionError] = field(default_factory=list)
+
+
 # === SERVICE ===
 
 
@@ -112,6 +134,47 @@ class RecurringTransactionService(BaseService):
         return await self.recurring_repository.get_pending_for_user(
             user_id=user_id, as_of_date=check_date
         )
+
+    @classmethod
+    async def execute_pending_for_all_users(
+        cls, as_of_date: date | None = None
+    ) -> RecurringExecutionReport:
+        """Выполнить все pending recurring по всем пользователям с бэкфиллом."""
+        target_date = as_of_date or datetime.now(timezone.utc).date()
+        report = RecurringExecutionReport(as_of_date=target_date)
+
+        async with cls() as service:
+            pending_items = await service.recurring_repository.get_pending_global(
+                target_date
+            )
+
+        report.processed_templates = len(pending_items)
+
+        for item in pending_items:
+            try:
+                async with cls() as service:
+                    executed_count = await service._execute_backfill_for_recurring(
+                        recurring_id=item.id,
+                        user_id=item.user_id,
+                        as_of_date=target_date,
+                    )
+                report.successful_executions += executed_count
+            except Exception as exc:
+                report.failed_executions += 1
+                report.errors.append(
+                    RecurringExecutionError(
+                        recurring_id=item.id,
+                        user_id=item.user_id,
+                        message=str(exc),
+                    )
+                )
+                logger.exception(
+                    "Failed to execute recurring transaction %s for user %s",
+                    item.id,
+                    item.user_id,
+                )
+
+        return report
 
     async def create(self, user_id: int, data: RecurringTransactionCreate):
         """Создать периодическую транзакцию."""
@@ -238,29 +301,19 @@ class RecurringTransactionService(BaseService):
             await self.recurring_repository.update(recurring_id, {"is_active": False})
             raise RecurringTransactionExpiredException()
 
-        transaction_data = {
-            "user_id": user_id,
-            "type": recurring.type,
-            "account_id": recurring.account_id,
-            "category_id": recurring.category_id,
-            "amount": recurring.amount,
-            "description": recurring.description,
-            "transaction_date": datetime.now(timezone.utc),
-        }
+        transaction = await self._create_transaction_from_recurring(recurring)
 
-        transaction = await self.transaction_repository.create(transaction_data)
-
-        next_execution = self._calculate_next_execution(
+        execution_anchor = max(recurring.next_execution_date, date.today())
+        next_execution = self._calculate_next_execution_after(
+            current_execution_date=execution_anchor,
             frequency=recurring.frequency,
             day_of_week=recurring.day_of_week,
             day_of_month=recurring.day_of_month,
-            start_date=date.today() + timedelta(days=1),
         )
 
         is_active = True
         if recurring.end_date and next_execution > recurring.end_date:
             is_active = False
-            next_execution = recurring.end_date
 
         await self.recurring_repository.update(
             recurring_id,
@@ -276,6 +329,78 @@ class RecurringTransactionService(BaseService):
             f"created transaction {transaction.id}"
         )
         return transaction
+
+    async def _execute_backfill_for_recurring(
+        self,
+        recurring_id: int,
+        user_id: int,
+        as_of_date: date,
+    ) -> int:
+        """Выполнить один recurring-шаблон с бэкфиллом до указанной даты."""
+        recurring = await self.get_by_id(recurring_id=recurring_id, user_id=user_id)
+        if not recurring.is_active:
+            return 0
+
+        executions = 0
+        while recurring.is_active and recurring.next_execution_date <= as_of_date:
+            execution_date = recurring.next_execution_date
+
+            if recurring.end_date and execution_date > recurring.end_date:
+                recurring = await self._deactivate_recurring(recurring.id)
+                break
+
+            await self._create_transaction_from_recurring(recurring)
+            next_execution = self._calculate_next_execution_after(
+                current_execution_date=execution_date,
+                frequency=recurring.frequency,
+                day_of_week=recurring.day_of_week,
+                day_of_month=recurring.day_of_month,
+            )
+
+            update_data: dict[str, object] = {
+                "next_execution_date": next_execution,
+                "last_executed_at": datetime.now(timezone.utc),
+            }
+
+            if recurring.end_date and next_execution > recurring.end_date:
+                update_data["is_active"] = False
+
+            updated = await self.recurring_repository.update(recurring.id, update_data)
+            if not updated:
+                raise RecurringTransactionNotFoundException(
+                    details={"recurring_id": recurring.id}
+                )
+            recurring = updated
+            executions += 1
+
+        return executions
+
+    async def _create_transaction_from_recurring(
+        self, recurring: RecurringTransaction
+    ) -> Transaction:
+        """Создать обычную транзакцию из recurring-шаблона."""
+        transaction_data = {
+            "user_id": recurring.user_id,
+            "type": recurring.type,
+            "account_id": recurring.account_id,
+            "category_id": recurring.category_id,
+            "amount": recurring.amount,
+            "description": recurring.description,
+            "transaction_date": datetime.now(timezone.utc),
+            "recurring_transaction_id": recurring.id,
+        }
+        return await self.transaction_repository.create(transaction_data)
+
+    async def _deactivate_recurring(self, recurring_id: int) -> RecurringTransaction:
+        """Деактивировать recurring и вернуть обновленную модель."""
+        updated = await self.recurring_repository.update(
+            recurring_id, {"is_active": False}
+        )
+        if not updated:
+            raise RecurringTransactionNotFoundException(
+                details={"recurring_id": recurring_id}
+            )
+        return updated
 
     async def _validate_account(self, user_id: int, account_id: int) -> None:
         """Проверить существование и доступ к счёту."""
@@ -351,3 +476,31 @@ class RecurringTransactionService(BaseService):
             return result.replace(day=target_day)
 
         return result
+
+    def _calculate_next_execution_after(
+        self,
+        current_execution_date: date,
+        frequency: RecurringFrequency,
+        day_of_week: int | None,
+        day_of_month: int | None,
+    ) -> date:
+        """Вычислить следующую дату выполнения после уже выполненной даты."""
+        if frequency == RecurringFrequency.DAILY:
+            return current_execution_date + timedelta(days=1)
+
+        if frequency == RecurringFrequency.WEEKLY:
+            if day_of_week is None:
+                return current_execution_date + timedelta(days=7)
+            probe = current_execution_date + timedelta(days=1)
+            while probe.weekday() != day_of_week:
+                probe += timedelta(days=1)
+            return probe
+
+        if frequency == RecurringFrequency.MONTHLY:
+            if day_of_month is None:
+                return current_execution_date + relativedelta(months=1)
+            target_day = min(day_of_month, 28)
+            next_month = current_execution_date + relativedelta(months=1)
+            return next_month.replace(day=target_day)
+
+        return current_execution_date + timedelta(days=1)

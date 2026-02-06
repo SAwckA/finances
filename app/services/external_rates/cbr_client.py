@@ -27,8 +27,12 @@ class CBRClient:
         # 1) Основной канал: DailyInfo.asmx SOAP POST (по документации CBR).
         try:
             rates = await self._fetch_via_dailyinfo_soap(on_date, timeout)
-            logger.debug("CBR rates loaded from DailyInfo SOAP for %s", on_date.isoformat())
-            return datetime.combine(on_date, datetime.min.time(), tzinfo=timezone.utc), rates
+            logger.debug(
+                "CBR rates loaded from DailyInfo SOAP for %s", on_date.isoformat()
+            )
+            return datetime.combine(
+                on_date, datetime.min.time(), tzinfo=timezone.utc
+            ), rates
         except Exception as exc:
             parse_errors.append(f"DailyInfo SOAP error: {exc}")
 
@@ -36,12 +40,16 @@ class CBRClient:
         try:
             rates = await self._fetch_via_xml_daily(on_date, timeout)
             logger.debug("CBR rates loaded from XML_daily for %s", on_date.isoformat())
-            return datetime.combine(on_date, datetime.min.time(), tzinfo=timezone.utc), rates
+            return datetime.combine(
+                on_date, datetime.min.time(), tzinfo=timezone.utc
+            ), rates
         except Exception as exc:
             parse_errors.append(f"XML_daily error: {exc}")
 
         raise ValueError(
-            "; ".join(parse_errors) if parse_errors else "CBR response has unexpected format"
+            "; ".join(parse_errors)
+            if parse_errors
+            else "CBR response has unexpected format"
         )
 
     async def _fetch_via_dailyinfo_soap(
@@ -67,7 +75,9 @@ class CBRClient:
             "SOAPAction": f'"{SOAP_ACTION}"',
         }
         async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.post(soap_url, content=envelope.encode("utf-8"), headers=headers)
+            response = await client.post(
+                soap_url, content=envelope.encode("utf-8"), headers=headers
+            )
             response.raise_for_status()
 
         root = ElementTree.fromstring(response.text)
@@ -99,7 +109,9 @@ class CBRClient:
             raise ValueError("No currency rates in XML_daily response")
         return rates
 
-    def _extract_dailyinfo_result_xml(self, soap_root: ElementTree.Element) -> str | None:
+    def _extract_dailyinfo_result_xml(
+        self, soap_root: ElementTree.Element
+    ) -> str | None:
         for node in soap_root.iter():
             if node.tag.endswith("GetCursOnDateXMLResult"):
                 # Вариант 1: XML пришел как escaped string в text.
@@ -120,7 +132,9 @@ class CBRClient:
         except ParseError as exc:
             raise ValueError(f"Embedded XML parse error: {exc}") from exc
 
-    def _parse_rates_from_valute_data(self, root: ElementTree.Element) -> dict[str, Decimal]:
+    def _parse_rates_from_valute_data(
+        self, root: ElementTree.Element
+    ) -> dict[str, Decimal]:
         rates: dict[str, Decimal] = {"RUB": Decimal("1")}
 
         for row in root.iter():
@@ -139,7 +153,9 @@ class CBRClient:
 
         return rates
 
-    def _parse_rates_from_xml_daily(self, root: ElementTree.Element) -> dict[str, Decimal]:
+    def _parse_rates_from_xml_daily(
+        self, root: ElementTree.Element
+    ) -> dict[str, Decimal]:
         rates: dict[str, Decimal] = {"RUB": Decimal("1")}
 
         for row in root.iter():
@@ -163,4 +179,3 @@ class CBRClient:
             if child.tag.endswith(local_name):
                 return child.text
         return None
-

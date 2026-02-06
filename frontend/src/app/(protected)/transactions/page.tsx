@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -7,6 +8,7 @@ import {
   ChevronRight,
   Copy,
   Pencil,
+  Repeat,
   Trash2,
   TrendingDown,
   TrendingUp,
@@ -212,6 +214,7 @@ export default function TransactionsPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [editingTransactionId, setEditingTransactionId] = useState<number | null>(null);
   const [editingShoppingListId, setEditingShoppingListId] = useState<number | null>(null);
+  const [editingRecurringTransactionId, setEditingRecurringTransactionId] = useState<number | null>(null);
   const [shoppingListDetails, setShoppingListDetails] = useState<ShoppingListResponse | null>(null);
   const [isShoppingListLoading, setIsShoppingListLoading] = useState(false);
   const [form, setForm] = useState<TransactionFormState>(DEFAULT_FORM);
@@ -326,6 +329,7 @@ export default function TransactionsPage() {
     if (isCreateRoute) {
       setCreateMode(true);
       setEditingTransactionId(null);
+      setEditingRecurringTransactionId(null);
       setForm((prev) => ({
         ...DEFAULT_FORM,
         accountId: prev.accountId || (accounts[0] ? String(accounts[0].id) : ""),
@@ -344,6 +348,7 @@ export default function TransactionsPage() {
   const resetForm = useCallback(() => {
     setEditingTransactionId(null);
     setEditingShoppingListId(null);
+    setEditingRecurringTransactionId(null);
     setShoppingListDetails(null);
     setForm({
       ...DEFAULT_FORM,
@@ -355,6 +360,7 @@ export default function TransactionsPage() {
   const handleEdit = (transaction: TransactionResponse) => {
     setEditingTransactionId(transaction.id);
     setEditingShoppingListId(transaction.shopping_list_id);
+    setEditingRecurringTransactionId(transaction.recurring_transaction_id);
     setShoppingListDetails(null);
     setCreateMode(false);
     setForm({
@@ -373,6 +379,7 @@ export default function TransactionsPage() {
   const handleClone = (transaction: TransactionResponse) => {
     setEditingTransactionId(null);
     setEditingShoppingListId(null);
+    setEditingRecurringTransactionId(null);
     setShoppingListDetails(null);
     setCreateMode(true);
     setForm({
@@ -635,6 +642,21 @@ export default function TransactionsPage() {
             </section>
           ) : null}
 
+          {editingTransactionId && editingRecurringTransactionId ? (
+            <section className="mobile-card space-y-2 p-3">
+              <p className="text-sm font-semibold text-slate-800">Recurring source</p>
+              <p className="text-xs text-slate-500">
+                Эта транзакция создана из регулярного платежа #{editingRecurringTransactionId}.
+              </p>
+              <Link
+                href={`/recurring?focus=${editingRecurringTransactionId}`}
+                className="inline-flex w-fit items-center rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+              >
+                Open recurring
+              </Link>
+            </section>
+          ) : null}
+
           <button
             type="submit"
             className="w-full rounded-xl bg-[var(--accent-primary)] px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-primary-strong)] disabled:cursor-not-allowed disabled:opacity-70"
@@ -790,6 +812,12 @@ export default function TransactionsPage() {
                           {targetAccount ? ` -> ${targetAccount.name}` : ""}
                         </p>
                         {category ? <p className="text-xs text-slate-500">{category.name}</p> : null}
+                        {transaction.recurring_transaction_id ? (
+                          <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">
+                            <Repeat className="h-3.5 w-3.5" />
+                            Recurring #{transaction.recurring_transaction_id}
+                          </p>
+                        ) : null}
                         {transaction.description ? (
                           <p className="mt-1 text-xs text-slate-500">{transaction.description}</p>
                         ) : null}

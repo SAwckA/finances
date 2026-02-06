@@ -7,6 +7,7 @@ import {
   ChevronRight,
   KeyRound,
   PieChart,
+  Repeat,
   Shield,
   Tags,
   Upload,
@@ -48,6 +49,14 @@ const SETTINGS_LINKS: SettingLink[] = [
     icon: Wallet,
     iconClassName:
       "bg-[color:color-mix(in_srgb,#10b981_18%,transparent)] text-[#10b981]",
+  },
+  {
+    href: "/recurring",
+    title: "Recurring payments",
+    description: "Subscriptions and regular charges",
+    icon: Repeat,
+    iconClassName:
+      "bg-[color:color-mix(in_srgb,#6366f1_18%,transparent)] text-[#6366f1]",
   },
   {
     href: "/settings/api-keys",

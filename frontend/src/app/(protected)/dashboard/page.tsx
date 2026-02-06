@@ -8,6 +8,7 @@ import {
   CalendarDays,
   ListChecks,
   Plus,
+  Repeat,
   Send,
   WalletCards,
 } from "lucide-react";
@@ -650,7 +651,7 @@ export default function DashboardPage() {
 
       {!isLoading ? (
         <section className="space-y-3">
-          <section className="grid grid-cols-4 gap-2">
+          <section className="grid grid-cols-5 gap-2">
             <ActionTile
               label="Add"
               icon={Plus}
@@ -674,6 +675,12 @@ export default function DashboardPage() {
               icon={WalletCards}
               iconClassName="bg-amber-500/15 text-amber-600"
               href="/shopping-lists"
+            />
+            <ActionTile
+              label="Recurring"
+              icon={Repeat}
+              iconClassName="bg-indigo-500/15 text-indigo-600"
+              href="/recurring"
             />
           </section>
 
@@ -846,6 +853,19 @@ export default function DashboardPage() {
                     List
                   </span>
                 ) : null;
+                const recurringBadge = transaction.recurring_transaction_id ? (
+                  <span className="badge">
+                    <Repeat className="h-3 w-3" aria-hidden="true" />
+                    Регулярный
+                  </span>
+                ) : null;
+                const metaBadges =
+                  shoppingBadge || recurringBadge ? (
+                    <div className="flex items-center gap-1">
+                      {shoppingBadge}
+                      {recurringBadge}
+                    </div>
+                  ) : null;
 
                 return (
                   <button
@@ -862,7 +882,7 @@ export default function DashboardPage() {
                       type={transaction.type}
                       categoryIcon={category?.icon ?? null}
                       categoryColor={category?.color ?? null}
-                      metaBadge={shoppingBadge}
+                      metaBadge={metaBadges}
                       className="surface-hover"
                     />
                   </button>
@@ -894,13 +914,21 @@ export default function DashboardPage() {
                 <div className="mobile-card space-y-3 p-3">
                   <div className="flex items-center justify-between">
                     <div className="text-sm font-semibold text-[var(--text-primary)]">Details</div>
-                    <span className={`badge ${typeBadgeClass(editingTransaction.type)}`}>
-                      {editingTransaction.type === "income"
-                        ? "Income"
-                        : editingTransaction.type === "expense"
-                          ? "Expense"
-                          : "Transfer"}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {editingTransaction.recurring_transaction_id ? (
+                        <span className="badge">
+                          <Repeat className="h-3 w-3" aria-hidden="true" />
+                          Повторяющийся платеж
+                        </span>
+                      ) : null}
+                      <span className={`badge ${typeBadgeClass(editingTransaction.type)}`}>
+                        {editingTransaction.type === "income"
+                          ? "Income"
+                          : editingTransaction.type === "expense"
+                            ? "Expense"
+                            : "Transfer"}
+                      </span>
+                    </div>
                   </div>
 
                   <TransactionFormFields
@@ -913,6 +941,25 @@ export default function DashboardPage() {
                     currencies={currencies}
                     showTypeSelector={false}
                   />
+
+                  {editingTransaction.recurring_transaction_id ? (
+                    <section className="rounded-2xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] p-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-secondary)]">
+                        Recurring Source
+                      </p>
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <p className="text-sm text-[var(--text-primary)]">
+                          Операция создана из регулярного платежа #{editingTransaction.recurring_transaction_id}
+                        </p>
+                        <Link
+                          href={`/recurring?focus=${editingTransaction.recurring_transaction_id}`}
+                          className="rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] transition hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/30"
+                        >
+                          Open
+                        </Link>
+                      </div>
+                    </section>
+                  ) : null}
 
                   {editErrorMessage ? <ErrorState message={editErrorMessage} /> : null}
                 </div>

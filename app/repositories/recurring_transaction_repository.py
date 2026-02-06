@@ -63,3 +63,20 @@ class RecurringTransactionRepository(BaseRepository[RecurringTransaction]):
         )
         result = await self.session.execute(query)
         return result.scalars().all()
+
+    async def get_pending_global(
+        self, as_of_date: date
+    ) -> Sequence[RecurringTransaction]:
+        """Получить ожидающие выполнения транзакции всех пользователей."""
+        query = (
+            self._base_query()
+            .where(RecurringTransaction.is_active.is_(True))
+            .where(RecurringTransaction.next_execution_date <= as_of_date)
+            .order_by(
+                RecurringTransaction.user_id,
+                RecurringTransaction.next_execution_date,
+                RecurringTransaction.id,
+            )
+        )
+        result = await self.session.execute(query)
+        return result.scalars().all()

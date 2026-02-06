@@ -71,6 +71,7 @@ class TransactionResponse(BaseModel):
     description: str | None
     transaction_date: datetime
     shopping_list_id: int | None
+    recurring_transaction_id: int | None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -111,9 +112,15 @@ class Transaction(SoftDeleteModel):
     shopping_list_id: Mapped[int | None] = mapped_column(
         ForeignKey("shopping_lists.id"), nullable=True
     )
+    recurring_transaction_id: Mapped[int | None] = mapped_column(
+        ForeignKey("recurring_transactions.id"), nullable=True, index=True
+    )
 
     user = relationship("User")
     account = relationship("Account", foreign_keys=[account_id])
     target_account = relationship("Account", foreign_keys=[target_account_id])
     category = relationship("Category")
     shopping_list = relationship("ShoppingList", back_populates="transaction")
+    recurring_transaction = relationship(
+        "RecurringTransaction", back_populates="transactions"
+    )
