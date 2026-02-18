@@ -3,7 +3,6 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button, DatePicker, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger } from "@heroui/react";
-import { CalendarDate, parseDate } from "@internationalized/date";
 import {
   ClockArrowUp,
   MoreHorizontal,
@@ -19,6 +18,7 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import { useAuth } from "@/features/auth/auth-context";
 import { ApiError } from "@/lib/api-client";
 import { getIconOption } from "@/lib/icon-catalog";
+import { fromDateValue, toDateValue } from "@/lib/date-ui";
 import type {
   AccountResponse,
   CategoryResponse,
@@ -553,7 +553,7 @@ export default function RecurringPage() {
             {isEditorLoading ? <LoadingState message="Загружаем шаблон платежа..." /> : null}
 
             {!isEditorLoading ? (
-              <form id={FORM_ID} className="mobile-card space-y-3 p-3" onSubmit={handleSubmit}>
+              <form id={FORM_ID} className="app-panel space-y-3 p-3" onSubmit={handleSubmit}>
                 <section>
                   <p className="mb-1.5 text-base font-semibold text-[var(--text-primary)]">Тип операции</p>
                   {!editingId ? (
@@ -730,12 +730,12 @@ export default function RecurringPage() {
                     <DatePicker
                       className="mt-1"
                       granularity="day"
-                      value={form.startDate ? parseDate(form.startDate) : null}
+                      value={toDateValue(form.startDate)}
                       isDisabled={Boolean(editingId)}
                       onChange={(value) =>
                         setForm((prev) => ({
                           ...prev,
-                          startDate: value ? (value as CalendarDate).toString() : "",
+                          startDate: fromDateValue(value),
                         }))
                       }
                     />
@@ -745,11 +745,11 @@ export default function RecurringPage() {
                     <DatePicker
                       className="mt-1"
                       granularity="day"
-                      value={form.endDate ? parseDate(form.endDate) : null}
+                      value={toDateValue(form.endDate)}
                       onChange={(value) =>
                         setForm((prev) => ({
                           ...prev,
-                          endDate: value ? (value as CalendarDate).toString() : "",
+                          endDate: fromDateValue(value),
                         }))
                       }
                     />
@@ -767,7 +767,7 @@ export default function RecurringPage() {
 
   return (
     <section className="space-y-3">
-      <section className="mobile-card p-3">
+      <section className="app-panel p-3">
         <h1 className="section-title text-[1.35rem]">Регулярные платежи</h1>
         <p className="section-caption">Управляйте подписками и регулярными доходами/расходами в одном месте.</p>
         <div className="mt-3 flex items-center justify-between gap-2">
@@ -814,19 +814,19 @@ export default function RecurringPage() {
               return (
                 <article
                   key={item.id}
-                  className={`mobile-card p-3 ${
+                  className={`app-panel p-3 ${
                     item.is_active
                       ? "border-[color:var(--border-soft)] bg-[var(--bg-card)]"
                       : "border-[color:var(--border-soft)] bg-[color:color-mix(in_srgb,var(--bg-card)_78%,var(--surface-hover)_22%)]"
-                  } ${focusRecurringId === item.id ? "ring-2 ring-indigo-300" : ""}`}
+                  } ${focusRecurringId === item.id ? "ring-2 ring-secondary-300" : ""}`}
                 >
                   <div className="mb-2 flex items-start justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-2">
                       <span
                         className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold ${
                           isIncome
-                              ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300"
-                              : "border-rose-400/40 bg-rose-500/15 text-rose-600 dark:text-rose-300"
+                              ? "border-success-400/40 bg-success-500/15 text-success-600 dark:text-success-300"
+                              : "border-danger-400/40 bg-danger-500/15 text-danger-600 dark:text-danger-300"
                         }`}
                       >
                         {isIncome ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
@@ -835,7 +835,7 @@ export default function RecurringPage() {
                       <span
                         className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
                           item.is_active
-                            ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300"
+                            ? "bg-success-500/15 text-success-600 dark:text-success-300"
                             : "bg-[var(--surface-hover)] text-[var(--text-secondary)]"
                         }`}
                       >
@@ -903,7 +903,7 @@ export default function RecurringPage() {
 
                     <p
                       className={`text-right text-base font-semibold ${
-                        isIncome ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"
+                        isIncome ? "text-success-600 dark:text-success-300" : "text-danger-600 dark:text-danger-300"
                       }`}
                     >
                       {isIncome ? "+" : "-"}

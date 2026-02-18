@@ -23,10 +23,10 @@ export function IconPickerField({ label, value, onChange }: IconPickerFieldProps
 
   return (
     <div>
-      <p className="mb-1 text-sm text-slate-700">{label}</p>
-      <div className="mb-2 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-        <SelectedIcon className="h-4 w-4 text-slate-700" />
-        <span className="text-sm text-slate-700">{selected.label}</span>
+      <p className="mb-1 text-sm text-default-700">{label}</p>
+      <div className="mb-2 flex items-center gap-2 rounded-xl border border-default-200 bg-default-50 px-3 py-2">
+        <SelectedIcon className="h-4 w-4 text-default-700" />
+        <span className="text-sm text-default-700">{selected.label}</span>
       </div>
       <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
         {visibleOptions.map((option) => {
@@ -39,8 +39,8 @@ export function IconPickerField({ label, value, onChange }: IconPickerFieldProps
               type="button"
               className={`flex h-11 items-center justify-center rounded-xl border transition ${
                 active
-                  ? "border-slate-900 bg-slate-900 text-white"
-                  : "surface-hover border-slate-300 bg-white text-slate-700"
+                  ? "border-default-900 bg-default-900 text-white"
+                  : "surface-hover border-default-300 bg-white text-default-700"
               }`}
               onClick={() => onChange(option.value)}
               aria-label={option.label}
@@ -53,7 +53,7 @@ export function IconPickerField({ label, value, onChange }: IconPickerFieldProps
       </div>
       <button
         type="button"
-        className="mt-2 text-xs font-medium text-slate-700 underline decoration-dotted underline-offset-4"
+        className="mt-2 text-xs font-medium text-default-700 underline decoration-dotted underline-offset-4"
         onClick={() => setExpanded((prev) => !prev)}
       >
         {expanded ? "Скрыть дополнительные иконки" : "Показать больше иконок"}

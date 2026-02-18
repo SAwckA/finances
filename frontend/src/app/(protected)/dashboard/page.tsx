@@ -1,25 +1,17 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ArrowRightLeft,
-  CalendarDays,
-  ListChecks,
-  Plus,
-  Repeat,
-  Send,
-  WalletCards,
-} from "lucide-react";
+import { ArrowRightLeft, ListChecks, Plus, Repeat, Send, WalletCards } from "lucide-react";
 import { ErrorState, LoadingState } from "@/components/async-state";
 import { ActionTile } from "@/components/ui/action-tile";
+import { AccountTile } from "@/components/ui/account-tile";
 import { BalanceHeroCard } from "@/components/ui/balance-hero-card";
-import { SegmentedControl } from "@/components/ui/segmented-control";
-import { SourceCard } from "@/components/ui/source-card";
+import { HeroChip } from "@/components/ui/hero-chip";
+import { HeroDateRangeField } from "@/components/ui/hero-date-range-field";
+import { HeroInlineAction } from "@/components/ui/hero-inline-action";
+import { HeroSegmented } from "@/components/ui/hero-segmented";
 import { TransactionRow } from "@/components/ui/transaction-row";
-import { TransactionFormFields } from "@/components/transactions/transaction-form-fields";
-import { TransactionEditorHeader } from "@/components/transactions/transaction-editor-header";
 import { useAuth } from "@/features/auth/auth-context";
 import { ApiError } from "@/lib/api-client";
 import type {
@@ -28,45 +20,26 @@ import type {
   CategoryResponse,
   CurrencyResponse,
   PeriodStatisticsResponse,
-  ShoppingListResponse,
   TotalBalanceResponse,
   TransactionResponse,
-  TransactionUpdate,
 } from "@/lib/types";
 
-type PeriodPreset = "7d" | "30d" | "custom";
-
-type EditTransactionForm = {
-  accountId: string;
-  targetAccountId: string;
-  amount: string;
-  targetAmount: string;
-  description: string;
-  transactionDate: string;
-  categoryId: string;
-};
-
 const FEED_PAGE_SIZE = 20;
+const DASHBOARD_SCROLL_STATE_KEY = "dashboard:return-state";
+
+type DashboardScrollState = {
+  scrollY: number;
+  loadedTransactions: number;
+};
 
 function toDateInputValue(date: Date): string {
   const offset = date.getTimezoneOffset() * 60_000;
   return new Date(date.getTime() - offset).toISOString().slice(0, 10);
 }
 
-function getPresetRange(preset: Exclude<PeriodPreset, "custom">): { start: string; end: string } {
+function getDefaultRange(): { start: string; end: string } {
   const now = new Date();
   const end = toDateInputValue(now);
-
-  if (preset === "7d") {
-    const startDate = new Date(now);
-    startDate.setDate(now.getDate() - 6);
-    return { start: toDateInputValue(startDate), end };
-  }
-
-  if (preset === "month") {
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    return { start: toDateInputValue(monthStart), end };
-  }
 
   const startDate = new Date(now);
   startDate.setDate(now.getDate() - 29);
@@ -76,18 +49,6 @@ function getPresetRange(preset: Exclude<PeriodPreset, "custom">): { start: strin
 function toApiDate(date: string, endOfDay: boolean): string {
   const time = endOfDay ? "23:59:59" : "00:00:00";
   return new Date(`${date}T${time}`).toISOString();
-}
-
-function toLocalDateTimeValue(isoValue: string): string {
-  const date = new Date(isoValue);
-  if (Number.isNaN(date.getTime())) {
-    const now = new Date();
-    const offset = now.getTimezoneOffset() * 60_000;
-    return new Date(now.getTime() - offset).toISOString().slice(0, 16);
-  }
-
-  const offset = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
 function formatAmount(value: string, currencyCode: string): string {
@@ -114,14 +75,6 @@ function getErrorMessage(error: unknown): string {
   }
 
   return "Что-то пошло не так. Попробуйте снова.";
-}
-
-function parsePositiveAmount(rawValue: string): number | null {
-  const parsed = Number(rawValue);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return null;
-  }
-  return parsed;
 }
 
 function formatDateLabel(isoValue: string): string {
@@ -163,34 +116,17 @@ function shortAccountBadge(account: AccountResponse | undefined): string | null 
   return account.short_identifier;
 }
 
-function badgeStyle(color: string | undefined): React.CSSProperties | undefined {
-  if (!color) {
-    return undefined;
-  }
-
-  return {
-    backgroundColor: `${color}1a`,
-    borderColor: `${color}55`,
-    color,
-  };
-}
-
-function typeBadgeClass(type: TransactionResponse["type"]): string {
-  if (type === "income") {
-    return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-500/15 dark:text-emerald-200";
-  }
-  if (type === "expense") {
-    return "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-400/30 dark:bg-rose-500/15 dark:text-rose-200";
-  }
-  return "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-400/30 dark:bg-sky-500/15 dark:text-sky-200";
-}
-
 export default function DashboardPage() {
   const { authenticatedRequest } = useAuth();
+  const tileFieldClassNames = {
+    label: "text-default-600",
+    inputWrapper:
+      "border-0 bg-gradient-to-br from-content2/80 to-content1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_22px_rgba(2,6,23,0.18)] data-[hover=true]:bg-gradient-to-br data-[hover=true]:from-content2/90 data-[hover=true]:to-content1",
+    input: "text-[var(--text-primary)]",
+    innerWrapper: "text-[var(--text-primary)]",
+  } as const;
   const [selectedCurrency, setSelectedCurrency] = useState("USD");
-  const [preset, setPreset] = useState<PeriodPreset>("30d");
-  const [showDateFilters, setShowDateFilters] = useState(false);
-  const defaultRange = useMemo(() => getPresetRange("30d"), []);
+  const defaultRange = useMemo(() => getDefaultRange(), []);
   const [startDate, setStartDate] = useState(defaultRange.start);
   const [endDate, setEndDate] = useState(defaultRange.end);
   const [currencies, setCurrencies] = useState<CurrencyResponse[]>([]);
@@ -204,33 +140,23 @@ export default function DashboardPage() {
   const [selectedAccountIds, setSelectedAccountIds] = useState<number[]>([]);
   const [hasMoreTransactions, setHasMoreTransactions] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [, setIsRefreshing] = useState(false);
   const [isTransactionsLoading, setIsTransactionsLoading] = useState(true);
   const [isLoadingMoreTransactions, setIsLoadingMoreTransactions] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const [editingTransactionId, setEditingTransactionId] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState<EditTransactionForm | null>(null);
-  const [editErrorMessage, setEditErrorMessage] = useState<string | null>(null);
-  const [isSavingEdit, setIsSavingEdit] = useState(false);
-  const [shoppingListDetails, setShoppingListDetails] = useState<ShoppingListResponse | null>(null);
-  const [isShoppingListLoading, setIsShoppingListLoading] = useState(false);
+  const [pendingScrollRestore, setPendingScrollRestore] = useState<DashboardScrollState | null>(null);
 
   const router = useRouter();
   const searchParams = useSearchParams();
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const transactionOffsetRef = useRef(0);
-  const range = useMemo(() => {
-    if (preset !== "custom") {
-      return getPresetRange(preset);
-    }
-
-    if (!startDate || !endDate) {
-      return defaultRange;
-    }
-
-    return { start: startDate, end: endDate };
-  }, [defaultRange, endDate, preset, startDate]);
+  const range = useMemo(
+    () => ({
+      start: startDate || defaultRange.start,
+      end: endDate || defaultRange.end,
+    }),
+    [defaultRange.end, defaultRange.start, endDate, startDate],
+  );
 
   const accountById = useMemo(() => new Map(accounts.map((account) => [account.id, account])), [accounts]);
   const categoryById = useMemo(
@@ -254,6 +180,10 @@ export default function DashboardPage() {
     });
     return ordered;
   }, [accounts, currencyById]);
+  const currencyOptions = useMemo(
+    () => accountCurrencies.map((currency) => ({ key: currency.code, label: currency.code })),
+    [accountCurrencies],
+  );
   const filteredTransactions = useMemo(() => {
     if (selectedAccountIds.length === 0) {
       return transactions;
@@ -266,14 +196,6 @@ export default function DashboardPage() {
         (transaction.target_account_id ? selectedSet.has(transaction.target_account_id) : false),
     );
   }, [selectedAccountIds, transactions]);
-
-  const editingTransaction = useMemo(() => {
-    if (!editingTransactionId) {
-      return null;
-    }
-
-    return transactions.find((item) => item.id === editingTransactionId) ?? null;
-  }, [editingTransactionId, transactions]);
 
   const toggleAccountSelection = useCallback((accountId: number) => {
     setSelectedAccountIds((prev) =>
@@ -401,40 +323,68 @@ export default function DashboardPage() {
   );
 
   useEffect(() => {
-    void loadDashboardData();
-  }, [loadDashboardData, preset, selectedCurrency, startDate, endDate, selectedAccountIds]);
-
-  useEffect(() => {
-    if (!editingTransaction) {
+    const savedState = window.sessionStorage.getItem(DASHBOARD_SCROLL_STATE_KEY);
+    if (!savedState) {
       return;
     }
 
-    const scrollY = window.scrollY;
-    const { body } = document;
-    body.style.position = "fixed";
-    body.style.top = `-${scrollY}px`;
-    body.style.width = "100%";
+    window.sessionStorage.removeItem(DASHBOARD_SCROLL_STATE_KEY);
+    try {
+      const parsed = JSON.parse(savedState) as Partial<DashboardScrollState>;
+      if (
+        typeof parsed.scrollY === "number" &&
+        Number.isFinite(parsed.scrollY) &&
+        typeof parsed.loadedTransactions === "number" &&
+        Number.isFinite(parsed.loadedTransactions)
+      ) {
+        setPendingScrollRestore({
+          scrollY: Math.max(0, parsed.scrollY),
+          loadedTransactions: Math.max(FEED_PAGE_SIZE, Math.floor(parsed.loadedTransactions)),
+        });
+      }
+    } catch {
+      setPendingScrollRestore(null);
+    }
+  }, []);
 
+  useEffect(() => {
+    void loadDashboardData();
+  }, [loadDashboardData, selectedCurrency, startDate, endDate, selectedAccountIds]);
+
+  useEffect(() => {
+    if (!pendingScrollRestore) {
+      return;
+    }
+
+    if (isTransactionsLoading || isLoadingMoreTransactions) {
+      return;
+    }
+
+    if (transactions.length < pendingScrollRestore.loadedTransactions && hasMoreTransactions) {
+      void loadTransactionsPage(false);
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      window.scrollTo({ top: pendingScrollRestore.scrollY, behavior: "auto" });
+      setPendingScrollRestore(null);
+    });
     return () => {
-      const top = body.style.top;
-      body.style.position = "";
-      body.style.top = "";
-      body.style.width = "";
-      const restored = top ? Number.parseInt(top.replace("px", ""), 10) : 0;
-      window.scrollTo(0, Math.abs(restored));
+      window.cancelAnimationFrame(frameId);
     };
-  }, [editingTransaction]);
+  }, [
+    hasMoreTransactions,
+    isLoadingMoreTransactions,
+    isTransactionsLoading,
+    loadTransactionsPage,
+    pendingScrollRestore,
+    transactions.length,
+  ]);
 
   useEffect(() => {
     transactionOffsetRef.current = 0;
     void loadTransactionsPage(true);
-  }, [loadTransactionsPage, preset]);
-
-  useEffect(() => {
-    if (preset !== "custom") {
-      setShowDateFilters(false);
-    }
-  }, [preset]);
+  }, [loadTransactionsPage, startDate, endDate]);
 
   useEffect(() => {
     if (!hasMoreTransactions || isTransactionsLoading || isLoadingMoreTransactions) {
@@ -463,158 +413,21 @@ export default function DashboardPage() {
     };
   }, [hasMoreTransactions, isLoadingMoreTransactions, isTransactionsLoading, loadTransactionsPage]);
 
-  const openEditor = (transaction: TransactionResponse) => {
-    setEditingTransactionId(transaction.id);
-    setEditErrorMessage(null);
-    setEditForm({
-      accountId: String(transaction.account_id),
-      targetAccountId: transaction.target_account_id ? String(transaction.target_account_id) : "",
-      amount: transaction.amount,
-      targetAmount: transaction.type === "transfer" ? transaction.converted_amount ?? "" : "",
-      description: transaction.description ?? "",
-      transactionDate: toLocalDateTimeValue(transaction.transaction_date),
-      categoryId: transaction.category_id ? String(transaction.category_id) : "",
-    });
-  };
-
-  const closeEditor = () => {
-    setEditingTransactionId(null);
-    setEditForm(null);
-    setEditErrorMessage(null);
-    setShoppingListDetails(null);
-  };
-
-  useEffect(() => {
-    if (!editingTransaction?.shopping_list_id) {
-      setShoppingListDetails(null);
-      return;
-    }
-
-    let active = true;
-    const loadShoppingList = async () => {
-      setIsShoppingListLoading(true);
-      try {
-        const data = await authenticatedRequest<ShoppingListResponse>(
-          `/api/shopping-lists/${editingTransaction.shopping_list_id}`,
-        );
-        if (active) {
-          setShoppingListDetails(data);
-        }
-      } catch {
-        if (active) {
-          setShoppingListDetails(null);
-        }
-      } finally {
-        if (active) {
-          setIsShoppingListLoading(false);
-        }
-      }
-    };
-
-    void loadShoppingList();
-    return () => {
-      active = false;
-    };
-  }, [authenticatedRequest, editingTransaction?.shopping_list_id]);
-
-  const saveEditedTransaction = async () => {
-    if (!editingTransaction || !editForm) {
-      return;
-    }
-
-    if (!editForm.accountId) {
-      setEditErrorMessage("Выберите счет.");
-      return;
-    }
-
-    if (!editForm.accountId) {
-      setEditErrorMessage("Выберите счет.");
-      return;
-    }
-
-    if (editingTransaction.type === "transfer" && !editForm.targetAccountId) {
-      setEditErrorMessage("Для перевода нужно выбрать целевой счет.");
-      return;
-    }
-
-    const parsedAmount = parsePositiveAmount(editForm.amount);
-    if (parsedAmount === null) {
-      setEditErrorMessage("Укажите корректную сумму.");
-      return;
-    }
-
-    setIsSavingEdit(true);
-    setEditErrorMessage(null);
-
-    try {
-      const payload: TransactionUpdate = {
-        account_id: Number(editForm.accountId),
-        target_account_id:
-          editingTransaction.type === "transfer" ? Number(editForm.targetAccountId) : null,
-        amount: parsedAmount,
-        description: editForm.description.trim() || null,
-        transaction_date: new Date(editForm.transactionDate).toISOString(),
-        category_id:
-          editingTransaction.type === "transfer"
-            ? null
-            : editForm.categoryId
-              ? Number(editForm.categoryId)
-              : null,
+  const openTransactionPage = useCallback(
+    (transactionId: number) => {
+      const state: DashboardScrollState = {
+        scrollY: window.scrollY,
+        loadedTransactions: Math.max(transactionOffsetRef.current, transactions.length),
       };
-
-      const query = new URLSearchParams();
-      if (editingTransaction.type === "transfer" && editForm.targetAmount) {
-        const sourceAmount = Number(editForm.amount);
-        const targetAmount = Number(editForm.targetAmount);
-        if (Number.isFinite(sourceAmount) && sourceAmount > 0 && Number.isFinite(targetAmount)) {
-          query.set("converted_amount", targetAmount.toString());
-          query.set("exchange_rate", (targetAmount / sourceAmount).toString());
-        }
-      }
-      const url = query.toString()
-        ? `/api/transactions/${editingTransaction.id}?${query.toString()}`
-        : `/api/transactions/${editingTransaction.id}`;
-
-      await authenticatedRequest(url, {
-        method: "PATCH",
-        body: payload,
-      });
-
-      closeEditor();
-      await Promise.all([loadDashboardData(), loadTransactionsPage(true)]);
-    } catch (error) {
-      setEditErrorMessage(getErrorMessage(error));
-    } finally {
-      setIsSavingEdit(false);
-    }
-  };
-
-  const deleteEditedTransaction = async () => {
-    if (!editingTransaction) {
-      return;
-    }
-
-    const confirmed = window.confirm("Удалить транзакцию?");
-    if (!confirmed) {
-      return;
-    }
-
-    setIsSavingEdit(true);
-    setEditErrorMessage(null);
-    try {
-      await authenticatedRequest(`/api/transactions/${editingTransaction.id}`, { method: "DELETE" });
-      closeEditor();
-      await Promise.all([loadDashboardData(), loadTransactionsPage(true)]);
-    } catch (error) {
-      setEditErrorMessage(getErrorMessage(error));
-    } finally {
-      setIsSavingEdit(false);
-    }
-  };
+      window.sessionStorage.setItem(DASHBOARD_SCROLL_STATE_KEY, JSON.stringify(state));
+      router.push(`/transaction/${transactionId}`);
+    },
+    [router, transactions.length],
+  );
 
   return (
     <section className="space-y-3 pb-1">
-      <section className="mobile-card grid grid-cols-1 gap-3 p-3">
+      <section className="app-panel grid grid-cols-1 gap-3 p-3">
         <BalanceHeroCard
           totalBalance={
             totalBalance
@@ -625,25 +438,14 @@ export default function DashboardPage() {
           expenses={summary ? formatAmount(summary.total_expense, selectedCurrency) : "$0.00"}
         />
 
-        <div className="flex flex-wrap justify-center gap-1.5">
-            {accountCurrencies.map((currency) => {
-              const active = currency.code === selectedCurrency;
-              return (
-                <button
-                  key={currency.code}
-                  type="button"
-                  className={`rounded-full border px-3 py-1 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)] ${
-                    active
-                      ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/15 text-[var(--accent-primary)]"
-                      : "border-[color:var(--border-soft)] bg-[var(--bg-card)] text-[var(--text-secondary)]"
-                  }`}
-                  onClick={() => setSelectedCurrency(currency.code)}
-                >
-                  {currency.code}
-                </button>
-              );
-            })}
-        </div>
+        {currencyOptions.length > 0 ? (
+          <HeroSegmented
+            className="mx-auto max-w-[320px]"
+            options={currencyOptions}
+            value={selectedCurrency}
+            onChange={setSelectedCurrency}
+          />
+        ) : null}
       </section>
 
       {errorMessage ? <ErrorState message={errorMessage} /> : null}
@@ -655,31 +457,31 @@ export default function DashboardPage() {
             <ActionTile
               label="Add"
               icon={Plus}
-              iconClassName="bg-emerald-500/15 text-emerald-600"
+              iconClassName="bg-success-500/15 text-success-600"
               href="/transactions?create=1&type=income"
             />
             <ActionTile
               label="Send"
               icon={Send}
-              iconClassName="bg-rose-500/15 text-rose-600"
+              iconClassName="bg-danger-500/15 text-danger-600"
               href="/transactions?create=1&type=expense"
             />
             <ActionTile
               label="Transfer"
               icon={ArrowRightLeft}
-              iconClassName="bg-sky-500/15 text-sky-600"
+              iconClassName="bg-primary-500/15 text-primary-600"
               href="/transactions?create=1&type=transfer"
             />
             <ActionTile
               label="Shopping list"
               icon={WalletCards}
-              iconClassName="bg-amber-500/15 text-amber-600"
+              iconClassName="bg-warning-500/15 text-warning-600"
               href="/shopping-lists"
             />
             <ActionTile
               label="Recurring"
               icon={Repeat}
-              iconClassName="bg-indigo-500/15 text-indigo-600"
+              iconClassName="bg-secondary-500/15 text-secondary-600"
               href="/recurring"
             />
           </section>
@@ -688,53 +490,39 @@ export default function DashboardPage() {
             <div className="mb-2 flex items-center justify-between">
               <h2 className="text-lg font-bold text-[var(--text-primary)]">Payment Sources</h2>
               {accountBalances.length > 2 ? (
-                <button
-                  type="button"
-                  className="text-xs font-semibold text-[var(--accent-primary)] transition hover:text-[var(--accent-primary-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/40"
-                  onClick={() => setShowAllSources((prev) => !prev)}
-                >
+                <HeroInlineAction onPress={() => setShowAllSources((prev) => !prev)}>
                   {showAllSources ? "Show Less" : "Show All"}
-                </button>
+                </HeroInlineAction>
               ) : null}
             </div>
-            <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2">
               {(showAllSources ? accountBalances : accountBalances.slice(0, 2)).map((account) => {
                 const accountDetails = accountById.get(account.account_id);
-                const badge = shortAccountBadge(accountDetails);
-                  return (
-                    <SourceCard
-                      key={account.account_id}
-                      name={account.account_name}
-                      icon={accountDetails?.icon ?? null}
-                      identifier={
-                        badge ? (
-                          <span className="badge" style={badgeStyle(accountDetails?.color)}>
-                          {badge}
-                        </span>
-                      ) : (
-                        <span>No short id</span>
-                      )
-                    }
-                    amount={formatAmount(account.balance, account.currency_code)}
-                    tone={accountDetails?.color}
+                if (!accountDetails) {
+                  return null;
+                }
+
+                return (
+                  <AccountTile
+                    key={account.account_id}
+                    account={accountDetails}
+                    balanceLabel={formatAmount(account.balance, account.currency_code)}
                     selected={selectedAccountIds.includes(account.account_id)}
-                    onClick={() => toggleAccountSelection(account.account_id)}
+                    onPress={() => toggleAccountSelection(account.account_id)}
                   />
                 );
               })}
             </div>
             {selectedAccountIds.length > 0 ? (
-              <div className="mt-2 flex items-center justify-between rounded-2xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-xs text-[var(--text-secondary)]">
+              <div className="mt-2 flex items-center justify-between rounded-2xl bg-gradient-to-r from-content2/75 to-content1 px-3 py-2 text-xs text-[var(--text-secondary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_16px_rgba(2,6,23,0.16)]">
                 <span>Filtering by {selectedAccountIds.length} account(s)</span>
-                <button
-                  type="button"
-                  className="font-semibold text-[var(--accent-primary)] transition hover:text-[var(--accent-primary-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/40"
-                  onClick={() => {
+                <HeroInlineAction
+                  onPress={() => {
                     setSelectedAccountIds([]);
                   }}
                 >
                   Clear
-                </button>
+                </HeroInlineAction>
               </div>
             ) : null}
           </section>
@@ -742,72 +530,24 @@ export default function DashboardPage() {
           <section>
             <div className="mb-2 flex items-center justify-between gap-2">
               <h2 className="text-lg font-bold text-[var(--text-primary)]">Recent Transactions</h2>
-              <div className="w-[200px]">
-                <SegmentedControl
-                  options={[
-                    { key: "7d", label: "7D" },
-                    { key: "30d", label: "30D" },
-                    {
-                      key: "custom",
-                      label: (
-                        <span className="inline-flex items-center justify-center">
-                          <CalendarDays className="h-4 w-4" />
-                          <span className="sr-only">Dates</span>
-                        </span>
-                      ),
-                    },
-                  ]}
-                  value={preset}
-                  onChange={(nextPreset) => {
-                    if (nextPreset === "custom") {
-                      setShowDateFilters((prev) => (preset === "custom" ? !prev : true));
-                    } else {
-                      setShowDateFilters(false);
-                    }
-                    setPreset(nextPreset);
+              <div className="w-[320px]">
+                <HeroDateRangeField
+                  label="Period"
+                  classNames={tileFieldClassNames}
+                  value={{ startDate, endDate }}
+                  onChange={(value) => {
+                    setStartDate(value.startDate || defaultRange.start);
+                    setEndDate(value.endDate || defaultRange.end);
                   }}
                 />
               </div>
             </div>
 
-            {showDateFilters ? (
-              <section className="mb-2 grid grid-cols-2 gap-2 rounded-2xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] p-2.5">
-                <label className="text-xs font-semibold text-[var(--text-secondary)]">
-                  From
-                  <input
-                    className="mt-1 block w-full px-2.5 py-2 text-sm"
-                    type="date"
-                    name="startDate"
-                    autoComplete="off"
-                    value={startDate}
-                    onChange={(event) => {
-                      setPreset("custom");
-                      setStartDate(event.target.value);
-                    }}
-                  />
-                </label>
-                <label className="text-xs font-semibold text-[var(--text-secondary)]">
-                  To
-                  <input
-                    className="mt-1 block w-full px-2.5 py-2 text-sm"
-                    type="date"
-                    name="endDate"
-                    autoComplete="off"
-                    value={endDate}
-                    onChange={(event) => {
-                      setPreset("custom");
-                      setEndDate(event.target.value);
-                    }}
-                  />
-                </label>
-              </section>
-            ) : null}
-
             <div className="space-y-2">
               {isTransactionsLoading ? <LoadingState message="Загружаем операции…" /> : null}
 
               {!isTransactionsLoading && filteredTransactions.length === 0 ? (
-                <p className="rounded-2xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-3 text-sm text-[var(--text-secondary)]">
+                <p className="rounded-2xl bg-gradient-to-b from-content2/78 to-content1 px-3 py-3 text-sm text-[var(--text-secondary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_16px_rgba(2,6,23,0.16)]">
                   {selectedAccountIds.length > 0
                     ? "No transactions for selected accounts."
                     : "No transactions yet."}
@@ -831,33 +571,27 @@ export default function DashboardPage() {
                   transaction.type === "transfer" ? (
                     <>
                       {fromBadge ? (
-                        <span className="badge" style={badgeStyle(account?.color)}>
-                          {fromBadge}
-                        </span>
+                        <HeroChip tone={account?.color}>{fromBadge}</HeroChip>
                       ) : null}
                       <span className="text-[var(--text-secondary)]">→</span>
                       {toBadge ? (
-                        <span className="badge" style={badgeStyle(targetAccount?.color)}>
-                          {toBadge}
-                        </span>
+                        <HeroChip tone={targetAccount?.color}>{toBadge}</HeroChip>
                       ) : null}
                     </>
                   ) : fromBadge ? (
-                    <span className="badge" style={badgeStyle(account?.color)}>
-                      {fromBadge}
-                    </span>
+                    <HeroChip tone={account?.color}>{fromBadge}</HeroChip>
                   ) : null;
                 const shoppingBadge = transaction.shopping_list_id ? (
-                  <span className="badge">
+                  <HeroChip>
                     <ListChecks className="h-3 w-3" aria-hidden="true" />
                     List
-                  </span>
+                  </HeroChip>
                 ) : null;
                 const recurringBadge = transaction.recurring_transaction_id ? (
-                  <span className="badge">
+                  <HeroChip>
                     <Repeat className="h-3 w-3" aria-hidden="true" />
                     Регулярный
-                  </span>
+                  </HeroChip>
                 ) : null;
                 const metaBadges =
                   shoppingBadge || recurringBadge ? (
@@ -868,24 +602,18 @@ export default function DashboardPage() {
                   ) : null;
 
                 return (
-                  <button
+                  <TransactionRow
                     key={transaction.id}
-                    type="button"
-                    className="block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/30"
-                    onClick={() => openEditor(transaction)}
-                  >
-                    <TransactionRow
-                      name={category?.name ?? account?.name ?? "Transaction"}
-                      subtitle={subtitle}
-                      amount={formatAmount(transaction.amount, accountCurrency)}
-                      dateLabel={formatDateLabel(transaction.transaction_date)}
-                      type={transaction.type}
-                      categoryIcon={category?.icon ?? null}
-                      categoryColor={category?.color ?? null}
-                      metaBadge={metaBadges}
-                      className="surface-hover"
-                    />
-                  </button>
+                    name={category?.name ?? account?.name ?? "Transaction"}
+                    subtitle={subtitle}
+                    amount={formatAmount(transaction.amount, accountCurrency)}
+                    dateLabel={formatDateLabel(transaction.transaction_date)}
+                    type={transaction.type}
+                    categoryIcon={category?.icon ?? null}
+                    categoryColor={category?.color ?? null}
+                    metaBadge={metaBadges}
+                    onPress={() => openTransactionPage(transaction.id)}
+                  />
                 );
               })}
 
@@ -899,138 +627,6 @@ export default function DashboardPage() {
         </section>
       ) : null}
 
-      {editingTransaction && editForm ? (
-        <section className="fixed inset-0 z-50 overscroll-contain bg-[var(--bg-app)]">
-          <div className="mx-auto flex h-full w-full max-w-[430px] flex-col">
-            <TransactionEditorHeader
-              title="Edit Transaction"
-              onBack={closeEditor}
-              onSave={() => void saveEditedTransaction()}
-              isSaving={isSavingEdit}
-            />
-
-            <div className="flex-1 overflow-y-auto px-3 py-3">
-              <section className="space-y-3">
-                <div className="mobile-card space-y-3 p-3">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-semibold text-[var(--text-primary)]">Details</div>
-                    <div className="flex items-center gap-1.5">
-                      {editingTransaction.recurring_transaction_id ? (
-                        <span className="badge">
-                          <Repeat className="h-3 w-3" aria-hidden="true" />
-                          Повторяющийся платеж
-                        </span>
-                      ) : null}
-                      <span className={`badge ${typeBadgeClass(editingTransaction.type)}`}>
-                        {editingTransaction.type === "income"
-                          ? "Income"
-                          : editingTransaction.type === "expense"
-                            ? "Expense"
-                            : "Transfer"}
-                      </span>
-                    </div>
-                  </div>
-
-                  <TransactionFormFields
-                    form={editForm}
-                    setForm={setEditForm}
-                    transactionType={editingTransaction.type}
-                    accounts={accounts}
-                    accountBalances={accountBalances}
-                    categories={categories}
-                    currencies={currencies}
-                    showTypeSelector={false}
-                  />
-
-                  {editingTransaction.recurring_transaction_id ? (
-                    <section className="rounded-2xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] p-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-secondary)]">
-                        Recurring Source
-                      </p>
-                      <div className="mt-2 flex items-center justify-between gap-2">
-                        <p className="text-sm text-[var(--text-primary)]">
-                          Операция создана из регулярного платежа #{editingTransaction.recurring_transaction_id}
-                        </p>
-                        <Link
-                          href={`/recurring?focus=${editingTransaction.recurring_transaction_id}`}
-                          className="rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] transition hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/30"
-                        >
-                          Open
-                        </Link>
-                      </div>
-                    </section>
-                  ) : null}
-
-                  {editErrorMessage ? <ErrorState message={editErrorMessage} /> : null}
-                </div>
-
-                {editingTransaction.shopping_list_id ? (
-                  <section className="mobile-card space-y-2 p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--surface-hover)] text-[var(--text-secondary)]">
-                          <ListChecks className="h-4 w-4" aria-hidden="true" />
-                        </span>
-                        <p className="text-sm font-semibold text-[var(--text-primary)]">
-                          {shoppingListDetails?.name ?? "Список покупок"}
-                        </p>
-                      </div>
-                      <Link
-                        href={`/shopping-lists/${editingTransaction.shopping_list_id}`}
-                        className="rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] transition hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)]/30"
-                      >
-                        Open
-                      </Link>
-                    </div>
-                    {isShoppingListLoading ? (
-                      <LoadingState message="Загружаем список покупок…" />
-                    ) : null}
-                    {!isShoppingListLoading && shoppingListDetails ? (
-                      <ul className="space-y-1">
-                          {shoppingListDetails.items.length === 0 ? (
-                            <li className="text-xs text-[var(--text-secondary)]">Список пуст.</li>
-                          ) : (
-                            shoppingListDetails.items.map((item, index) => (
-                              <li
-                                key={item.id}
-                                className="flex items-baseline gap-2 text-sm text-[var(--text-secondary)]"
-                              >
-                                <span className="text-[var(--text-primary)]">
-                                  {index + 1}.
-                                </span>
-                                <span className="truncate text-[var(--text-primary)]">
-                                  {item.name}
-                                </span>
-                                <span className="mx-1 flex-1 border-b border-dotted border-[color:var(--border-soft)]" />
-                                <span className="shrink-0 text-[var(--text-secondary)]">
-                                  {item.quantity} шт.
-                                </span>
-                              </li>
-                            ))
-                          )}
-                      </ul>
-                    ) : null}
-                    {!isShoppingListLoading && !shoppingListDetails ? (
-                      <p className="text-xs text-[var(--text-secondary)]">Список покупок не найден.</p>
-                    ) : null}
-                  </section>
-                ) : null}
-
-                <section className="mobile-card p-3">
-                  <button
-                    type="button"
-                    className="w-full rounded-xl bg-rose-50 px-3 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 dark:bg-rose-500/15 dark:text-rose-200 dark:hover:bg-rose-500/25"
-                    onClick={() => void deleteEditedTransaction()}
-                    disabled={isSavingEdit}
-                  >
-                    Delete transaction
-                  </button>
-                </section>
-              </section>
-            </div>
-          </div>
-        </section>
-      ) : null}
     </section>
   );
 }

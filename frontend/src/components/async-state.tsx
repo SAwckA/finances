@@ -23,7 +23,7 @@ export function ErrorState({ message, className }: AsyncStateProps) {
   return (
     <div
       className={
-        className ?? "rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700"
+        className ?? "rounded-2xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger-700"
       }
       role="alert"
     >

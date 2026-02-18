@@ -1,4 +1,5 @@
 import { ArrowDown, ArrowRightLeft, ArrowUp } from "lucide-react";
+import { Card, CardBody } from "@heroui/react";
 import { getIconOption } from "@/lib/icon-catalog";
 import type { ReactNode } from "react";
 import type { TransactionType } from "@/lib/types";
@@ -13,6 +14,7 @@ type TransactionRowProps = {
   categoryColor?: string | null;
   metaBadge?: ReactNode;
   className?: string;
+  onPress?: () => void;
 };
 
 function typeMeta(type: TransactionType): {
@@ -24,8 +26,8 @@ function typeMeta(type: TransactionType): {
   if (type === "income") {
     return {
       sign: "+",
-      amountClassName: "text-emerald-600",
-      iconClassName: "bg-emerald-500/15 text-emerald-600",
+      amountClassName: "text-success-600",
+      iconClassName: "bg-success-500/15 text-success-600",
       fallbackIcon: ArrowUp,
     };
   }
@@ -33,16 +35,16 @@ function typeMeta(type: TransactionType): {
   if (type === "transfer") {
     return {
       sign: "",
-      amountClassName: "text-sky-600",
-      iconClassName: "bg-sky-500/15 text-sky-600",
+      amountClassName: "text-primary-600",
+      iconClassName: "bg-primary-500/15 text-primary-600",
       fallbackIcon: ArrowRightLeft,
     };
   }
 
   return {
     sign: "-",
-    amountClassName: "text-rose-600",
-    iconClassName: "bg-rose-500/15 text-rose-600",
+    amountClassName: "text-danger-600",
+    iconClassName: "bg-danger-500/15 text-danger-600",
     fallbackIcon: ArrowDown,
   };
 }
@@ -57,6 +59,7 @@ export function TransactionRow({
   categoryColor,
   metaBadge,
   className,
+  onPress,
 }: TransactionRowProps) {
   const meta = typeMeta(type);
   const categoryOption = categoryIcon ? getIconOption(categoryIcon) : null;
@@ -66,34 +69,36 @@ export function TransactionRow({
     : undefined;
   const iconClassName = categoryColor ? "" : meta.iconClassName;
 
+  const cardClassName = `w-full interactive-hover bg-gradient-to-br from-content2/80 to-content1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_16px_rgba(2,6,23,0.14)] ${className ?? ""}`;
+
   return (
-    <article
-      className={`rounded-2xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2.5 transition ${className ?? ""}`}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span
-            className={`inline-flex h-9 w-9 items-center justify-center rounded-xl ${iconClassName}`}
-            style={iconStyle}
-          >
-            <Icon className="h-4.5 w-4.5" />
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{name}</p>
-            <div className="flex flex-wrap items-center gap-1.5 text-xs text-[var(--text-secondary)]">
-              {subtitle}
+    <Card className={cardClassName} isPressable={Boolean(onPress)} onPress={onPress} shadow="none">
+      <CardBody className="px-3 py-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span
+              className={`inline-flex h-9 w-9 items-center justify-center rounded-xl ${iconClassName}`}
+              style={iconStyle}
+            >
+              <Icon className="h-4.5 w-4.5" />
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{name}</p>
+              <div className="flex flex-wrap items-center gap-1.5 text-xs text-[var(--text-secondary)]">
+                {subtitle}
+              </div>
             </div>
           </div>
+          <div className="text-right">
+            <p className={`text-sm font-bold ${meta.amountClassName}`}>
+              {meta.sign}
+              {amount}
+            </p>
+            <p className="text-xs text-[var(--text-secondary)]">{dateLabel}</p>
+            {metaBadge ? <div className="mt-1 flex justify-end">{metaBadge}</div> : null}
+          </div>
         </div>
-        <div className="text-right">
-          <p className={`text-sm font-bold ${meta.amountClassName}`}>
-            {meta.sign}
-            {amount}
-          </p>
-          <p className="text-xs text-[var(--text-secondary)]">{dateLabel}</p>
-          {metaBadge ? <div className="mt-1 flex justify-end">{metaBadge}</div> : null}
-        </div>
-      </div>
-    </article>
+      </CardBody>
+    </Card>
   );
 }

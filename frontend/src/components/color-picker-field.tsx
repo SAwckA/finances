@@ -28,15 +28,15 @@ function toSoftBackground(hexColor: string, alpha: number): string {
 export function ColorPickerField({ label, value, onChange }: ColorPickerFieldProps) {
   return (
     <div>
-      <p className="mb-1 text-sm text-slate-700">{label}</p>
+      <p className="mb-1 text-sm text-default-700">{label}</p>
       <label
-        className="flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-sm text-slate-700"
+        className="flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-sm text-default-700"
         style={{ borderColor: value, backgroundColor: toSoftBackground(value, 0.12) }}
       >
         <span className="inline-flex h-6 w-6 rounded-full border border-black/10" style={{ backgroundColor: value }} />
         <input
           aria-label={label}
-          className="h-8 w-12 cursor-pointer rounded-lg border border-slate-300 bg-white p-1"
+          className="h-8 w-12 cursor-pointer rounded-lg border border-default-300 bg-white p-1"
           type="color"
           value={value}
           onChange={(event) => onChange(event.target.value.toUpperCase())}

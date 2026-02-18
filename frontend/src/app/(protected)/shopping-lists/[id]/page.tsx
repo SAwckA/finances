@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@heroui/react";
 import { Check, ChevronLeft, Trash2 } from "lucide-react";
 import { EmptyState, ErrorState, LoadingState } from "@/components/async-state";
+import { HeroChip } from "@/components/ui/hero-chip";
 import { useAuth } from "@/features/auth/auth-context";
 import { ApiError } from "@/lib/api-client";
 import { getIconOption } from "@/lib/icon-catalog";
@@ -15,6 +16,7 @@ import type {
   CurrencyResponse,
   ShoppingItemCreate,
   ShoppingItemResponse,
+  ShoppingListCreate,
   ShoppingListResponse,
   ShoppingListStatus,
 } from "@/lib/types";
@@ -88,7 +90,7 @@ function statusMeta(status: ShoppingListStatus): { label: string; className: str
   return {
     label: "Черновик",
     className:
-      "border-[color:var(--status-amber-border)] bg-[color:var(--status-amber-bg)] text-[color:var(--status-amber-text)]",
+      "border-[color:var(--status-warning-border)] bg-[color:var(--status-warning-bg)] text-[color:var(--status-warning-text)]",
   };
 }
 
@@ -97,18 +99,6 @@ function shortAccountBadge(account: AccountResponse | null): string | null {
     return null;
   }
   return account.short_identifier;
-}
-
-function badgeStyle(color: string | undefined): CSSProperties | undefined {
-  if (!color) {
-    return undefined;
-  }
-
-  return {
-    backgroundColor: `${color}1a`,
-    borderColor: `${color}55`,
-    color,
-  };
 }
 
 export default function ShoppingListDetailPage() {
@@ -124,7 +114,7 @@ export default function ShoppingListDetailPage() {
   const [itemDraft, setItemDraft] = useState<ItemDraftState>(DEFAULT_ITEM_DRAFT);
   const [isCreatingItem, setIsCreatingItem] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [itemPendingKey, setItemPendingKey] = useState<string | null>(null);
   const [isAccountPickerOpen, setIsAccountPickerOpen] = useState(false);
@@ -494,7 +484,6 @@ export default function ShoppingListDetailPage() {
   const category = list ? categoryById.get(list.category_id) : null;
   const currency = account ? currencyById.get(account.currency_code) : null;
   const status = list ? statusMeta(list.status) : null;
-  const CategoryIcon = category ? getIconOption(category.icon).icon : null;
   const AccountIcon = account ? getIconOption(account.icon).icon : null;
   const totalOverride =
     list && (list.total_amount === null || list.total_amount === undefined)
@@ -529,7 +518,7 @@ export default function ShoppingListDetailPage() {
           {!isLoading && list ? (
             <section className="space-y-3">
               <section
-                className="mobile-card space-y-2 p-3"
+                className="app-panel space-y-2 p-3"
                 style={{
                   ["--status-blue-border" as string]: "color-mix(in srgb, #60a5fa 55%, transparent)",
                   ["--status-blue-bg" as string]: "color-mix(in srgb, #60a5fa 18%, transparent)",
@@ -537,9 +526,9 @@ export default function ShoppingListDetailPage() {
                   ["--status-green-border" as string]: "color-mix(in srgb, #34d399 55%, transparent)",
                   ["--status-green-bg" as string]: "color-mix(in srgb, #34d399 18%, transparent)",
                   ["--status-green-text" as string]: "color-mix(in srgb, #047857 85%, var(--text-primary))",
-                  ["--status-amber-border" as string]: "color-mix(in srgb, #f59e0b 55%, transparent)",
-                  ["--status-amber-bg" as string]: "color-mix(in srgb, #f59e0b 18%, transparent)",
-                  ["--status-amber-text" as string]: "color-mix(in srgb, #b45309 85%, var(--text-primary))",
+                  ["--status-warning-border" as string]: "color-mix(in srgb, #f59e0b 55%, transparent)",
+                  ["--status-warning-bg" as string]: "color-mix(in srgb, #f59e0b 18%, transparent)",
+                  ["--status-warning-text" as string]: "color-mix(in srgb, #b45309 85%, var(--text-primary))",
                 }}
               >
                 <div className="flex items-start justify-between gap-2">
@@ -606,34 +595,39 @@ export default function ShoppingListDetailPage() {
                           {account?.name ?? "Счет не найден"}
                         </p>
                       </div>
-                      {shortAccountBadge(account) ? (
-                        <span className="badge shrink-0" style={badgeStyle(account?.color)}>
-                          {shortAccountBadge(account)}
-                        </span>
+                      {shortAccountBadge(account ?? null) ? (
+                        <HeroChip className="shrink-0" tone={account?.color}>
+                          {shortAccountBadge(account ?? null)}
+                        </HeroChip>
                       ) : null}
                     </button>
                     {category ? (
-                      <button
-                        type="button"
-                        className="flex w-full min-w-0 items-center gap-2 rounded-full border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-1.5 text-left transition hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
-                        onClick={() => {
-                          setIsCategoryPickerOpen((prev) => !prev);
-                          setIsAccountPickerOpen(false);
-                        }}
-                      >
-                        <span
-                          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
-                          style={{
-                            backgroundColor: `${category.color}22`,
-                            color: category.color,
-                          }}
-                        >
-                          <CategoryIcon className="h-3.5 w-3.5" aria-hidden="true" />
-                        </span>
-                        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--text-primary)]">
-                          {category.name}
-                        </span>
-                      </button>
+                      (() => {
+                        const CategoryBadgeIcon = getIconOption(category.icon).icon;
+                        return (
+                          <button
+                            type="button"
+                            className="flex w-full min-w-0 items-center gap-2 rounded-full border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-1.5 text-left transition hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
+                            onClick={() => {
+                              setIsCategoryPickerOpen((prev) => !prev);
+                              setIsAccountPickerOpen(false);
+                            }}
+                          >
+                            <span
+                              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+                              style={{
+                                backgroundColor: `${category.color}22`,
+                                color: category.color,
+                              }}
+                            >
+                              <CategoryBadgeIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                            </span>
+                            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--text-primary)]">
+                              {category.name}
+                            </span>
+                          </button>
+                        );
+                      })()
                     ) : (
                       <div className="flex w-full items-center rounded-full border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-1.5 text-sm font-semibold text-[var(--text-secondary)]">
                         Категория не найдена
@@ -676,9 +670,9 @@ export default function ShoppingListDetailPage() {
                                 </p>
                                 <div className="mt-1 flex items-center justify-between gap-2">
                                   {badge ? (
-                                    <span className="badge shrink-0" style={badgeStyle(item.color)}>
+                                    <HeroChip className="shrink-0" tone={item.color}>
                                       {badge}
-                                    </span>
+                                    </HeroChip>
                                   ) : (
                                     <span className="text-[11px] font-semibold text-[var(--text-secondary)]">
                                       —
@@ -753,7 +747,7 @@ export default function ShoppingListDetailPage() {
                 </div>
               </section>
 
-              <section className="mobile-card space-y-2 p-3">
+              <section className="app-panel space-y-2 p-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-secondary)]">
                   Действия
                 </p>
@@ -844,7 +838,7 @@ export default function ShoppingListDetailPage() {
                               <span
                                 className={`inline-flex h-5 w-5 items-center justify-center rounded-md border ${
                                   item.is_checked
-                                    ? "border-emerald-400 bg-emerald-500 text-white"
+                                    ? "border-success-400 bg-success-500 text-white"
                                     : "border-[color:var(--border-soft)] bg-[var(--bg-card)] text-[var(--text-secondary)]"
                                 }`}
                               >

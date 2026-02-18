@@ -17,10 +17,10 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (status !== "authenticated") {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4">
+      <main className="flex min-h-screen items-center justify-center bg-default-50 px-4">
+        <div className="flex items-center gap-3 rounded-2xl border border-default-200 bg-white px-5 py-4">
           <Spinner size="sm" />
-          <p className="text-sm text-slate-700">Проверяем сессию...</p>
+          <p className="text-sm text-default-700">Проверяем сессию...</p>
         </div>
       </main>
     );

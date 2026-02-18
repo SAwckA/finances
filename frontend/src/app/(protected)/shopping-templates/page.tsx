@@ -362,7 +362,7 @@ export default function ShoppingTemplatesPage() {
 
   return (
     <section className="space-y-3">
-      <section className="mobile-card p-3">
+      <section className="app-panel p-3">
         <h1 className="section-title text-[1.35rem]">Shopping Templates</h1>
         <p className="section-caption">Reusable packs of goods to create lists in one click.</p>
         <div className="flex items-center justify-between gap-2">
@@ -405,11 +405,11 @@ export default function ShoppingTemplatesPage() {
                       >
                         <TemplateIcon className="h-4 w-4" />
                       </span>
-                      <span className="truncate text-sm font-semibold text-slate-900">{template.name}</span>
+                      <span className="truncate text-sm font-semibold text-default-900">{template.name}</span>
                     </div>
                   }
                   subtitle={
-                    <p className="truncate text-xs text-slate-600">
+                    <p className="truncate text-xs text-default-600">
                       {account?.name ?? "Счет не задан"} · {category?.name ?? "Категория не задана"}
                     </p>
                   }
@@ -440,18 +440,18 @@ export default function ShoppingTemplatesPage() {
 
                     <div className="space-y-2">
                       {template.items.length === 0 ? (
-                        <p className="text-sm text-slate-600">Товаров в шаблоне пока нет.</p>
+                        <p className="text-sm text-default-600">Товаров в шаблоне пока нет.</p>
                       ) : (
                         template.items.map((item) => (
                           <article
                             key={item.id}
-                            className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2"
+                            className="flex items-center justify-between rounded-xl border border-default-200 bg-default-50 px-2.5 py-2"
                           >
-                            <p className="text-sm text-slate-800">
+                            <p className="text-sm text-default-800">
                               {item.name} · {item.default_quantity} шт.
                             </p>
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-medium text-slate-700">
+                              <span className="text-xs font-medium text-default-700">
                                 {item.default_price ? `${item.default_price} ₽` : "Без цены"}
                               </span>
                               <Button
@@ -471,7 +471,7 @@ export default function ShoppingTemplatesPage() {
                     </div>
 
                     <form
-                      className="rounded-xl border border-slate-200 bg-white p-2.5"
+                      className="rounded-xl border border-default-200 bg-white p-2.5"
                       onSubmit={(event) => {
                         event.preventDefault();
                         void handleAddItem(template.id);
@@ -550,10 +550,10 @@ export default function ShoppingTemplatesPage() {
                   onChange={(value) => setTemplateForm((prev) => ({ ...prev, icon: value }))}
                 />
               </div>
-              <label className="block text-sm text-slate-700">
+              <label className="block text-sm text-default-700">
                 Счет по умолчанию
                 <select
-                  className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  className="mt-1 block w-full rounded-xl border border-default-300 bg-white px-3 py-2 text-sm"
                   value={templateForm.defaultAccountId}
                   onChange={(event) =>
                     setTemplateForm((prev) => ({ ...prev, defaultAccountId: event.target.value }))
@@ -567,10 +567,10 @@ export default function ShoppingTemplatesPage() {
                   ))}
                 </select>
               </label>
-              <label className="block text-sm text-slate-700">
+              <label className="block text-sm text-default-700">
                 Категория по умолчанию
                 <select
-                  className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  className="mt-1 block w-full rounded-xl border border-default-300 bg-white px-3 py-2 text-sm"
                   value={templateForm.defaultCategoryId}
                   onChange={(event) =>
                     setTemplateForm((prev) => ({ ...prev, defaultCategoryId: event.target.value }))
@@ -612,10 +612,10 @@ export default function ShoppingTemplatesPage() {
                 value={createListForm.name}
                 onValueChange={(value) => setCreateListForm((prev) => ({ ...prev, name: value }))}
               />
-              <label className="block text-sm text-slate-700">
+              <label className="block text-sm text-default-700">
                 Счет
                 <select
-                  className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  className="mt-1 block w-full rounded-xl border border-default-300 bg-white px-3 py-2 text-sm"
                   value={createListForm.accountId}
                   onChange={(event) => setCreateListForm((prev) => ({ ...prev, accountId: event.target.value }))}
                 >
@@ -627,10 +627,10 @@ export default function ShoppingTemplatesPage() {
                   ))}
                 </select>
               </label>
-              <label className="block text-sm text-slate-700">
+              <label className="block text-sm text-default-700">
                 Категория
                 <select
-                  className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  className="mt-1 block w-full rounded-xl border border-default-300 bg-white px-3 py-2 text-sm"
                   value={createListForm.categoryId}
                   onChange={(event) => setCreateListForm((prev) => ({ ...prev, categoryId: event.target.value }))}
                 >

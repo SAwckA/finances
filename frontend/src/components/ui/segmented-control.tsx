@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { HeroSegmented } from "@/components/ui/hero-segmented";
 
 type SegmentOption<T extends string> = {
   key: T;
@@ -18,28 +19,5 @@ export function SegmentedControl<T extends string>({
   value,
   onChange,
 }: SegmentedControlProps<T>) {
-  return (
-    <div
-      className="mobile-card grid gap-1.5 p-1.5"
-      style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
-    >
-      {options.map((option) => {
-        const active = option.key === value;
-        return (
-          <button
-            key={option.key}
-            type="button"
-            className={`rounded-xl px-2.5 py-2 text-sm font-semibold transition ${
-              active
-                ? "bg-[var(--accent-primary)] text-white"
-                : "surface-hover bg-transparent text-[var(--text-secondary)]"
-            }`}
-            onClick={() => onChange(option.key)}
-          >
-            {option.label}
-          </button>
-        );
-      })}
-    </div>
-  );
+  return <HeroSegmented options={options} value={value} onChange={onChange} className="w-full" />;
 }

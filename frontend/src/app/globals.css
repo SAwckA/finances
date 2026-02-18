@@ -2,60 +2,60 @@
 @import "tailwindcss";
 
 :root {
-  --bg-app: #f3f6fc;
-  --bg-card: #ffffff;
-  --bg-surface-dark: #1b2335;
-  --bg-surface-dark-soft: #22304d;
-  --text-primary: #1f2430;
-  --text-secondary: #5f6b82;
-  --text-on-dark: #f5f7ff;
-  --accent-primary: #2563eb;
-  --accent-primary-strong: #1d4ed8;
-  --accent-success: #22a06b;
-  --accent-danger: #e5484d;
-  --accent-warning: #ed8a19;
-  --border-soft: #dbe4f2;
-  --ring-primary: rgba(37, 99, 235, 0.26);
+  --bg-app: var(--heroui-background, #f4f7ff);
+  --bg-card: var(--heroui-content1, #ffffff);
+  --bg-surface-dark: var(--heroui-content2, #111827);
+  --bg-surface-dark-soft: var(--heroui-content3, #1f2937);
+  --text-primary: var(--heroui-foreground, #11181c);
+  --text-secondary: var(--heroui-foreground-500, #687076);
+  --text-on-dark: var(--heroui-foreground, #ecedee);
+  --accent-primary: var(--heroui-primary, #006fee);
+  --accent-primary-strong: var(--heroui-primary-600, #005bc4);
+  --accent-success: var(--heroui-success, #17c964);
+  --accent-danger: var(--heroui-danger, #f31260);
+  --accent-warning: var(--heroui-warning, #f5a524);
+  --border-soft: var(--heroui-divider, var(--heroui-default-200, #d4d4d8));
+  --ring-primary: color-mix(in srgb, var(--accent-primary) 32%, transparent);
   --radius-md: 14px;
   --radius-lg: 18px;
   --radius-xl: 22px;
-  --shadow-soft: 0 10px 28px rgba(20, 37, 63, 0.08);
-  --shadow-strong: 0 20px 44px rgba(18, 33, 58, 0.2);
-  --input-bg: #ffffff;
-  --surface-hover: #edf2fb;
-  --skeleton-base: #e6edf8;
-  --skeleton-shimmer: #f5f8ff;
+  --shadow-soft: 0 6px 16px rgba(15, 23, 42, 0.06);
+  --shadow-strong: 0 14px 28px rgba(15, 23, 42, 0.14);
+  --input-bg: var(--heroui-content1, #ffffff);
+  --surface-hover: var(--heroui-default-100, #f4f4f5);
+  --skeleton-base: var(--heroui-content2, #e6eefc);
+  --skeleton-shimmer: var(--heroui-content3, #f3f7ff);
   color-scheme: light;
 }
 
 :root[data-theme="dark"] {
-  --bg-app: #0a1220;
-  --bg-card: #111c30;
-  --bg-surface-dark: #0b1428;
-  --bg-surface-dark-soft: #15223b;
-  --text-primary: #e7eeff;
-  --text-secondary: #9caacc;
-  --text-on-dark: #f5f8ff;
-  --accent-primary: #4f8bff;
-  --accent-primary-strong: #3a76f3;
-  --accent-success: #31b782;
-  --accent-danger: #eb5d62;
-  --accent-warning: #f0a933;
-  --border-soft: #233252;
-  --ring-primary: rgba(79, 139, 255, 0.36);
-  --shadow-soft: 0 12px 30px rgba(5, 10, 20, 0.45);
-  --shadow-strong: 0 24px 48px rgba(4, 8, 18, 0.6);
-  --input-bg: #0f1a2e;
-  --surface-hover: #1c2a45;
-  --skeleton-base: #17253f;
-  --skeleton-shimmer: #243658;
+  --bg-app: var(--heroui-background, #0b0f19);
+  --bg-card: var(--heroui-content1, #111827);
+  --bg-surface-dark: var(--heroui-content2, #0f172a);
+  --bg-surface-dark-soft: var(--heroui-content3, #1f2937);
+  --text-primary: var(--heroui-foreground, #ecedee);
+  --text-secondary: var(--heroui-foreground-500, #a1a1aa);
+  --text-on-dark: var(--heroui-foreground, #ecedee);
+  --accent-primary: var(--heroui-primary, #338ef7);
+  --accent-primary-strong: var(--heroui-primary-600, #006fee);
+  --accent-success: var(--heroui-success, #17c964);
+  --accent-danger: var(--heroui-danger, #f31260);
+  --accent-warning: var(--heroui-warning, #f5a524);
+  --border-soft: var(--heroui-divider, var(--heroui-default-300, #27272a));
+  --ring-primary: color-mix(in srgb, var(--accent-primary) 44%, transparent);
+  --shadow-soft: 0 8px 20px rgba(2, 6, 23, 0.34);
+  --shadow-strong: 0 16px 34px rgba(2, 6, 23, 0.44);
+  --input-bg: var(--heroui-content1, #111827);
+  --surface-hover: var(--heroui-content3, #1f2937);
+  --skeleton-base: var(--heroui-content2, #1f2937);
+  --skeleton-shimmer: var(--heroui-content3, #273549);
   color-scheme: dark;
 }
 
 body {
   background:
-    radial-gradient(circle at 20% -10%, rgba(37, 99, 235, 0.14) 0%, transparent 38%),
-    radial-gradient(circle at 120% 120%, rgba(14, 165, 233, 0.11) 0%, transparent 40%),
+    radial-gradient(circle at 20% -10%, color-mix(in srgb, var(--accent-primary) 8%, transparent) 0%, transparent 42%),
+    radial-gradient(circle at 120% 120%, color-mix(in srgb, var(--accent-success) 5%, transparent) 0%, transparent 44%),
     var(--bg-app);
   font-family: "Manrope", "Inter", sans-serif;
   color: var(--text-primary);
@@ -68,19 +68,29 @@ body {
   input,
   select,
   textarea {
-    border: 1px solid var(--border-soft);
+    border: 0;
     border-radius: 0.8rem;
-    background: var(--input-bg);
+    background:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--input-bg) 92%, white 8%) 0%,
+        color-mix(in srgb, var(--input-bg) 100%, transparent) 100%
+      );
     color: var(--text-primary);
     outline: none;
-    transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--heroui-foreground, #fff) 10%, transparent),
+      0 8px 18px color-mix(in srgb, black 14%, transparent);
+    transition: box-shadow 150ms ease, background-color 150ms ease;
   }
 
   input:focus,
   select:focus,
   textarea:focus {
-    border-color: var(--accent-primary);
-    box-shadow: 0 0 0 3px var(--ring-primary);
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--heroui-foreground, #fff) 16%, transparent),
+      0 0 0 2px color-mix(in srgb, var(--accent-primary) 42%, transparent),
+      0 10px 20px color-mix(in srgb, var(--accent-primary) 18%, transparent);
   }
 
   button:focus-visible,
@@ -111,18 +121,19 @@ body {
     background: transparent;
   }
 
-  .mobile-card {
-    border: 1px solid var(--border-soft);
-    border-radius: var(--radius-lg);
-    background: color-mix(in srgb, var(--bg-card) 96%, #eff5ff 4%);
-    box-shadow: var(--shadow-soft);
-  }
-
   .app-panel {
-    border: 1px solid var(--border-soft);
+    border: 0;
     border-radius: var(--radius-lg);
-    background: var(--bg-card);
-    box-shadow: var(--shadow-soft);
+    background:
+      radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--accent-primary) 9%, transparent) 0%, transparent 42%),
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--bg-card) 92%, white 8%) 0%,
+        color-mix(in srgb, var(--bg-card) 100%, transparent) 100%
+      );
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--heroui-foreground, #fff) 10%, transparent),
+      var(--shadow-soft);
   }
 
   .section-title {
@@ -138,21 +149,33 @@ body {
     color: var(--text-secondary);
   }
 
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    border-radius: 999px;
-    border: 1px solid var(--border-soft);
-    background: color-mix(in srgb, var(--bg-card) 80%, transparent);
-    color: var(--text-secondary);
-    font-size: 0.625rem;
-    font-weight: 600;
-    padding: 0.1rem 0.45rem;
+  /* Subtle hover for small surface controls (chips, icon buttons, etc.). */
+  .surface-hover {
+    transition: background-color 180ms ease, box-shadow 180ms ease;
   }
 
-  .surface-hover:hover {
-    background: var(--surface-hover);
+  .surface-hover:hover,
+  .surface-hover[data-hover="true"],
+  .surface-hover[data-pressed="true"] {
+    background-color: var(--surface-hover);
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--heroui-foreground, #fff) 10%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--border-soft) 82%, var(--accent-primary) 18%);
+  }
+
+  /* Primary hover pattern for clickable cards and tiles (dashboard quick actions). */
+  .interactive-hover {
+    transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+    will-change: transform, box-shadow;
+  }
+
+  .interactive-hover:hover,
+  .interactive-hover[data-hover="true"],
+  .interactive-hover[data-pressed="true"] {
+    transform: translateY(-0.125rem);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      0 14px 28px rgba(2, 6, 23, 0.24);
   }
 
   .dark-hero {
@@ -179,33 +202,23 @@ body {
 
 :root[data-theme="dark"] body {
   background:
-    radial-gradient(circle at 20% -10%, rgba(79, 139, 255, 0.18) 0%, transparent 40%),
-    radial-gradient(circle at 110% 120%, rgba(14, 165, 233, 0.14) 0%, transparent 42%),
+    radial-gradient(circle at 20% -10%, color-mix(in srgb, var(--accent-primary) 12%, transparent) 0%, transparent 44%),
+    radial-gradient(circle at 110% 120%, color-mix(in srgb, var(--accent-success) 7%, transparent) 0%, transparent 46%),
     var(--bg-app);
 }
 
-:root[data-theme="dark"] input,
-:root[data-theme="dark"] select,
-:root[data-theme="dark"] textarea {
-  background: var(--input-bg) !important;
-  border-color: var(--border-soft) !important;
-  color: var(--text-primary) !important;
+:root[data-theme="dark"] .surface-hover:hover,
+:root[data-theme="dark"] .surface-hover[data-hover="true"],
+:root[data-theme="dark"] .surface-hover[data-pressed="true"] {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 0 0 1px color-mix(in srgb, var(--heroui-content3, #1f2937) 66%, var(--accent-primary) 34%);
 }
 
-:root[data-theme="dark"] input::placeholder,
-:root[data-theme="dark"] textarea::placeholder {
-  color: var(--text-secondary) !important;
-}
-
-:root[data-theme="dark"] [data-slot="input-wrapper"] {
-  background: var(--input-bg) !important;
-  border-color: var(--border-soft) !important;
-}
-
-:root[data-theme="dark"] [data-slot="input"] {
-  color: var(--text-primary) !important;
-}
-
-:root[data-theme="dark"] [data-slot="label"] {
-  color: var(--text-secondary) !important;
+:root[data-theme="dark"] .interactive-hover:hover,
+:root[data-theme="dark"] .interactive-hover[data-hover="true"],
+:root[data-theme="dark"] .interactive-hover[data-pressed="true"] {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 12px 22px rgba(2, 6, 23, 0.34);
 }

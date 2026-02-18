@@ -91,7 +91,7 @@ export default function ProfilePage() {
     <>
       <ScreenHeader title="Профиль" description="Управление данными текущего пользователя." />
       <div className="space-y-4">
-        <section className="mobile-card p-4">
+        <section className="app-panel p-4">
           <div className="mb-4 space-y-2">
             <h2 className="text-sm font-semibold text-[var(--text-primary)]">Тема приложения</h2>
             <SegmentedControl
@@ -109,7 +109,7 @@ export default function ProfilePage() {
           </div>
         </section>
 
-        <section className="mobile-card p-4">
+        <section className="app-panel p-4">
           {isLoading ? (
             <LoadingState
               className="rounded-none border-none bg-transparent p-0"
@@ -127,11 +127,11 @@ export default function ProfilePage() {
 
               {errorMessage ? (
                 <ErrorState
-                  className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-2 text-sm text-rose-700"
+                  className="rounded-lg border border-danger-200 bg-danger-50 px-2.5 py-2 text-sm text-danger-700"
                   message={errorMessage}
                 />
               ) : null}
-              {successMessage ? <p className="text-sm text-emerald-700">{successMessage}</p> : null}
+              {successMessage ? <p className="text-sm text-success-700">{successMessage}</p> : null}
 
               <div className="flex flex-wrap gap-2">
                 <Button color="primary" type="submit" isLoading={isSubmitting}>
@@ -145,7 +145,7 @@ export default function ProfilePage() {
           )}
         </section>
 
-        <section className="mobile-card p-4">
+        <section className="app-panel p-4">
           <Button
             color="danger"
             variant="flat"

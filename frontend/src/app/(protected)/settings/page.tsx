@@ -150,13 +150,13 @@ export default function SettingsPage() {
 
   return (
     <section className="space-y-3">
-      <header className="mobile-card overflow-hidden">
+      <header className="app-panel overflow-hidden">
         <div className="dark-hero px-4 py-4">
           <h1 className="text-2xl font-bold text-white/95">
             {(user?.name ?? "User") + "'s"} Workspace
           </h1>
           <p className="mt-0.5 text-sm text-white/80">Personal Finance</p>
-          <p className="mt-1 text-xs font-semibold text-emerald-300">Active • {stats.sources} sources connected</p>
+          <p className="mt-1 text-xs font-semibold text-success-300">Active • {stats.sources} sources connected</p>
         </div>
         <div className="grid grid-cols-3 gap-2 p-3">
           <article className="rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] p-2.5 text-center">
@@ -185,7 +185,7 @@ export default function SettingsPage() {
               return (
                 <article
                   key={item.title}
-                  className="mobile-card flex items-center justify-between gap-3 p-3 opacity-70"
+                  className="app-panel flex items-center justify-between gap-3 p-3 opacity-70"
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     <span className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${item.iconClassName}`}>
@@ -204,7 +204,7 @@ export default function SettingsPage() {
             }
 
             return (
-              <Link key={item.title} href={item.href} className="mobile-card flex items-center justify-between gap-3 p-3">
+              <Link key={item.title} href={item.href} className="app-panel flex items-center justify-between gap-3 p-3">
                 <div className="flex min-w-0 items-center gap-3">
                   <span className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${item.iconClassName}`}>
                     <Icon className="h-4.5 w-4.5" />

@@ -79,3 +79,10 @@ uv.lock
 - Keep ORM model and related Pydantic schemas in one module when consistent with existing project style.
 - Preferred schema naming: `{Entity}Base`, `{Entity}Create`, `{Entity}Update`, `{Entity}Response`.
 - Prefer modern typing (`list`, `dict`, `|`) instead of legacy `Optional`/`List` forms.
+
+## Frontend UI Rules
+
+- Keep UI colors within HeroUI palette tokens; do not introduce ad-hoc palette values outside project theme variables.
+- Do not define standalone custom light/dark hex palettes in `frontend/src/app/globals.css`; map project tokens to HeroUI semantic variables and configure colors via HeroUI theme.
+- Use the dashboard quick-action hover style as the global interactive hover pattern (`interactive-hover` / `surface-hover`) for clickable cards and tiles.
+- Dashboard payment source cards must remain full-width and use the same primary hover treatment as quick-action tiles.

@@ -16,6 +16,7 @@ import {
 import { EmptyState, ErrorState, LoadingState } from "@/components/async-state";
 import { TransactionFormFields } from "@/components/transactions/transaction-form-fields";
 import { TransactionEditorHeader } from "@/components/transactions/transaction-editor-header";
+import { HeroDateRangeField } from "@/components/ui/hero-date-range-field";
 import { useAuth } from "@/features/auth/auth-context";
 import { ApiError } from "@/lib/api-client";
 import type {
@@ -170,7 +171,7 @@ function transactionMeta(type: TransactionType): {
 } {
   if (type === "income") {
     return {
-      amountClassName: "text-emerald-700",
+      amountClassName: "text-success-700",
       sign: "+",
       label: "Income",
       icon: TrendingUp,
@@ -179,7 +180,7 @@ function transactionMeta(type: TransactionType): {
 
   if (type === "transfer") {
     return {
-      amountClassName: "text-indigo-700",
+      amountClassName: "text-secondary-700",
       sign: "",
       label: "Transfer",
       icon: ArrowRightLeft,
@@ -187,7 +188,7 @@ function transactionMeta(type: TransactionType): {
   }
 
   return {
-    amountClassName: "text-rose-700",
+    amountClassName: "text-danger-700",
     sign: "-",
     label: "Expense",
     icon: TrendingDown,
@@ -544,7 +545,7 @@ export default function TransactionsPage() {
             <div className="flex-1 overflow-y-auto px-3 py-3">
               <form
                 id="transaction-form"
-                className="mobile-card space-y-3 p-3"
+                className="app-panel space-y-3 p-3"
                 onSubmit={handleSubmit}
               >
                 <TransactionFormFields
@@ -574,7 +575,7 @@ export default function TransactionsPage() {
       {!createMode ? (
         <form
           id="transaction-form"
-          className="mobile-card space-y-3 p-3"
+          className="app-panel space-y-3 p-3"
           onSubmit={handleSubmit}
         >
           <div className="flex items-center justify-between">
@@ -584,7 +585,7 @@ export default function TransactionsPage() {
             {editingTransactionId ? (
               <button
                 type="button"
-                className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+                className="rounded-lg bg-default-100 px-2.5 py-1.5 text-xs font-semibold text-default-700 transition hover:bg-default-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-default-300"
                 onClick={resetForm}
               >
                 Cancel Edit
@@ -612,22 +613,22 @@ export default function TransactionsPage() {
           />
 
           {editingTransactionId && editingShoppingListId ? (
-            <section className="mobile-card space-y-2 p-3">
-              <p className="text-sm font-semibold text-slate-800">Shopping list</p>
+            <section className="app-panel space-y-2 p-3">
+              <p className="text-sm font-semibold text-default-800">Shopping list</p>
               {isShoppingListLoading ? (
                 <LoadingState message="Загружаем список покупок…" />
               ) : null}
               {!isShoppingListLoading && shoppingListDetails ? (
                 <>
-                  <p className="text-xs font-semibold text-slate-500">{shoppingListDetails.name}</p>
+                  <p className="text-xs font-semibold text-default-500">{shoppingListDetails.name}</p>
                   <ul className="mt-2 space-y-1">
                     {shoppingListDetails.items.length === 0 ? (
-                      <li className="text-xs text-slate-500">Список пуст.</li>
+                      <li className="text-xs text-default-500">Список пуст.</li>
                     ) : (
                       shoppingListDetails.items.map((item) => (
                         <li
                           key={item.id}
-                          className="text-sm text-slate-500 line-through"
+                          className="text-sm text-default-500 line-through"
                         >
                           {item.name} · {item.quantity} шт.
                         </li>
@@ -637,20 +638,20 @@ export default function TransactionsPage() {
                 </>
               ) : null}
               {!isShoppingListLoading && !shoppingListDetails ? (
-                <p className="text-xs text-slate-500">Список покупок не найден.</p>
+                <p className="text-xs text-default-500">Список покупок не найден.</p>
               ) : null}
             </section>
           ) : null}
 
           {editingTransactionId && editingRecurringTransactionId ? (
-            <section className="mobile-card space-y-2 p-3">
-              <p className="text-sm font-semibold text-slate-800">Recurring source</p>
-              <p className="text-xs text-slate-500">
+            <section className="app-panel space-y-2 p-3">
+              <p className="text-sm font-semibold text-default-800">Recurring source</p>
+              <p className="text-xs text-default-500">
                 Эта транзакция создана из регулярного платежа #{editingRecurringTransactionId}.
               </p>
               <Link
                 href={`/recurring?focus=${editingRecurringTransactionId}`}
-                className="inline-flex w-fit items-center rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+                className="inline-flex w-fit items-center rounded-lg bg-default-100 px-2.5 py-1.5 text-xs font-semibold text-default-700 transition hover:bg-default-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-default-300"
               >
                 Open recurring
               </Link>
@@ -670,7 +671,7 @@ export default function TransactionsPage() {
           </button>
 
         {selectedCurrency ? (
-          <p className="text-center text-xs text-slate-500">
+          <p className="text-center text-xs text-default-500">
             Account currency: {selectedCurrency.code} ({selectedCurrency.symbol})
           </p>
         ) : null}
@@ -679,13 +680,13 @@ export default function TransactionsPage() {
 
       {!createMode ? (
         <>
-          <section className="mobile-card p-3">
-            <p className="mb-2 text-base font-semibold text-slate-800">Filters</p>
+          <section className="app-panel p-3">
+            <p className="mb-2 text-base font-semibold text-default-800">Filters</p>
             <div className="grid grid-cols-2 gap-2">
-              <label className="text-sm text-slate-700">
+              <label className="text-sm text-default-700">
                 Type
                 <select
-                  className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  className="mt-1 block w-full rounded-xl border border-default-300 bg-white px-3 py-2 text-sm"
                   name="typeFilter"
                   autoComplete="off"
                   value={filters.type}
@@ -702,10 +703,10 @@ export default function TransactionsPage() {
                   <option value="transfer">Transfer</option>
                 </select>
               </label>
-              <label className="text-sm text-slate-700">
+              <label className="text-sm text-default-700">
                 Source
                 <select
-                  className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  className="mt-1 block w-full rounded-xl border border-default-300 bg-white px-3 py-2 text-sm"
                   name="accountFilter"
                   autoComplete="off"
                   value={filters.accountId}
@@ -724,42 +725,23 @@ export default function TransactionsPage() {
                   ))}
                 </select>
               </label>
-              <label className="text-sm text-slate-700">
-                Start
-                <input
-                  className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-                  type="date"
-                  name="startDate"
-                  autoComplete="off"
-                  value={filters.startDate}
-                  onChange={(event) =>
+              <div className="col-span-2">
+                <HeroDateRangeField
+                  label="Period"
+                  value={{ startDate: filters.startDate, endDate: filters.endDate }}
+                  onChange={(value) =>
                     setFilters((prev) => ({
                       ...prev,
-                      startDate: event.target.value,
+                      startDate: value.startDate,
+                      endDate: value.endDate,
                     }))
                   }
                 />
-              </label>
-              <label className="text-sm text-slate-700">
-                End
-                <input
-                  className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-                  type="date"
-                  name="endDate"
-                  autoComplete="off"
-                  value={filters.endDate}
-                  onChange={(event) =>
-                    setFilters((prev) => ({
-                      ...prev,
-                      endDate: event.target.value,
-                    }))
-                  }
-                />
-              </label>
+              </div>
             </div>
             <button
               type="button"
-              className="mt-2 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+              className="mt-2 rounded-lg bg-default-100 px-2.5 py-1.5 text-xs font-semibold text-default-700 transition hover:bg-default-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-default-300"
               onClick={() => setFilters(DEFAULT_FILTERS)}
             >
               Reset Filters
@@ -787,16 +769,16 @@ export default function TransactionsPage() {
                   const MetaIcon = meta.icon;
 
                   return (
-                    <article key={transaction.id} className="mobile-card p-3">
+                    <article key={transaction.id} className="app-panel p-3">
                       <div className="mb-2 flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
-                            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-600">
+                            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-default-100 text-default-600">
                               <MetaIcon className="h-3.5 w-3.5" />
                             </span>
-                            <p className="truncate text-sm font-semibold text-slate-800">{meta.label}</p>
+                            <p className="truncate text-sm font-semibold text-default-800">{meta.label}</p>
                           </div>
-                          <p className="mt-0.5 text-xs text-slate-500">
+                          <p className="mt-0.5 text-xs text-default-500">
                             {formatDateLabel(transaction.transaction_date)}
                           </p>
                         </div>
@@ -806,27 +788,27 @@ export default function TransactionsPage() {
                         </p>
                       </div>
 
-                      <div className="text-sm text-slate-700">
+                      <div className="text-sm text-default-700">
                         <p>
                           {account?.name ?? "Unknown account"}
                           {targetAccount ? ` -> ${targetAccount.name}` : ""}
                         </p>
-                        {category ? <p className="text-xs text-slate-500">{category.name}</p> : null}
+                        {category ? <p className="text-xs text-default-500">{category.name}</p> : null}
                         {transaction.recurring_transaction_id ? (
-                          <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">
+                          <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-secondary-50 px-2 py-0.5 text-[11px] font-semibold text-secondary-700">
                             <Repeat className="h-3.5 w-3.5" />
                             Recurring #{transaction.recurring_transaction_id}
                           </p>
                         ) : null}
                         {transaction.description ? (
-                          <p className="mt-1 text-xs text-slate-500">{transaction.description}</p>
+                          <p className="mt-1 text-xs text-default-500">{transaction.description}</p>
                         ) : null}
                       </div>
 
                       <div className="mt-2 flex items-center gap-1.5">
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700"
+                          className="inline-flex items-center gap-1 rounded-lg bg-default-100 px-2 py-1 text-xs font-semibold text-default-700"
                           onClick={() => handleEdit(transaction)}
                         >
                           <Pencil className="h-3.5 w-3.5" />
@@ -834,7 +816,7 @@ export default function TransactionsPage() {
                         </button>
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700"
+                          className="inline-flex items-center gap-1 rounded-lg bg-default-100 px-2 py-1 text-xs font-semibold text-default-700"
                           onClick={() => handleClone(transaction)}
                         >
                           <Copy className="h-3.5 w-3.5" />
@@ -842,7 +824,7 @@ export default function TransactionsPage() {
                         </button>
                         <button
                           type="button"
-                          className="ml-auto inline-flex items-center gap-1 rounded-lg bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700"
+                          className="ml-auto inline-flex items-center gap-1 rounded-lg bg-danger-50 px-2 py-1 text-xs font-semibold text-danger-700"
                           onClick={() => void handleDelete(transaction.id)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -855,21 +837,21 @@ export default function TransactionsPage() {
               : null}
           </section>
 
-          <section className="mobile-card flex items-center justify-between px-3 py-2">
+          <section className="app-panel flex items-center justify-between px-3 py-2">
             <button
               type="button"
-              className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-60"
+              className="rounded-lg bg-default-100 px-2.5 py-1.5 text-xs font-semibold text-default-700 disabled:opacity-60"
               disabled={page <= 1 || isLoading}
               onClick={() => setPage((prev) => prev - 1)}
             >
               Back
             </button>
-            <p className="text-sm text-slate-700">
+            <p className="text-sm text-default-700">
               Page {Math.min(page, totalPages)} / {totalPages}
             </p>
             <button
               type="button"
-              className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-60"
+              className="inline-flex items-center gap-1 rounded-lg bg-default-100 px-2.5 py-1.5 text-xs font-semibold text-default-700 disabled:opacity-60"
               disabled={isLoading || page >= totalPages}
               onClick={() => setPage((prev) => prev + 1)}
             >

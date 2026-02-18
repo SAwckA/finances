@@ -35,8 +35,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isCreateMode =
     pathname === "/transactions" &&
     (searchParams.get("create") === "1" || searchParams.get("create") === "true");
+  const isTransactionDetailsMode =
+    (pathname.startsWith("/transactions/") && pathname !== "/transactions") ||
+    (pathname.startsWith("/transaction/") && pathname !== "/transaction");
   const isEditorScreen =
-    pathname.endsWith("/new") || pathname.endsWith("/edit") || isCreateMode;
+    pathname.endsWith("/new") || pathname.endsWith("/edit") || isCreateMode || isTransactionDetailsMode;
 
   return (
     <div className={`mobile-page ${isEditorScreen ? "" : "pb-24"}`}>

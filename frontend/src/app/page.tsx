@@ -21,8 +21,8 @@ export default function HomePage() {
   }, [router, status]);
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50">
-      <div className="flex items-center gap-2 text-slate-600">
+    <main className="flex min-h-screen items-center justify-center bg-default-50">
+      <div className="flex items-center gap-2 text-default-600">
         <Spinner size="sm" />
         <span className="text-sm">Перенаправляем...</span>
       </div>

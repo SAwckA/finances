@@ -168,7 +168,7 @@ export function CategoryEditorScreen({ categoryId }: CategoryEditorScreenProps) 
       {!isLoading ? (
         <form id={FORM_ID} className="space-y-3 px-3 pt-3" onSubmit={handleSubmit}>
           <section>
-            <p className="mb-1.5 text-base font-semibold text-slate-700">Category Type</p>
+            <p className="mb-1.5 text-base font-semibold text-default-700">Category Type</p>
             <SegmentedControl
               options={[
                 { key: "expense", label: "Expense" },
@@ -185,10 +185,10 @@ export function CategoryEditorScreen({ categoryId }: CategoryEditorScreenProps) 
             />
           </section>
 
-          <label className="block text-sm text-slate-700">
+          <label className="block text-sm text-default-700">
             Category Name
             <input
-              className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+              className="mt-1 block w-full rounded-xl border border-default-300 bg-white px-3 py-2 text-sm"
               value={form.name}
               onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
               placeholder="Enter category name"
@@ -197,7 +197,7 @@ export function CategoryEditorScreen({ categoryId }: CategoryEditorScreenProps) 
           </label>
 
           <section>
-            <p className="mb-1.5 text-base font-semibold text-slate-700">Choose Icon</p>
+            <p className="mb-1.5 text-base font-semibold text-default-700">Choose Icon</p>
             <div className="grid grid-cols-6 gap-2">
               {formIconOptions.map((option, index) => {
                 const Icon = option.icon;
@@ -207,21 +207,21 @@ export function CategoryEditorScreen({ categoryId }: CategoryEditorScreenProps) 
                   <button
                     key={option.value}
                     type="button"
-                    className={`rounded-xl border p-2 ${active ? "border-[var(--accent-primary)]" : "border-slate-200"}`}
+                    className={`rounded-xl border p-2 ${active ? "border-[var(--accent-primary)]" : "border-default-200"}`}
                     style={{ backgroundColor: tileColor }}
                     onClick={() => setForm((prev) => ({ ...prev, icon: option.value }))}
                     aria-label={option.label}
                   >
-                    <Icon className="mx-auto h-4.5 w-4.5 text-slate-700" />
+                    <Icon className="mx-auto h-4.5 w-4.5 text-default-700" />
                   </button>
                 );
               })}
             </div>
           </section>
 
-          <section className="mobile-card p-3">
-            <p className="mb-2 text-sm font-semibold text-slate-600">Preview</p>
-            <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5">
+          <section className="app-panel p-3">
+            <p className="mb-2 text-sm font-semibold text-default-600">Preview</p>
+            <div className="rounded-2xl border border-default-200 bg-white px-3 py-2.5">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2.5">
                   <span
@@ -231,17 +231,17 @@ export function CategoryEditorScreen({ categoryId }: CategoryEditorScreenProps) 
                     <PreviewIcon className="h-4.5 w-4.5" />
                   </span>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-slate-800">
+                    <p className="truncate text-sm font-semibold text-default-800">
                       {form.name.trim() || "Custom Category"}
                     </p>
-                    <p className="truncate text-xs text-slate-500">New category</p>
+                    <p className="truncate text-xs text-default-500">New category</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className={`text-2xl font-bold ${form.type === "expense" ? "text-rose-600" : "text-emerald-600"}`}>
+                  <p className={`text-2xl font-bold ${form.type === "expense" ? "text-danger-600" : "text-success-600"}`}>
                     $0.00
                   </p>
-                  <p className="text-xs text-slate-500">0 transactions</p>
+                  <p className="text-xs text-default-500">0 transactions</p>
                 </div>
               </div>
             </div>

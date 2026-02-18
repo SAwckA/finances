@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, Plus } from "lucide-react";
 import { EmptyState, ErrorState, LoadingState } from "@/components/async-state";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import { HeroChip } from "@/components/ui/hero-chip";
 import { useAuth } from "@/features/auth/auth-context";
 import { ApiError } from "@/lib/api-client";
 import { getIconOption } from "@/lib/icon-catalog";
@@ -101,7 +102,7 @@ export default function ShoppingListsPage() {
   const [currencies, setCurrencies] = useState<CurrencyResponse[]>([]);
   const [filter, setFilter] = useState<StatusFilter>("active");
   const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const accountById = useMemo(
@@ -270,7 +271,7 @@ export default function ShoppingListsPage() {
                       <Link
                         key={list.id}
                         href={`/shopping-lists/${list.id}`}
-                        className="mobile-card block space-y-3 p-3 transition hover:border-[color:var(--accent-primary)] hover:shadow-[0_0_0_1px_var(--accent-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
+                        className="app-panel block space-y-3 p-3 transition hover:border-[color:var(--accent-primary)] hover:shadow-[0_0_0_1px_var(--accent-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
@@ -305,8 +306,8 @@ export default function ShoppingListsPage() {
                                 {account?.name ?? "Счет не найден"}
                               </p>
                             </div>
-                            {shortAccountBadge(account) ? (
-                              <span className="badge shrink-0">{shortAccountBadge(account)}</span>
+                            {shortAccountBadge(account ?? null) ? (
+                              <HeroChip className="shrink-0">{shortAccountBadge(account ?? null)}</HeroChip>
                             ) : null}
                           </div>
                           <div className="flex min-w-0 items-center gap-2 rounded-full border border-[color:var(--border-soft)] bg-[color:color-mix(in_srgb,var(--bg-card)_85%,transparent)] px-3 py-1.5">

@@ -316,7 +316,7 @@ export default function AccountsPage() {
               isSaving={isSubmitting}
             />
             <div className="flex-1 overflow-y-auto px-3 py-3">
-              <form id={FORM_ID} className="mobile-card space-y-3 p-3" onSubmit={handleSubmit}>
+              <form id={FORM_ID} className="app-panel space-y-3 p-3" onSubmit={handleSubmit}>
                 <section>
                   <p className="mb-1.5 text-sm font-semibold text-[var(--text-secondary)]">Source Type</p>
                   <div className="grid grid-cols-3 gap-2">
@@ -478,7 +478,7 @@ export default function AccountsPage() {
                   </div>
                 </section>
 
-                {errorMessage ? <p className="text-sm font-medium text-rose-600">{errorMessage}</p> : null}
+                {errorMessage ? <p className="text-sm font-medium text-danger-600">{errorMessage}</p> : null}
 
                 <button
                   type="submit"
@@ -491,7 +491,7 @@ export default function AccountsPage() {
                 {editingId ? (
                   <button
                     type="button"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-rose-400/40 bg-rose-500/10 px-3 py-2.5 text-sm font-semibold text-rose-600 transition hover:bg-rose-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-danger-400/40 bg-danger-500/10 px-3 py-2.5 text-sm font-semibold text-danger-600 transition hover:bg-danger-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-300"
                     onClick={() => void handleDelete(editingId)}
                   >
                     <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -504,7 +504,7 @@ export default function AccountsPage() {
         </section>
       ) : null}
 
-      <section className="mobile-card p-3">
+      <section className="app-panel p-3">
         <div className="flex items-center justify-between">
           <h1 className="section-title text-[1.35rem] text-[var(--text-primary)]">Payment Sources</h1>
           <Link
@@ -530,7 +530,7 @@ export default function AccountsPage() {
               return (
                 <article
                   key={account.id}
-                  className="mobile-card p-3"
+                  className="app-panel p-3"
                   style={{ backgroundColor: toSoftBackground(account.color, 0.12) }}
                 >
                 <div className="flex items-start justify-between gap-2">

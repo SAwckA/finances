@@ -72,11 +72,11 @@ type RequestResult = {
 
 const METHOD_ORDER: HttpMethod[] = ["get", "post", "put", "patch", "delete"];
 const METHOD_BADGE: Record<HttpMethod, string> = {
-  get: "bg-sky-700/80",
-  post: "bg-emerald-700/80",
-  put: "bg-amber-700/80",
-  patch: "bg-orange-700/80",
-  delete: "bg-rose-700/80",
+  get: "bg-primary-700/80",
+  post: "bg-success-700/80",
+  put: "bg-warning-700/80",
+  patch: "bg-warning-700/80",
+  delete: "bg-danger-700/80",
 };
 
 const DEFAULT_BASE_URL =
@@ -366,28 +366,28 @@ function EndpointCard({
   }
 
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
+    <article className="rounded-2xl border border-default-200 bg-white/80 p-4 shadow-sm backdrop-blur">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <span
           className={`rounded-md px-2 py-1 text-xs font-semibold uppercase tracking-wide text-white ${METHOD_BADGE[endpoint.method]}`}
         >
           {endpoint.method}
         </span>
-        <code className="rounded bg-slate-100 px-2 py-1 text-sm text-slate-700">{endpoint.path}</code>
+        <code className="rounded bg-default-100 px-2 py-1 text-sm text-default-700">{endpoint.path}</code>
       </div>
 
-      <h3 className="text-base font-semibold text-slate-900">{endpoint.title}</h3>
-      <p className="mt-1 text-sm text-slate-600">{endpoint.description}</p>
+      <h3 className="text-base font-semibold text-default-900">{endpoint.title}</h3>
+      <p className="mt-1 text-sm text-default-600">{endpoint.description}</p>
 
       <form className="mt-4 space-y-3" onSubmit={onSubmit}>
         {endpoint.pathParams.length > 0 && (
           <div className="grid gap-2 sm:grid-cols-2">
             {endpoint.pathParams.map((param) => (
-              <label className="text-sm text-slate-700" key={param.name}>
+              <label className="text-sm text-default-700" key={param.name}>
                 {param.name}
                 {param.required ? " *" : ""}
                 <input
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-teal-500"
+                  className="mt-1 w-full rounded-lg border border-default-300 px-3 py-2 text-sm outline-none transition focus:border-primary-500"
                   onChange={(event) => {
                     setPathValues((prev) => ({ ...prev, [param.name]: event.target.value }));
                   }}
@@ -402,11 +402,11 @@ function EndpointCard({
         {endpoint.queryParams.length > 0 && (
           <div className="grid gap-2 sm:grid-cols-2">
             {endpoint.queryParams.map((param) => (
-              <label className="text-sm text-slate-700" key={param.name}>
+              <label className="text-sm text-default-700" key={param.name}>
                 {param.name}
                 {param.required ? " *" : ""}
                 <input
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-teal-500"
+                  className="mt-1 w-full rounded-lg border border-default-300 px-3 py-2 text-sm outline-none transition focus:border-primary-500"
                   onChange={(event) => {
                     setQueryValues((prev) => ({ ...prev, [param.name]: event.target.value }));
                   }}
@@ -419,30 +419,30 @@ function EndpointCard({
         )}
 
         {hasBody && (
-          <label className="block text-sm text-slate-700">
+          <label className="block text-sm text-default-700">
             JSON body {endpoint.bodyRequired ? "*" : ""}
             <textarea
-              className="mt-1 min-h-32 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs outline-none transition focus:border-teal-500"
+              className="mt-1 min-h-32 w-full rounded-lg border border-default-300 px-3 py-2 font-mono text-xs outline-none transition focus:border-primary-500"
               onChange={(event) => setBodyText(event.target.value)}
               value={bodyText}
             />
           </label>
         )}
 
-        <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+        <label className="inline-flex items-center gap-2 text-sm text-default-700">
           <input
             checked={useAuth}
-            className="size-4 rounded border-slate-300"
+            className="size-4 rounded border-default-300"
             onChange={(event) => setUseAuth(event.target.checked)}
             type="checkbox"
           />
           Добавить Bearer токен
         </label>
 
-        {error && <p className="text-sm text-rose-700">{error}</p>}
+        {error && <p className="text-sm text-danger-700">{error}</p>}
 
         <button
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+          className="rounded-lg bg-default-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-default-700 disabled:cursor-not-allowed disabled:bg-default-400"
           disabled={isPending}
           type="submit"
         >
@@ -451,8 +451,8 @@ function EndpointCard({
       </form>
 
       {result && (
-        <div className="mt-4 space-y-2 rounded-xl border border-slate-200 bg-slate-950 p-3 text-slate-100">
-          <p className="text-xs text-slate-300">
+        <div className="mt-4 space-y-2 rounded-xl border border-default-200 bg-default-950 p-3 text-default-100">
+          <p className="text-xs text-default-300">
             Status: {result.status} • {result.durationMs} ms
           </p>
           <pre className="max-h-80 overflow-auto text-xs leading-relaxed">
@@ -585,67 +585,67 @@ export function FinanceWorkbench() {
   return (
     <section className="space-y-6 pb-10">
       <header className="rounded-3xl border border-white/60 bg-[linear-gradient(130deg,#134e4a_0%,#0f172a_45%,#1e293b_100%)] p-6 text-white shadow-xl">
-        <p className="text-xs uppercase tracking-[0.2em] text-teal-100/80">Finances API</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-primary-100/80">Finances API</p>
         <h1 className="mt-2 text-2xl font-bold sm:text-3xl">Frontend рабочее пространство для всех эндпоинтов</h1>
-        <p className="mt-2 max-w-3xl text-sm text-slate-200">
+        <p className="mt-2 max-w-3xl text-sm text-default-200">
           Интерфейс читает спецификацию OpenAPI и позволяет отправлять запросы ко всем backend endpoint&apos;ам.
         </p>
       </header>
 
-      <section className="grid gap-3 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm sm:grid-cols-2">
-        <label className="text-sm text-slate-700">
+      <section className="grid gap-3 rounded-2xl border border-default-200 bg-white/90 p-4 shadow-sm sm:grid-cols-2">
+        <label className="text-sm text-default-700">
           Base URL backend
           <input
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-teal-500"
+            className="mt-1 w-full rounded-lg border border-default-300 px-3 py-2 text-sm outline-none transition focus:border-primary-500"
             onChange={(event) => setBaseUrl(event.target.value)}
             placeholder="http://localhost:8000"
             value={baseUrl}
           />
         </label>
 
-        <label className="text-sm text-slate-700">
+        <label className="text-sm text-default-700">
           Поиск endpoint
           <input
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-teal-500"
+            className="mt-1 w-full rounded-lg border border-default-300 px-3 py-2 text-sm outline-none transition focus:border-primary-500"
             onChange={(event) => setSearch(event.target.value)}
             placeholder="/api/transactions, login, summary..."
             value={search}
           />
         </label>
 
-        <label className="text-sm text-slate-700 sm:col-span-2">
+        <label className="text-sm text-default-700 sm:col-span-2">
           Access token (Bearer)
           <input
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-teal-500"
+            className="mt-1 w-full rounded-lg border border-default-300 px-3 py-2 text-sm outline-none transition focus:border-primary-500"
             onChange={(event) => setAccessToken(event.target.value)}
             value={accessToken}
           />
         </label>
 
-        <label className="text-sm text-slate-700 sm:col-span-2">
+        <label className="text-sm text-default-700 sm:col-span-2">
           Refresh token
           <input
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-teal-500"
+            className="mt-1 w-full rounded-lg border border-default-300 px-3 py-2 text-sm outline-none transition focus:border-primary-500"
             onChange={(event) => setRefreshToken(event.target.value)}
             value={refreshToken}
           />
         </label>
       </section>
 
-      {loading && <p className="text-sm text-slate-600">Загружаю OpenAPI спецификацию...</p>}
-      {loadingError && <p className="text-sm text-rose-700">Ошибка: {loadingError}</p>}
+      {loading && <p className="text-sm text-default-600">Загружаю OpenAPI спецификацию...</p>}
+      {loadingError && <p className="text-sm text-danger-700">Ошибка: {loadingError}</p>}
 
       {!loading && !loadingError && (
         <div className="space-y-4">
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-default-600">
             Найдено endpoint: <strong>{filteredEndpoints.length}</strong> из <strong>{endpoints.length}</strong>
           </p>
 
           {Array.from(endpointsByTag.entries()).map(([tag, group]) => (
             <section className="space-y-3" key={tag}>
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-slate-900">{tag}</h2>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">{group.length}</span>
+                <h2 className="text-lg font-semibold text-default-900">{tag}</h2>
+                <span className="rounded-full bg-default-100 px-3 py-1 text-xs text-default-600">{group.length}</span>
               </div>
 
               <div className="grid gap-3 lg:grid-cols-2">

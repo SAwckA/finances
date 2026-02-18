@@ -46,8 +46,8 @@ function CategoryBlock({
   emptyMessage: string;
 }) {
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-4">
-      <h3 className="mb-3 text-base font-semibold text-slate-900">{title}</h3>
+    <article className="rounded-2xl border border-default-200 bg-white p-4">
+      <h3 className="mb-3 text-base font-semibold text-default-900">{title}</h3>
       <div className="space-y-2.5">
         {items.length ? (
           items.map((item) => {
@@ -63,20 +63,20 @@ function CategoryBlock({
                     >
                       <CategoryIcon className="h-3.5 w-3.5" />
                     </span>
-                    <span className="truncate text-sm text-slate-800">{item.category_name}</span>
+                    <span className="truncate text-sm text-default-800">{item.category_name}</span>
                   </div>
-                  <span className="text-xs font-semibold text-slate-700">
+                  <span className="text-xs font-semibold text-default-700">
                     {formatAmount(item.amount, currencyCode)}
                   </span>
                 </div>
-                <div className="h-2 rounded-full bg-slate-100">
+                <div className="h-2 rounded-full bg-default-100">
                   <div className={`h-2 rounded-full ${progressClassName}`} style={{ width: `${share}%` }} />
                 </div>
               </div>
             );
           })
         ) : (
-          <p className="text-sm text-slate-600">{emptyMessage}</p>
+          <p className="text-sm text-default-600">{emptyMessage}</p>
         )}
       </div>
     </article>
@@ -91,7 +91,7 @@ export default function CategoryBreakdowns({ summary, currencyCode }: CategoryBr
         items={summary?.income_by_category ?? []}
         total={summary?.total_income ?? "0"}
         currencyCode={currencyCode}
-        progressClassName="bg-emerald-500"
+        progressClassName="bg-success-500"
         emptyMessage="Нет доходов за выбранный период."
       />
       <CategoryBlock
@@ -99,7 +99,7 @@ export default function CategoryBreakdowns({ summary, currencyCode }: CategoryBr
         items={summary?.expense_by_category ?? []}
         total={summary?.total_expense ?? "0"}
         currencyCode={currencyCode}
-        progressClassName="bg-rose-500"
+        progressClassName="bg-danger-500"
         emptyMessage="Нет расходов за выбранный период."
       />
     </section>
