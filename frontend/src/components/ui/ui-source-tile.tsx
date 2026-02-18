@@ -3,7 +3,7 @@ import { Landmark } from "lucide-react";
 import { Card, CardBody } from "@heroui/react";
 import { getIconOption } from "@/lib/icon-catalog";
 
-type SourceCardProps = {
+type UiSourceTileProps = {
   name: string;
   identifier: ReactNode;
   amount: string;
@@ -13,7 +13,15 @@ type SourceCardProps = {
   icon?: string | null;
 };
 
-export function SourceCard({ name, identifier, amount, onClick, selected = false, tone, icon }: SourceCardProps) {
+export function UiSourceTile({
+  name,
+  identifier,
+  amount,
+  onClick,
+  selected = false,
+  tone,
+  icon,
+}: UiSourceTileProps) {
   const iconStyle = tone ? { backgroundColor: `${tone}22`, color: tone } : undefined;
   const iconOption = icon ? getIconOption(icon) : null;
   const Icon = iconOption ? iconOption.icon : Landmark;
@@ -23,7 +31,7 @@ export function SourceCard({ name, identifier, amount, onClick, selected = false
 
   if (onClick) {
     return (
-      <Card className={cardClassName} isPressable shadow="sm" onPress={onClick}>
+      <Card className={cardClassName} isPressable shadow="none" onPress={onClick}>
         <CardBody className="px-3 py-2.5">
           <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2.5">
@@ -43,7 +51,7 @@ export function SourceCard({ name, identifier, amount, onClick, selected = false
   }
 
   return (
-    <Card className={cardClassName} shadow="sm">
+    <Card className={cardClassName} shadow="none">
       <CardBody className="px-3 py-2.5">
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2.5">

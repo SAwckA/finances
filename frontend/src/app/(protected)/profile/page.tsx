@@ -2,10 +2,11 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Input } from "@heroui/react";
+import { Button } from "@heroui/react";
+import { Mail, ShieldCheck, UserCircle2 } from "lucide-react";
 import { ErrorState, LoadingState } from "@/components/async-state";
-import { ScreenHeader } from "@/components/screen-header";
-import { SegmentedControl } from "@/components/ui/segmented-control";
+import { UiPageHeader } from "@/components/ui/ui-page-header";
+import { UiSegmentedControl } from "@/components/ui/ui-segmented-control";
 import { useAuth } from "@/features/auth/auth-context";
 import { useThemePreference } from "@/features/theme/theme-context";
 import { ApiError } from "@/lib/api-client";
@@ -14,6 +15,12 @@ import type { UserResponse, UserUpdate } from "@/lib/types";
 type ProfileFormState = {
   name: string;
 };
+
+const FORM_FIELD_SHELL_CLASS =
+  "mt-1.5 flex items-center gap-2 rounded-2xl bg-gradient-to-br from-content2/82 to-content1 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_22px_rgba(2,6,23,0.18)] transition focus-within:shadow-[0_0_0_2px_var(--ring-primary),inset_0_1px_0_rgba(255,255,255,0.1),0_12px_24px_rgba(2,6,23,0.24)]";
+
+const FORM_FIELD_INPUT_CLASS =
+  "w-full bg-transparent py-0.5 text-base font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none";
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
@@ -89,12 +96,29 @@ export default function ProfilePage() {
 
   return (
     <>
-      <ScreenHeader title="Профиль" description="Управление данными текущего пользователя." />
+      <UiPageHeader title="Профиль" description="Управление данными текущего пользователя." />
       <div className="space-y-4">
+        <section className="app-panel overflow-hidden">
+          <div className="dark-hero px-4 py-4">
+            <div className="flex items-center gap-3">
+              <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-500/16 text-cyan-600">
+                <UserCircle2 className="h-7 w-7" aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-lg font-bold text-[var(--text-primary)]">{form.name || "Пользователь"}</p>
+                <p className="truncate text-sm text-[var(--text-secondary)]">{user?.email ?? "—"}</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="app-panel p-4">
-          <div className="mb-4 space-y-2">
+          <div className="mb-1.5 flex items-center gap-2">
+            <ShieldCheck className="h-4.5 w-4.5 text-cyan-500" aria-hidden="true" />
             <h2 className="text-sm font-semibold text-[var(--text-primary)]">Тема приложения</h2>
-            <SegmentedControl
+          </div>
+          <div className="space-y-2">
+            <UiSegmentedControl
               options={[
                 { key: "system", label: "Система" },
                 { key: "light", label: "Светлая" },
@@ -117,13 +141,32 @@ export default function ProfilePage() {
             />
           ) : (
             <form className="space-y-3" onSubmit={handleSubmit}>
-              <Input label="Email" type="email" value={user?.email ?? ""} isReadOnly />
-              <Input
-                label="Имя"
-                isRequired
-                value={form.name}
-                onValueChange={(value) => setForm((prev) => ({ ...prev, name: value }))}
-              />
+              <label className="block text-sm text-[var(--text-secondary)]">
+                Электронная почта
+                <div className={FORM_FIELD_SHELL_CLASS}>
+                  <Mail className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" aria-hidden="true" />
+                  <input
+                    className={FORM_FIELD_INPUT_CLASS}
+                    type="email"
+                    value={user?.email ?? ""}
+                    readOnly
+                  />
+                </div>
+              </label>
+
+              <label className="block text-sm text-[var(--text-secondary)]">
+                Имя
+                <div className={FORM_FIELD_SHELL_CLASS}>
+                  <UserCircle2 className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" aria-hidden="true" />
+                  <input
+                    className={FORM_FIELD_INPUT_CLASS}
+                    value={form.name}
+                    onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+                    placeholder="Введите имя"
+                    required
+                  />
+                </div>
+              </label>
 
               {errorMessage ? (
                 <ErrorState
@@ -134,7 +177,11 @@ export default function ProfilePage() {
               {successMessage ? <p className="text-sm text-success-700">{successMessage}</p> : null}
 
               <div className="flex flex-wrap gap-2">
-                <Button color="primary" type="submit" isLoading={isSubmitting}>
+                <Button
+                  className="bg-[var(--accent-primary)] text-white data-[disabled=true]:bg-content3 data-[disabled=true]:text-[var(--text-secondary)]"
+                  type="submit"
+                  isLoading={isSubmitting}
+                >
                   Сохранить
                 </Button>
                 <Button variant="flat" type="button" onPress={() => void loadProfile()}>
@@ -147,8 +194,7 @@ export default function ProfilePage() {
 
         <section className="app-panel p-4">
           <Button
-            color="danger"
-            variant="flat"
+            className="w-full bg-danger-500/12 text-danger-600"
             type="button"
             onPress={() => {
               logout();

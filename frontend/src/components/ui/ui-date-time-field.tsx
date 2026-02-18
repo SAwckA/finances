@@ -2,7 +2,7 @@ import { DatePicker } from "@heroui/react";
 import type { ComponentProps } from "react";
 import { fromDateTimeValue, toDateTimeValue } from "@/lib/date-ui";
 
-type HeroDateTimeFieldProps = {
+type UiDateTimeFieldProps = {
   label: string;
   value: string;
   onChange: (nextValue: string) => void;
@@ -11,24 +11,24 @@ type HeroDateTimeFieldProps = {
   classNames?: ComponentProps<typeof DatePicker>["classNames"];
 };
 
-export function HeroDateTimeField({
+export function UiDateTimeField({
   label,
   value,
   onChange,
   className,
   isDisabled = false,
   classNames,
-}: HeroDateTimeFieldProps) {
+}: UiDateTimeFieldProps) {
   return (
     <DatePicker
       className={className}
       classNames={classNames}
       granularity="minute"
-      label={label}
-      value={toDateTimeValue(value)}
       isDisabled={isDisabled}
+      label={label}
       showMonthAndYearPickers
-      onChange={(nextValue) => onChange(fromDateTimeValue(nextValue))}
+      value={toDateTimeValue(value) as never}
+      onChange={(nextValue) => onChange(fromDateTimeValue(nextValue as never))}
     />
   );
 }

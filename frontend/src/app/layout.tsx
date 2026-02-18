@@ -3,8 +3,8 @@ import "./globals.css";
 import { Providers } from "@/app/providers";
 
 export const metadata: Metadata = {
-  title: "Finances Frontend",
-  description: "Next.js + HeroUI frontend for the finances project.",
+  title: "Финансы",
+  description: "Единый интерфейс управления личными финансами.",
 };
 
 export default function RootLayout({

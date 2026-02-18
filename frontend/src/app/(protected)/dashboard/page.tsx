@@ -4,14 +4,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRightLeft, ListChecks, Plus, Repeat, Send, WalletCards } from "lucide-react";
 import { ErrorState, LoadingState } from "@/components/async-state";
-import { ActionTile } from "@/components/ui/action-tile";
-import { AccountTile } from "@/components/ui/account-tile";
-import { BalanceHeroCard } from "@/components/ui/balance-hero-card";
-import { HeroChip } from "@/components/ui/hero-chip";
-import { HeroDateRangeField } from "@/components/ui/hero-date-range-field";
-import { HeroInlineAction } from "@/components/ui/hero-inline-action";
-import { HeroSegmented } from "@/components/ui/hero-segmented";
-import { TransactionRow } from "@/components/ui/transaction-row";
+import { UiActionTile } from "@/components/ui/ui-action-tile";
+import { UiAccountSelectTile } from "@/components/ui/ui-account-select-tile";
+import { UiBalanceSummaryCard } from "@/components/ui/ui-balance-summary-card";
+import { UiChip } from "@/components/ui/ui-chip";
+import { UiDateRangeField } from "@/components/ui/ui-date-range-field";
+import { UiInlineAction } from "@/components/ui/ui-inline-action";
+import { UiSegmentedControl } from "@/components/ui/ui-segmented-control";
+import { UiTransactionTile } from "@/components/ui/ui-transaction-tile";
 import { useAuth } from "@/features/auth/auth-context";
 import { ApiError } from "@/lib/api-client";
 import type {
@@ -26,6 +26,7 @@ import type {
 
 const FEED_PAGE_SIZE = 20;
 const DASHBOARD_SCROLL_STATE_KEY = "dashboard:return-state";
+const DASHBOARD_CURRENCY_STORAGE_KEY = "dashboard:selected-currency";
 
 type DashboardScrollState = {
   scrollY: number;
@@ -57,7 +58,7 @@ function formatAmount(value: string, currencyCode: string): string {
     return value;
   }
 
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("ru-RU", {
     style: "currency",
     currency: currencyCode,
     minimumFractionDigits: 2,
@@ -80,7 +81,7 @@ function getErrorMessage(error: unknown): string {
 function formatDateLabel(isoValue: string): string {
   const date = new Date(isoValue);
   if (Number.isNaN(date.getTime())) {
-    return "Unknown";
+    return "Неизвестно";
   }
 
   const today = new Date();
@@ -89,16 +90,16 @@ function formatDateLabel(isoValue: string): string {
   const diffDays = Math.round((startToday - startDate) / 86_400_000);
 
   if (diffDays <= 0) {
-    return "Today";
+    return "Сегодня";
   }
   if (diffDays === 1) {
-    return "Yesterday";
+    return "Вчера";
   }
   if (diffDays <= 6) {
-    return `${diffDays} days ago`;
+    return `${diffDays} дн. назад`;
   }
 
-  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date);
+  return new Intl.DateTimeFormat("ru-RU", { month: "short", day: "numeric" }).format(date);
 }
 
 function sortByNewest(items: TransactionResponse[]): TransactionResponse[] {
@@ -116,6 +117,34 @@ function shortAccountBadge(account: AccountResponse | undefined): string | null 
   return account.short_identifier;
 }
 
+function pickInitialCurrency(
+  accounts: AccountResponse[],
+  currencies: CurrencyResponse[],
+  currentCurrency: string,
+): string {
+  const available = new Set(currencies.map((currency) => currency.code));
+  if (currentCurrency && available.has(currentCurrency)) {
+    return currentCurrency;
+  }
+
+  if (typeof window !== "undefined") {
+    const stored = window.localStorage.getItem(DASHBOARD_CURRENCY_STORAGE_KEY);
+    if (stored && available.has(stored)) {
+      return stored;
+    }
+  }
+
+  const accountCurrencies = Array.from(new Set(accounts.map((account) => account.currency_code))).filter((code) =>
+    available.has(code),
+  );
+  if (accountCurrencies.length > 0) {
+    const randomIndex = Math.floor(Math.random() * accountCurrencies.length);
+    return accountCurrencies[randomIndex];
+  }
+
+  return currencies[0]?.code ?? "";
+}
+
 export default function DashboardPage() {
   const { authenticatedRequest } = useAuth();
   const tileFieldClassNames = {
@@ -125,7 +154,7 @@ export default function DashboardPage() {
     input: "text-[var(--text-primary)]",
     innerWrapper: "text-[var(--text-primary)]",
   } as const;
-  const [selectedCurrency, setSelectedCurrency] = useState("USD");
+  const [selectedCurrency, setSelectedCurrency] = useState("");
   const defaultRange = useMemo(() => getDefaultRange(), []);
   const [startDate, setStartDate] = useState(defaultRange.start);
   const [endDate, setEndDate] = useState(defaultRange.end);
@@ -204,6 +233,13 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
+    if (!selectedCurrency || typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(DASHBOARD_CURRENCY_STORAGE_KEY, selectedCurrency);
+  }, [selectedCurrency]);
+
+  useEffect(() => {
     const accountsParam = searchParams.get("accounts");
     if (!accountsParam) {
       setSelectedAccountIds((prev) => (prev.length === 0 ? prev : []));
@@ -243,40 +279,42 @@ export default function DashboardPage() {
     setIsRefreshing(true);
 
     try {
+      const [balancesData, accountsData, categoriesData, currenciesData] = await Promise.all([
+        authenticatedRequest<AccountBalanceResponse[]>("/api/statistics/balance"),
+        authenticatedRequest<AccountResponse[]>("/api/accounts?skip=0&limit=300"),
+        authenticatedRequest<CategoryResponse[]>("/api/categories?skip=0&limit=300"),
+        authenticatedRequest<CurrencyResponse[]>("/api/currencies?skip=0&limit=300"),
+      ]);
+
+      const effectiveCurrency = pickInitialCurrency(accountsData, currenciesData, selectedCurrency);
+      if (effectiveCurrency && effectiveCurrency !== selectedCurrency) {
+        setSelectedCurrency(effectiveCurrency);
+      }
+
       const query = new URLSearchParams({
         start_date: toApiDate(range.start, false),
         end_date: toApiDate(range.end, true),
       });
-      query.set("currency", selectedCurrency);
+      if (effectiveCurrency) {
+        query.set("currency", effectiveCurrency);
+      }
       if (selectedAccountIds.length > 0) {
         selectedAccountIds.forEach((accountId) => query.append("account_ids", String(accountId)));
       }
 
-      const [totalData, balancesData, summaryData, accountsData, categoriesData, currenciesData] =
-        await Promise.all([
-          authenticatedRequest<TotalBalanceResponse>(
-            `/api/statistics/total?currency=${encodeURIComponent(selectedCurrency)}`,
-          ),
-          authenticatedRequest<AccountBalanceResponse[]>("/api/statistics/balance"),
-          authenticatedRequest<PeriodStatisticsResponse>(`/api/statistics/summary?${query.toString()}`),
-          authenticatedRequest<AccountResponse[]>("/api/accounts?skip=0&limit=300"),
-          authenticatedRequest<CategoryResponse[]>("/api/categories?skip=0&limit=300"),
-          authenticatedRequest<CurrencyResponse[]>("/api/currencies?skip=0&limit=300"),
-        ]);
+      const [totalData, summaryData] = await Promise.all([
+        authenticatedRequest<TotalBalanceResponse>(
+          `/api/statistics/total?currency=${encodeURIComponent(effectiveCurrency)}`,
+        ),
+        authenticatedRequest<PeriodStatisticsResponse>(`/api/statistics/summary?${query.toString()}`),
+      ]);
 
       setTotalBalance(totalData);
-      setAccountBalances(balancesData);
       setSummary(summaryData);
+      setAccountBalances(balancesData);
       setAccounts(accountsData);
       setCategories(categoriesData);
       setCurrencies(currenciesData);
-
-      if (
-        currenciesData.length > 0 &&
-        !currenciesData.some((currency) => currency.code === selectedCurrency)
-      ) {
-        setSelectedCurrency(currenciesData[0].code);
-      }
     } catch (error) {
       setErrorMessage(getErrorMessage(error));
     } finally {
@@ -428,18 +466,18 @@ export default function DashboardPage() {
   return (
     <section className="space-y-3 pb-1">
       <section className="app-panel grid grid-cols-1 gap-3 p-3">
-        <BalanceHeroCard
+        <UiBalanceSummaryCard
           totalBalance={
             totalBalance
               ? formatAmount(totalBalance.total_balance, totalBalance.currency_code)
-              : "$0.00"
+              : "0.00"
           }
-          income={summary ? formatAmount(summary.total_income, selectedCurrency) : "$0.00"}
-          expenses={summary ? formatAmount(summary.total_expense, selectedCurrency) : "$0.00"}
+          income={summary ? formatAmount(summary.total_income, selectedCurrency) : "0.00"}
+          expenses={summary ? formatAmount(summary.total_expense, selectedCurrency) : "0.00"}
         />
 
         {currencyOptions.length > 0 ? (
-          <HeroSegmented
+          <UiSegmentedControl
             className="mx-auto max-w-[320px]"
             options={currencyOptions}
             value={selectedCurrency}
@@ -449,37 +487,37 @@ export default function DashboardPage() {
       </section>
 
       {errorMessage ? <ErrorState message={errorMessage} /> : null}
-      {isLoading ? <LoadingState message="Загружаем dashboard…" /> : null}
+      {isLoading ? <LoadingState message="Загружаем дашборд…" /> : null}
 
       {!isLoading ? (
         <section className="space-y-3">
           <section className="grid grid-cols-5 gap-2">
-            <ActionTile
-              label="Add"
+            <UiActionTile
+              label="Доход"
               icon={Plus}
               iconClassName="bg-success-500/15 text-success-600"
               href="/transactions?create=1&type=income"
             />
-            <ActionTile
-              label="Send"
+            <UiActionTile
+              label="Расход"
               icon={Send}
               iconClassName="bg-danger-500/15 text-danger-600"
               href="/transactions?create=1&type=expense"
             />
-            <ActionTile
-              label="Transfer"
+            <UiActionTile
+              label="Перевод"
               icon={ArrowRightLeft}
               iconClassName="bg-primary-500/15 text-primary-600"
               href="/transactions?create=1&type=transfer"
             />
-            <ActionTile
-              label="Shopping list"
+            <UiActionTile
+              label="Списки"
               icon={WalletCards}
               iconClassName="bg-warning-500/15 text-warning-600"
               href="/shopping-lists"
             />
-            <ActionTile
-              label="Recurring"
+            <UiActionTile
+              label="Регулярн."
               icon={Repeat}
               iconClassName="bg-secondary-500/15 text-secondary-600"
               href="/recurring"
@@ -488,11 +526,11 @@ export default function DashboardPage() {
 
           <section>
             <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-[var(--text-primary)]">Payment Sources</h2>
+              <h2 className="text-lg font-bold text-[var(--text-primary)]">Счета</h2>
               {accountBalances.length > 2 ? (
-                <HeroInlineAction onPress={() => setShowAllSources((prev) => !prev)}>
-                  {showAllSources ? "Show Less" : "Show All"}
-                </HeroInlineAction>
+                <UiInlineAction onPress={() => setShowAllSources((prev) => !prev)}>
+                  {showAllSources ? "Свернуть" : "Показать все"}
+                </UiInlineAction>
               ) : null}
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -503,7 +541,7 @@ export default function DashboardPage() {
                 }
 
                 return (
-                  <AccountTile
+                  <UiAccountSelectTile
                     key={account.account_id}
                     account={accountDetails}
                     balanceLabel={formatAmount(account.balance, account.currency_code)}
@@ -515,24 +553,24 @@ export default function DashboardPage() {
             </div>
             {selectedAccountIds.length > 0 ? (
               <div className="mt-2 flex items-center justify-between rounded-2xl bg-gradient-to-r from-content2/75 to-content1 px-3 py-2 text-xs text-[var(--text-secondary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_16px_rgba(2,6,23,0.16)]">
-                <span>Filtering by {selectedAccountIds.length} account(s)</span>
-                <HeroInlineAction
+                <span>Фильтр по счетам: {selectedAccountIds.length}</span>
+                <UiInlineAction
                   onPress={() => {
                     setSelectedAccountIds([]);
                   }}
                 >
-                  Clear
-                </HeroInlineAction>
+                  Сброс
+                </UiInlineAction>
               </div>
             ) : null}
           </section>
 
           <section>
             <div className="mb-2 flex items-center justify-between gap-2">
-              <h2 className="text-lg font-bold text-[var(--text-primary)]">Recent Transactions</h2>
+              <h2 className="text-lg font-bold text-[var(--text-primary)]">Последние транзакции</h2>
               <div className="w-[320px]">
-                <HeroDateRangeField
-                  label="Period"
+                <UiDateRangeField
+                  label="Период"
                   classNames={tileFieldClassNames}
                   value={{ startDate, endDate }}
                   onChange={(value) => {
@@ -543,14 +581,14 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="motion-stagger space-y-2">
               {isTransactionsLoading ? <LoadingState message="Загружаем операции…" /> : null}
 
               {!isTransactionsLoading && filteredTransactions.length === 0 ? (
                 <p className="rounded-2xl bg-gradient-to-b from-content2/78 to-content1 px-3 py-3 text-sm text-[var(--text-secondary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_16px_rgba(2,6,23,0.16)]">
                   {selectedAccountIds.length > 0
-                    ? "No transactions for selected accounts."
-                    : "No transactions yet."}
+                    ? "Нет операций по выбранным счетам."
+                    : "Пока нет транзакций."}
                 </p>
               ) : null}
 
@@ -571,27 +609,27 @@ export default function DashboardPage() {
                   transaction.type === "transfer" ? (
                     <>
                       {fromBadge ? (
-                        <HeroChip tone={account?.color}>{fromBadge}</HeroChip>
+                        <UiChip tone={account?.color}>{fromBadge}</UiChip>
                       ) : null}
                       <span className="text-[var(--text-secondary)]">→</span>
                       {toBadge ? (
-                        <HeroChip tone={targetAccount?.color}>{toBadge}</HeroChip>
+                        <UiChip tone={targetAccount?.color}>{toBadge}</UiChip>
                       ) : null}
                     </>
                   ) : fromBadge ? (
-                    <HeroChip tone={account?.color}>{fromBadge}</HeroChip>
+                    <UiChip tone={account?.color}>{fromBadge}</UiChip>
                   ) : null;
                 const shoppingBadge = transaction.shopping_list_id ? (
-                  <HeroChip>
+                  <UiChip>
                     <ListChecks className="h-3 w-3" aria-hidden="true" />
-                    List
-                  </HeroChip>
+                    Список
+                  </UiChip>
                 ) : null;
                 const recurringBadge = transaction.recurring_transaction_id ? (
-                  <HeroChip>
+                  <UiChip>
                     <Repeat className="h-3 w-3" aria-hidden="true" />
                     Регулярный
-                  </HeroChip>
+                  </UiChip>
                 ) : null;
                 const metaBadges =
                   shoppingBadge || recurringBadge ? (
@@ -602,9 +640,9 @@ export default function DashboardPage() {
                   ) : null;
 
                 return (
-                  <TransactionRow
+                  <UiTransactionTile
                     key={transaction.id}
-                    name={category?.name ?? account?.name ?? "Transaction"}
+                    name={category?.name ?? account?.name ?? "Операция"}
                     subtitle={subtitle}
                     amount={formatAmount(transaction.amount, accountCurrency)}
                     dateLabel={formatDateLabel(transaction.transaction_date)}

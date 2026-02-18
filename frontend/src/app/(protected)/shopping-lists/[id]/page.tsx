@@ -1,11 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { type CSSProperties, useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@heroui/react";
-import { Check, ChevronLeft, Trash2 } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Check, Plus, Trash2 } from "lucide-react";
 import { EmptyState, ErrorState, LoadingState } from "@/components/async-state";
-import { HeroChip } from "@/components/ui/hero-chip";
+import { UiChip } from "@/components/ui/ui-chip";
+import { UiTopBar } from "@/components/ui/ui-top-bar";
 import { useAuth } from "@/features/auth/auth-context";
 import { ApiError } from "@/lib/api-client";
 import { getIconOption } from "@/lib/icon-catalog";
@@ -101,6 +103,13 @@ function shortAccountBadge(account: AccountResponse | null): string | null {
   return account.short_identifier;
 }
 
+function selectedGradientStyle(color: string): CSSProperties {
+  return {
+    backgroundImage: `radial-gradient(circle at 10% 0%, ${color}3f 0%, transparent 48%), linear-gradient(135deg, ${color}30 0%, ${color}16 52%, transparent 100%), linear-gradient(135deg, color-mix(in srgb, var(--heroui-content2) 80%, transparent) 0%, color-mix(in srgb, var(--heroui-content1) 100%, transparent) 100%)`,
+    boxShadow: `0 0 0 2px ${color}66, 0 12px 24px rgba(2, 6, 23, 0.24)`,
+  };
+}
+
 export default function ShoppingListDetailPage() {
   const { authenticatedRequest } = useAuth();
   const router = useRouter();
@@ -112,7 +121,6 @@ export default function ShoppingListDetailPage() {
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
   const [currencies, setCurrencies] = useState<CurrencyResponse[]>([]);
   const [itemDraft, setItemDraft] = useState<ItemDraftState>(DEFAULT_ITEM_DRAFT);
-  const [isCreatingItem, setIsCreatingItem] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -324,7 +332,6 @@ export default function ShoppingListDetailPage() {
       };
       await authenticatedRequest(`/api/shopping-lists/${list.id}/items`, { method: "POST", body: payload });
       setItemDraft(DEFAULT_ITEM_DRAFT);
-      setIsCreatingItem(false);
       await loadData();
     } catch (error) {
       setErrorMessage(getErrorMessage(error));
@@ -383,23 +390,6 @@ export default function ShoppingListDetailPage() {
     setEditingField(null);
     setEditingName("");
     setEditingQuantity("");
-  };
-
-  const openNewItemEditor = () => {
-    if (list?.status !== "draft") {
-      return;
-    }
-    setIsCreatingItem(true);
-    setItemDraft((prev) => ({
-      ...prev,
-      name: "",
-      quantity: prev.quantity || "1",
-    }));
-  };
-
-  const closeNewItemEditor = () => {
-    setIsCreatingItem(false);
-    setItemDraft(DEFAULT_ITEM_DRAFT);
   };
 
   const handleUpdateItemName = async (itemId: number) => {
@@ -489,24 +479,21 @@ export default function ShoppingListDetailPage() {
     list && (list.total_amount === null || list.total_amount === undefined)
       ? computeTotal(list.items)
       : null;
+  const isDraftList = list?.status === "draft";
+  const isAddItemPending = list ? itemPendingKey === `add:${list.id}` : false;
+  const canSubmitNewItem = itemDraft.name.trim().length > 0;
 
   return (
     <section className="fixed inset-0 z-50 overscroll-contain bg-[var(--bg-app)]">
       <div className="mx-auto flex h-full w-full max-w-[430px] flex-col">
-        <header className="sticky top-0 z-10 rounded-[var(--radius-lg)] border-b border-[color:var(--border-soft)] bg-[color:color-mix(in_srgb,var(--bg-card)_88%,transparent)] px-3 py-2.5 backdrop-blur">
-          <div className="flex items-center justify-between gap-2">
-            <button
-              type="button"
-              onClick={handleBack}
-              className="surface-hover tap-highlight-none inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] text-[var(--text-secondary)] transition"
-              aria-label="Back"
-            >
-              <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-            </button>
-            <h2 className="text-base font-bold text-[var(--text-primary)]">Shopping List</h2>
-            <div className="w-[72px]" aria-hidden="true" />
-          </div>
-        </header>
+        <UiTopBar
+          title="Список покупок"
+          onBack={handleBack}
+          onPrimaryAction={() => void loadData()}
+          primaryLabel="Обновить"
+          className="border-b-0"
+          showSaveIcon={false}
+        />
 
         <div className="flex-1 overflow-y-auto px-3 py-3 pb-24">
           {errorMessage ? <ErrorState className="mb-3" message={errorMessage} /> : null}
@@ -571,7 +558,7 @@ export default function ShoppingListDetailPage() {
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
-                      className="flex w-full min-w-0 items-center gap-2 rounded-full border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-1.5 text-left transition hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
+                      className="interactive-hover flex w-full min-w-0 items-center gap-2 rounded-full bg-gradient-to-br from-content2/80 to-content1 px-3 py-1.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
                       onClick={() => {
                         setIsAccountPickerOpen((prev) => !prev);
                         setIsCategoryPickerOpen(false);
@@ -596,9 +583,9 @@ export default function ShoppingListDetailPage() {
                         </p>
                       </div>
                       {shortAccountBadge(account ?? null) ? (
-                        <HeroChip className="shrink-0" tone={account?.color}>
+                        <UiChip className="shrink-0" tone={account?.color}>
                           {shortAccountBadge(account ?? null)}
-                        </HeroChip>
+                        </UiChip>
                       ) : null}
                     </button>
                     {category ? (
@@ -607,7 +594,7 @@ export default function ShoppingListDetailPage() {
                         return (
                           <button
                             type="button"
-                            className="flex w-full min-w-0 items-center gap-2 rounded-full border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-1.5 text-left transition hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
+                            className="interactive-hover flex w-full min-w-0 items-center gap-2 rounded-full bg-gradient-to-br from-content2/80 to-content1 px-3 py-1.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
                             onClick={() => {
                               setIsCategoryPickerOpen((prev) => !prev);
                               setIsAccountPickerOpen(false);
@@ -629,113 +616,137 @@ export default function ShoppingListDetailPage() {
                         );
                       })()
                     ) : (
-                      <div className="flex w-full items-center rounded-full border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-1.5 text-sm font-semibold text-[var(--text-secondary)]">
+                      <div className="flex w-full items-center rounded-full bg-gradient-to-br from-content2/82 to-content1 px-3 py-1.5 text-sm font-semibold text-[var(--text-secondary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_16px_rgba(2,6,23,0.16)]">
                         Категория не найдена
                       </div>
                     )}
                   </div>
 
-                  {isAccountPickerOpen ? (
-                    <div className="w-full rounded-2xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] p-2">
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-secondary)]">
-                        Быстрая смена счета
-                      </p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {accounts.map((item) => {
-                          const active = item.id === account?.id;
-                          const Icon = getIconOption(item.icon).icon;
-                          const badge = shortAccountBadge(item);
-                          const balance = balanceByAccountId.get(item.id);
-                          return (
-                            <button
-                              key={item.id}
-                              type="button"
-                              className={`flex items-center gap-2 rounded-2xl border px-2.5 py-2 text-left transition ${
-                                active
-                                  ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/10"
-                                  : "border-[color:var(--border-soft)] bg-[var(--bg-card)]"
-                              }`}
-                              onClick={() => void handleUpdateListMeta({ account_id: item.id })}
-                              disabled={isMetaSaving}
-                            >
-                              <span
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-xl"
-                                style={{ backgroundColor: `${item.color}22`, color: item.color }}
-                              >
-                                <Icon className="h-4 w-4" aria-hidden="true" />
-                              </span>
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate text-xs font-semibold text-[var(--text-primary)]">
-                                  {item.name}
-                                </p>
-                                <div className="mt-1 flex items-center justify-between gap-2">
-                                  {badge ? (
-                                    <HeroChip className="shrink-0" tone={item.color}>
-                                      {badge}
-                                    </HeroChip>
-                                  ) : (
-                                    <span className="text-[11px] font-semibold text-[var(--text-secondary)]">
-                                      —
-                                    </span>
-                                  )}
-                                  <span className="ml-auto text-right text-[11px] font-semibold text-[var(--text-secondary)]">
-                                    {balance
-                                      ? formatAmount(balance.balance, balance.currency_code)
-                                      : "—"}
-                                  </span>
-                                </div>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {isCategoryPickerOpen ? (
-                    <div className="w-full rounded-2xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] p-2">
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-secondary)]">
-                        Быстрая смена категории
-                      </p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {categories
-                          .filter((item) => item.type === "expense")
-                          .map((item) => {
-                            const active = item.id === category?.id;
-                            const Icon = getIconOption(item.icon).icon;
-                            return (
-                              <button
-                                key={item.id}
-                                type="button"
-                                className={`flex items-center gap-2 rounded-2xl border px-2.5 py-2 text-left transition ${
-                                  active
-                                    ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/10"
-                                    : "border-[color:var(--border-soft)] bg-[var(--bg-card)]"
-                                }`}
-                                onClick={() => void handleUpdateListMeta({ category_id: item.id })}
-                                disabled={isMetaSaving}
-                              >
-                                <span
-                                  className="inline-flex h-8 w-8 items-center justify-center rounded-xl"
-                                  style={{ backgroundColor: `${item.color}22`, color: item.color }}
+                  <AnimatePresence initial={false}>
+                    {isAccountPickerOpen ? (
+                      <motion.div
+                        key="account-picker"
+                        className="overflow-hidden"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.18, ease: "easeOut" }}
+                      >
+                        <div className="w-full rounded-2xl bg-gradient-to-br from-content2/82 to-content1 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_20px_rgba(2,6,23,0.18)]">
+                          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-secondary)]">
+                            Быстрая смена счета
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {accounts.map((item) => {
+                              const active = item.id === account?.id;
+                              const Icon = getIconOption(item.icon).icon;
+                              const badge = shortAccountBadge(item);
+                              const balance = balanceByAccountId.get(item.id);
+                              return (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  className={`interactive-hover flex items-center gap-2 rounded-2xl px-2.5 py-2 text-left transition ${
+                                    active
+                                      ? "text-[var(--text-primary)]"
+                                      : "bg-gradient-to-br from-content2/80 to-content1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_22px_rgba(2,6,23,0.18)]"
+                                  }`}
+                                  style={active ? selectedGradientStyle(item.color) : undefined}
+                                  onClick={() => void handleUpdateListMeta({ account_id: item.id })}
+                                  disabled={isMetaSaving}
                                 >
-                                  <Icon className="h-4 w-4" aria-hidden="true" />
-                                </span>
-                                <span className="truncate text-xs font-semibold text-[var(--text-primary)]">
-                                  {item.name}
-                                </span>
-                              </button>
-                            );
-                          })}
-                      </div>
-                    </div>
-                  ) : null}
+                                  <span
+                                    className="inline-flex h-8 w-8 items-center justify-center rounded-xl"
+                                    style={{ backgroundColor: `${item.color}22`, color: item.color }}
+                                  >
+                                    <Icon className="h-4 w-4" aria-hidden="true" />
+                                  </span>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate text-xs font-semibold text-[var(--text-primary)]">
+                                      {item.name}
+                                    </p>
+                                    <div className="mt-1 flex items-center justify-between gap-2">
+                                      {badge ? (
+                                        <UiChip className="shrink-0" tone={item.color}>
+                                          {badge}
+                                        </UiChip>
+                                      ) : (
+                                        <span className="text-[11px] font-semibold text-[var(--text-secondary)]">
+                                          —
+                                        </span>
+                                      )}
+                                      <span className="ml-auto text-right text-[11px] font-semibold text-[var(--text-secondary)]">
+                                        {balance
+                                          ? formatAmount(balance.balance, balance.currency_code)
+                                          : "—"}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
+
+                  <AnimatePresence initial={false}>
+                    {isCategoryPickerOpen ? (
+                      <motion.div
+                        key="category-picker"
+                        className="overflow-hidden"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.18, ease: "easeOut" }}
+                      >
+                        <div className="w-full rounded-2xl bg-gradient-to-br from-content2/82 to-content1 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_20px_rgba(2,6,23,0.18)]">
+                          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-secondary)]">
+                            Быстрая смена категории
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {categories
+                              .filter((item) => item.type === "expense")
+                              .map((item) => {
+                                const active = item.id === category?.id;
+                                const Icon = getIconOption(item.icon).icon;
+                                return (
+                                  <button
+                                    key={item.id}
+                                    type="button"
+                                    className={`interactive-hover flex items-center gap-2 rounded-2xl px-2.5 py-2 text-left transition ${
+                                      active
+                                        ? "text-[var(--text-primary)]"
+                                        : "bg-gradient-to-br from-content2/80 to-content1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_22px_rgba(2,6,23,0.18)]"
+                                    }`}
+                                    style={active ? selectedGradientStyle(item.color) : undefined}
+                                    onClick={() => void handleUpdateListMeta({ category_id: item.id })}
+                                    disabled={isMetaSaving}
+                                  >
+                                    <span
+                                      className="inline-flex h-8 w-8 items-center justify-center rounded-xl"
+                                      style={{ backgroundColor: `${item.color}22`, color: item.color }}
+                                    >
+                                      <Icon className="h-4 w-4" aria-hidden="true" />
+                                    </span>
+                                    <span className="truncate text-xs font-semibold text-[var(--text-primary)]">
+                                      {item.name}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
                 </div>
                 <div className="flex items-center justify-between text-sm font-semibold text-[var(--text-primary)]">
-                  <span className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-1">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-br from-content2/82 to-content1 px-3 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_16px_rgba(2,6,23,0.16)]">
                     Товаров: <span className="text-[var(--text-secondary)]">{list.items.length}</span>
                   </span>
-                  <span className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-1">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-br from-content2/82 to-content1 px-3 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_16px_rgba(2,6,23,0.16)]">
                     Итого:{" "}
                     <span className="text-[var(--text-secondary)]">
                       {formatAmount(
@@ -795,14 +806,23 @@ export default function ShoppingListDetailPage() {
                 </div>
               </section>
 
-              <section className="space-y-2">
+              <section className="motion-stagger space-y-2">
                 {list.items.length === 0 ? (
-                  <EmptyState message="Товаров пока нет." />
+                  <article className="rounded-2xl bg-gradient-to-br from-content2/82 to-content1 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_20px_rgba(2,6,23,0.16)]">
+                    <div className="flex items-center gap-2.5">
+                      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[color:color-mix(in_srgb,var(--accent-primary)_18%,transparent)] text-[var(--accent-primary)]">
+                        <Plus className="h-4 w-4" aria-hidden="true" />
+                      </span>
+                      <p className="text-sm font-semibold text-[var(--text-secondary)]">
+                        {isDraftList ? "Добавьте первый товар" : "Товары еще не добавлены"}
+                      </p>
+                    </div>
+                  </article>
                 ) : (
                   list.items.map((item) => (
                     <article
                       key={item.id}
-                      className="flex items-center justify-between rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-2.5 py-2"
+                      className="interactive-hover flex items-center justify-between rounded-xl bg-gradient-to-br from-content2/80 to-content1 px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_16px_rgba(2,6,23,0.16)]"
                     >
                       <div className="min-w-0">
                         {editingItemId === item.id && editingField === "name" ? (
@@ -859,7 +879,7 @@ export default function ShoppingListDetailPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         {list.status === "confirmed" ? (
-                          <div className="flex items-center gap-2 rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-2 py-1.5">
+                          <div className="flex items-center gap-2 rounded-xl bg-gradient-to-br from-content2/82 to-content1 px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_16px_rgba(2,6,23,0.14)]">
                             <span className="text-xs font-semibold text-[var(--text-secondary)]">
                               {currency?.symbol ?? "₽"}
                             </span>
@@ -929,62 +949,51 @@ export default function ShoppingListDetailPage() {
                   ))
                 )}
 
-                {list.status === "draft" ? (
-                  <article className="flex items-center justify-between rounded-xl border border-dashed border-[color:var(--border-soft)] bg-[color:color-mix(in_srgb,var(--bg-card)_70%,transparent)] px-2.5 py-2">
-                    <div className="min-w-0 flex-1">
-                      {isCreatingItem ? (
+                {isDraftList ? (
+                  <article className="rounded-2xl bg-gradient-to-br from-content2/78 to-content1 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_20px_rgba(2,6,23,0.14)]">
+                    <div className="rounded-xl bg-gradient-to-br from-content2/82 to-content1 px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_16px_rgba(2,6,23,0.14)]">
+                      <div className="flex items-center gap-2">
                         <input
-                          className="w-full bg-transparent text-sm font-semibold text-[var(--text-primary)] outline-none"
+                          className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none"
                           value={itemDraft.name}
                           onChange={(event) =>
                             setItemDraft((prev) => ({ ...prev, name: event.target.value }))
                           }
-                          onBlur={() => void handleAddItem()}
                           onKeyDown={(event) => {
                             if (event.key === "Enter") {
                               event.preventDefault();
                               void handleAddItem();
                             }
-                            if (event.key === "Escape") {
+                          }}
+                          placeholder="Добавить товар"
+                        />
+                        <input
+                          className="w-[56px] rounded-lg bg-black/10 px-1.5 py-1 text-right text-xs font-semibold text-[var(--text-primary)] outline-none"
+                          inputMode="numeric"
+                          value={itemDraft.quantity}
+                          onChange={(event) =>
+                            setItemDraft((prev) => ({ ...prev, quantity: event.target.value }))
+                          }
+                          onFocus={(event) => event.target.select()}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
                               event.preventDefault();
-                              closeNewItemEditor();
+                              void handleAddItem();
                             }
                           }}
-                          placeholder="Добавить товар…"
-                          autoFocus
+                          aria-label="Количество"
                         />
-                      ) : (
                         <button
                           type="button"
-                          className="text-left text-sm font-semibold text-[var(--text-secondary)]"
-                          onClick={openNewItemEditor}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent-primary)] text-white transition hover:bg-[var(--accent-primary-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)] disabled:cursor-not-allowed disabled:opacity-65"
+                          onClick={() => void handleAddItem()}
+                          disabled={isAddItemPending || !canSubmitNewItem}
+                          aria-label={isAddItemPending ? "Добавляем" : "Добавить"}
                         >
-                          + Добавить товар
+                          <Plus className="h-4 w-4" aria-hidden="true" />
                         </button>
-                      )}
+                      </div>
                     </div>
-                    {isCreatingItem ? (
-                      <input
-                        className="w-[70px] bg-transparent text-right text-xs font-semibold text-[var(--text-primary)] outline-none"
-                        inputMode="numeric"
-                        value={itemDraft.quantity}
-                        onChange={(event) =>
-                          setItemDraft((prev) => ({ ...prev, quantity: event.target.value }))
-                        }
-                        onFocus={(event) => event.target.select()}
-                        onBlur={() => void handleAddItem()}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.preventDefault();
-                            void handleAddItem();
-                          }
-                          if (event.key === "Escape") {
-                            event.preventDefault();
-                            closeNewItemEditor();
-                          }
-                        }}
-                      />
-                    ) : null}
                   </article>
                 ) : null}
               </section>

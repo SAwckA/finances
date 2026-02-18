@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { type CSSProperties, FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Banknote, CreditCard, Landmark, Pencil, Trash2 } from "lucide-react";
+import { Banknote, Check, ChevronDown, CreditCard, Landmark, Pencil, Trash2 } from "lucide-react";
 import { EmptyState, ErrorState, LoadingState } from "@/components/async-state";
-import { TransactionEditorHeader } from "@/components/transactions/transaction-editor-header";
+import { UiTopBar } from "@/components/ui/ui-top-bar";
 import { ApiError } from "@/lib/api-client";
 import { getIconOption } from "@/lib/icon-catalog";
 import { useAuth } from "@/features/auth/auth-context";
@@ -26,6 +26,12 @@ type AccountFormState = {
   initialBalance: string;
   color: string;
   currencyCode: string;
+};
+
+const SOURCE_TYPE_TONE: Record<SourceType, string> = {
+  bank: "#4F7EF6",
+  card: "#8E5BE8",
+  cash: "#1FA66A",
 };
 
 const FORM_ID = "account-editor-form";
@@ -51,9 +57,9 @@ const SOURCE_TYPE_OPTIONS: Array<{
   iconValue: string;
   Icon: typeof Landmark;
 }> = [
-  { key: "bank", label: "Bank", iconValue: "landmark", Icon: Landmark },
-  { key: "card", label: "Card", iconValue: "credit-card", Icon: CreditCard },
-  { key: "cash", label: "Cash", iconValue: "banknote", Icon: Banknote },
+  { key: "bank", label: "Банк", iconValue: "landmark", Icon: Landmark },
+  { key: "card", label: "Карта", iconValue: "credit-card", Icon: CreditCard },
+  { key: "cash", label: "Наличные", iconValue: "banknote", Icon: Banknote },
 ];
 
 const DEFAULT_FORM: AccountFormState = {
@@ -65,22 +71,17 @@ const DEFAULT_FORM: AccountFormState = {
   currencyCode: "",
 };
 
-function toSoftBackground(hexColor: string, alpha: number): string {
-  const hex = hexColor.replace("#", "");
-  const normalized = hex.length === 3 ? hex.split("").map((char) => `${char}${char}`).join("") : hex;
-  if (normalized.length !== 6) {
-    return "rgba(148, 163, 184, 0.1)";
-  }
+const FORM_FIELD_SHELL_CLASS =
+  "mt-1 flex items-center gap-2 rounded-2xl bg-gradient-to-br from-content2/82 to-content1 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_22px_rgba(2,6,23,0.18)] transition focus-within:shadow-[0_0_0_2px_var(--ring-primary),inset_0_1px_0_rgba(255,255,255,0.1),0_12px_24px_rgba(2,6,23,0.24)]";
 
-  const value = Number.parseInt(normalized, 16);
-  if (Number.isNaN(value)) {
-    return "rgba(148, 163, 184, 0.1)";
-  }
+const FORM_FIELD_INPUT_CLASS =
+  "w-full bg-transparent py-0.5 text-base font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none";
 
-  const red = (value >> 16) & 255;
-  const green = (value >> 8) & 255;
-  const blue = value & 255;
-  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+function selectedGradientStyle(color: string): CSSProperties {
+  return {
+    backgroundImage: `radial-gradient(circle at 10% 0%, ${color}3f 0%, transparent 48%), linear-gradient(135deg, ${color}30 0%, ${color}16 52%, transparent 100%), linear-gradient(135deg, color-mix(in srgb, var(--heroui-content2) 80%, transparent) 0%, color-mix(in srgb, var(--heroui-content1) 100%, transparent) 100%)`,
+    boxShadow: `0 0 0 2px ${color}66, 0 12px 24px rgba(2, 6, 23, 0.24)`,
+  };
 }
 
 function getErrorMessage(error: unknown): string {
@@ -129,7 +130,7 @@ export default function AccountsPage() {
   const editParam = searchParams.get("edit");
   const isCreateMode = createParam === "1" || createParam === "true";
   const parsedEditId = editParam ? Number(editParam) : null;
-  const isEditMode = Number.isFinite(parsedEditId ?? Number.NaN);
+  const isEditMode = Number.isInteger(parsedEditId) && (parsedEditId as number) > 0;
   const editingId = isEditMode ? (parsedEditId as number) : null;
   const isModalOpen = isCreateMode || isEditMode;
 
@@ -223,9 +224,24 @@ export default function AccountsPage() {
     [pathname, searchParams],
   );
 
-  const closeModal = () => {
-    router.back();
-  };
+  const closeModal = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("create");
+    params.delete("edit");
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }, [pathname, router, searchParams]);
+
+  const openCreateModal = useCallback(() => {
+    router.push(buildHref("create", "1"), { scroll: false });
+  }, [buildHref, router]);
+
+  const openEditModal = useCallback(
+    (accountId: number) => {
+      router.push(buildHref("edit", String(accountId)), { scroll: false });
+    },
+    [buildHref, router],
+  );
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -261,7 +277,7 @@ export default function AccountsPage() {
             type: "income",
             account_id: createdAccount.id,
             amount: initialBalance,
-            description: "Initial balance",
+            description: "Начальный баланс",
             transaction_date: new Date().toISOString(),
             category_id: null,
             target_account_id: null,
@@ -304,105 +320,117 @@ export default function AccountsPage() {
     }
   };
 
-  return (
-    <section className="space-y-3">
-      {isModalOpen ? (
-        <section className="fixed inset-0 z-50 overscroll-contain bg-[var(--bg-app)]">
-          <div className="mx-auto flex h-full w-full max-w-[430px] flex-col">
-            <TransactionEditorHeader
-              title={editingId ? "Edit Account" : "New Account"}
-              onBack={closeModal}
-              formId={FORM_ID}
-              isSaving={isSubmitting}
-            />
-            <div className="flex-1 overflow-y-auto px-3 py-3">
-              <form id={FORM_ID} className="app-panel space-y-3 p-3" onSubmit={handleSubmit}>
-                <section>
-                  <p className="mb-1.5 text-sm font-semibold text-[var(--text-secondary)]">Source Type</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {SOURCE_TYPE_OPTIONS.map((option) => {
-                      const active = form.sourceType === option.key;
-                      return (
-                        <button
-                          key={option.key}
-                          type="button"
-                          className={`rounded-2xl border px-2 py-2.5 text-center transition ${
-                            active
-                              ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]"
-                              : "border-[color:var(--border-soft)] bg-[var(--bg-card)] text-[var(--text-secondary)]"
-                          }`}
-                          onClick={() =>
-                            setForm((prev) => ({
-                              ...prev,
-                              sourceType: option.key,
-                            }))
-                          }
+  if (isModalOpen) {
+    return (
+      <section className="fixed inset-0 z-50 overscroll-contain bg-[var(--bg-app)]">
+        <div className="mx-auto flex h-full w-full max-w-[430px] flex-col">
+          <UiTopBar
+            title={editingId ? "Редактирование счета" : "Новый счет"}
+            onBack={closeModal}
+            formId={FORM_ID}
+            isSaving={isSubmitting}
+            className="border-b-0"
+          />
+          <div className="flex-1 overflow-y-auto px-3 py-3">
+            <form id={FORM_ID} className="app-panel space-y-3 p-3" onSubmit={handleSubmit}>
+              <section>
+                <p className="mb-1.5 text-sm font-semibold text-[var(--text-secondary)]">Тип счета</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {SOURCE_TYPE_OPTIONS.map((option) => {
+                    const active = form.sourceType === option.key;
+                    const tone = SOURCE_TYPE_TONE[option.key];
+                    return (
+                      <button
+                        key={option.key}
+                        type="button"
+                        className={`interactive-hover rounded-2xl px-2 py-2.5 text-center transition ${
+                          active
+                            ? "text-[var(--text-primary)]"
+                            : "bg-gradient-to-br from-content2/80 to-content1 text-[var(--text-secondary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_22px_rgba(2,6,23,0.18)]"
+                        }`}
+                        style={active ? selectedGradientStyle(tone) : undefined}
+                        onClick={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            sourceType: option.key,
+                          }))
+                        }
+                      >
+                        <span
+                          className="mx-auto inline-flex h-8 w-8 items-center justify-center rounded-xl"
+                          style={{ backgroundColor: `${tone}22`, color: tone }}
                         >
-                          <option.Icon className="mx-auto h-4.5 w-4.5" aria-hidden="true" />
-                          <p className="mt-1 text-sm font-semibold">{option.label}</p>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </section>
+                          <option.Icon className="h-4.5 w-4.5" aria-hidden="true" />
+                        </span>
+                        <p className="mt-1 text-sm font-semibold">{option.label}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
 
-                <label className="block text-sm text-[var(--text-secondary)]">
-                  Source Name
+              <label className="block text-sm text-[var(--text-secondary)]">
+                Название счета
+                <div className={FORM_FIELD_SHELL_CLASS}>
                   <input
-                    className="mt-1 block w-full rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
+                    className={FORM_FIELD_INPUT_CLASS}
                     value={form.name}
                     name="sourceName"
                     autoComplete="off"
                     onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-                    placeholder="Enter source name…"
+                    placeholder="Введите название счета…"
                     required
                   />
-                </label>
+                </div>
+              </label>
 
-                <label className="block text-sm text-[var(--text-secondary)]">
-                  Account Number (Optional)
+              <label className="block text-sm text-[var(--text-secondary)]">
+                Номер счета (необязательно)
+                <div className={FORM_FIELD_SHELL_CLASS}>
                   <input
-                    className="mt-1 block w-full rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
+                    className={FORM_FIELD_INPUT_CLASS}
                     value={form.accountNumber}
                     name="accountNumber"
                     autoComplete="off"
                     onChange={(event) => setForm((prev) => ({ ...prev, accountNumber: event.target.value }))}
                     placeholder="**** **** **** 1234…"
                   />
-                </label>
+                </div>
+              </label>
 
-                {!editingId ? (
-                  <label className="block text-sm text-[var(--text-secondary)]">
-                    Initial Balance
-                    <div className="mt-1 flex items-center gap-2 rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2">
-                      <span className="text-lg font-semibold text-[var(--text-secondary)]">
-                        {selectedCurrency?.symbol ?? "$"}
-                      </span>
-                      <input
-                        className="w-full border-none bg-transparent text-2xl font-bold text-[var(--text-primary)] outline-none"
-                        type="number"
-                        inputMode="decimal"
-                        step="0.01"
-                        min="0"
-                        name="initialBalance"
-                        autoComplete="off"
-                        value={form.initialBalance}
-                        onChange={(event) =>
-                          setForm((prev) => ({
-                            ...prev,
-                            initialBalance: event.target.value,
-                          }))
-                        }
-                        placeholder="0.00…"
-                      />
-                    </div>
-                  </label>
-                ) : null}
-
+              {!editingId ? (
                 <label className="block text-sm text-[var(--text-secondary)]">
-                  Currency
+                  Начальный баланс
+                  <div className="mt-1 flex items-center gap-2 rounded-2xl bg-gradient-to-b from-content2/80 to-content1 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_24px_rgba(2,6,23,0.2)]">
+                    <span className="text-lg font-semibold text-[var(--text-secondary)]">
+                      {selectedCurrency?.symbol ?? "$"}
+                    </span>
+                    <input
+                      className="w-full border-none bg-transparent text-2xl font-bold text-[var(--text-primary)] outline-none"
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      min="0"
+                      name="initialBalance"
+                      autoComplete="off"
+                      value={form.initialBalance}
+                      onChange={(event) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          initialBalance: event.target.value,
+                        }))
+                      }
+                      placeholder="0.00…"
+                    />
+                  </div>
+                </label>
+              ) : null}
+
+              <label className="block text-sm text-[var(--text-secondary)]">
+                Валюта
+                <div className={`${FORM_FIELD_SHELL_CLASS} pr-2`}>
                   <select
-                    className="mt-1 block w-full rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
+                    className="w-full appearance-none bg-transparent py-0.5 text-base font-semibold text-[var(--text-primary)] outline-none"
                     value={form.currencyCode}
                     name="currencyCode"
                     autoComplete="off"
@@ -414,110 +442,129 @@ export default function AccountsPage() {
                     }
                     required
                   >
-                    <option value="">Select currency</option>
+                    <option value="">Выберите валюту</option>
                     {currencies.map((currency) => (
                       <option key={currency.code} value={currency.code}>
                         {currency.code} ({currency.symbol})
                       </option>
                     ))}
                   </select>
-                </label>
+                  <ChevronDown className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" aria-hidden="true" />
+                </div>
+              </label>
 
-                <section>
-                  <p className="mb-1.5 text-sm font-semibold text-[var(--text-secondary)]">Choose Color</p>
-                  <div className="grid grid-cols-6 gap-2">
-                    {ACCOUNT_COLOR_OPTIONS.map((color) => {
-                      const active = color === form.color;
-                      return (
-                        <button
-                          key={color}
-                          type="button"
-                          className={`h-10 rounded-xl border-2 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)] ${
-                            active ? "border-[var(--text-primary)]" : "border-transparent"
-                          }`}
-                          style={{ backgroundColor: color }}
-                          onClick={() => setForm((prev) => ({ ...prev, color }))}
-                          aria-label={color}
-                        />
-                      );
-                    })}
-                  </div>
-                </section>
+              <section>
+                <p className="mb-1.5 text-sm font-semibold text-[var(--text-secondary)]">Цвет</p>
+                <div className="grid grid-cols-6 gap-2">
+                  {ACCOUNT_COLOR_OPTIONS.map((color) => {
+                    const active = color === form.color;
+                    return (
+                      <button
+                        key={color}
+                        type="button"
+                        className={`interactive-hover relative h-10 rounded-2xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)] ${
+                          active ? "scale-[1.03]" : ""
+                        }`}
+                        style={{
+                          backgroundImage: `linear-gradient(135deg, ${color} 0%, ${color}dd 100%)`,
+                          boxShadow: active
+                            ? `0 0 0 2px ${color}88, 0 12px 24px rgba(2, 6, 23, 0.24)`
+                            : "inset 0 1px 0 rgba(255,255,255,0.2), 0 8px 16px rgba(2, 6, 23, 0.2)",
+                        }}
+                        onClick={() => setForm((prev) => ({ ...prev, color }))}
+                        aria-label={color}
+                      >
+                        {active ? (
+                          <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-black/20 text-white">
+                            <Check className="h-3 w-3" aria-hidden="true" />
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
 
-                <section className="rounded-2xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] p-3">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-secondary)]">
-                    Preview
-                  </p>
-                  <div className="rounded-2xl border border-[color:var(--border-soft)] bg-[var(--bg-app)] px-3 py-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex min-w-0 items-center gap-2.5">
-                        <span
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-white"
-                          style={{ backgroundColor: form.color }}
-                        >
-                          <PreviewIcon className="h-4.5 w-4.5" aria-hidden="true" />
-                        </span>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
-                            {form.name.trim() || "Payment Source"}
-                          </p>
-                          <p className="truncate text-xs text-[var(--text-secondary)]">
-                            {shortIdentifierFromAccountNumber(form.accountNumber) ?? "New source"}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-lg font-bold text-[var(--text-primary)]">
-                          {form.initialBalance ? Number(form.initialBalance).toFixed(2) : "0.00"}
+              <section className="rounded-2xl bg-gradient-to-br from-content2/82 to-content1 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_20px_rgba(2,6,23,0.18)]">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-secondary)]">
+                  Превью
+                </p>
+                <div className="rounded-2xl bg-gradient-to-br from-content2/75 to-content1 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <span
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-white"
+                        style={{ backgroundColor: form.color }}
+                      >
+                        <PreviewIcon className="h-4.5 w-4.5" aria-hidden="true" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
+                          {form.name.trim() || "Новый счет"}
                         </p>
-                        <p className="text-xs text-[var(--text-secondary)]">
-                          {selectedCurrency?.code ?? "Balance"}
+                        <p className="truncate text-xs text-[var(--text-secondary)]">
+                          {shortIdentifierFromAccountNumber(form.accountNumber) ?? "Новый"}
                         </p>
                       </div>
                     </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-[var(--text-primary)]">
+                        {form.initialBalance ? Number(form.initialBalance).toFixed(2) : "0.00"}
+                      </p>
+                      <p className="text-xs text-[var(--text-secondary)]">
+                        {selectedCurrency?.code ?? "Баланс"}
+                      </p>
+                    </div>
                   </div>
-                </section>
+                </div>
+              </section>
 
-                {errorMessage ? <p className="text-sm font-medium text-danger-600">{errorMessage}</p> : null}
+              {errorMessage ? <p className="text-sm font-medium text-danger-600">{errorMessage}</p> : null}
 
+              <button
+                type="submit"
+                className="w-full rounded-xl bg-[var(--accent-primary)] px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-primary-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)] disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Сохраняем…" : editingId ? "Сохранить изменения" : "Сохранить"}
+              </button>
+
+              {editingId ? (
                 <button
-                  type="submit"
-                  className="w-full rounded-xl bg-[var(--accent-primary)] px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-primary-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)] disabled:cursor-not-allowed disabled:opacity-70"
-                  disabled={isSubmitting}
+                  type="button"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-danger-400/40 bg-danger-500/10 px-3 py-2.5 text-sm font-semibold text-danger-600 transition hover:bg-danger-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-300"
+                  onClick={() => void handleDelete(editingId)}
                 >
-                  {isSubmitting ? "Saving…" : editingId ? "Save Changes" : "Save"}
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  Удалить счет
                 </button>
-
-                {editingId ? (
-                  <button
-                    type="button"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-danger-400/40 bg-danger-500/10 px-3 py-2.5 text-sm font-semibold text-danger-600 transition hover:bg-danger-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-300"
-                    onClick={() => void handleDelete(editingId)}
-                  >
-                    <Trash2 className="h-4 w-4" aria-hidden="true" />
-                    Delete Account
-                  </button>
-                ) : null}
-              </form>
-            </div>
+              ) : null}
+            </form>
           </div>
-        </section>
-      ) : null}
+        </div>
+      </section>
+    );
+  }
 
+  return (
+    <section className="space-y-3">
       <section className="app-panel p-3">
         <div className="flex items-center justify-between">
-          <h1 className="section-title text-[1.35rem] text-[var(--text-primary)]">Payment Sources</h1>
+          <h1 className="section-title text-[1.35rem] text-[var(--text-primary)]">Счета</h1>
           <Link
-            href={buildHref("create", "1")}
-            scroll={false}
+            href="#"
             className="rounded-xl bg-[var(--accent-primary)] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[var(--accent-primary-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
+            onClick={(event) => {
+              event.preventDefault();
+              void openCreateModal();
+            }}
           >
-            New
+            Добавить
           </Link>
         </div>
       </section>
 
-      <section className="space-y-2">
+      <section className="motion-stagger space-y-2">
         {errorMessage ? <ErrorState message={errorMessage} /> : null}
                 {isLoading ? <LoadingState message="Загружаем счета…" /> : null}
         {!isLoading && accounts.length === 0 ? <EmptyState message="Счета еще не добавлены." /> : null}
@@ -530,8 +577,10 @@ export default function AccountsPage() {
               return (
                 <article
                   key={account.id}
-                  className="app-panel p-3"
-                  style={{ backgroundColor: toSoftBackground(account.color, 0.12) }}
+                  className="app-panel interactive-hover p-3"
+                  style={{
+                    backgroundImage: `radial-gradient(circle at 10% 0%, ${account.color}1f 0%, transparent 42%), linear-gradient(135deg, color-mix(in srgb, var(--bg-card) 96%, transparent) 0%, color-mix(in srgb, var(--bg-card) 100%, transparent) 100%)`,
+                  }}
                 >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-2.5">
@@ -545,10 +594,9 @@ export default function AccountsPage() {
                       <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{account.name}</p>
                       {account.short_identifier ? (
                         <span
-                          className="mt-1 inline-flex max-w-full items-center rounded-lg border px-2 py-0.5 text-xs font-semibold"
+                          className="mt-1 inline-flex max-w-full items-center rounded-lg bg-[var(--surface-hover)] px-2 py-0.5 text-xs font-semibold"
                           style={{
                             backgroundColor: `${account.color}22`,
-                            borderColor: `${account.color}55`,
                             color: account.color,
                           }}
                         >
@@ -558,17 +606,20 @@ export default function AccountsPage() {
                     </div>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-2">
-                    <span className="rounded-lg border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-2 py-1 text-xs font-semibold text-[var(--text-secondary)]">
-                      {currency ? `${currency.code} (${currency.symbol})` : "Unknown currency"}
+                    <span className="rounded-lg bg-gradient-to-br from-content2/82 to-content1 px-2 py-1 text-xs font-semibold text-[var(--text-secondary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_6px_12px_rgba(2,6,23,0.14)]">
+                      {currency ? `${currency.code} (${currency.symbol})` : "Неизвестная валюта"}
                     </span>
                     <div className="flex gap-2">
                       <Link
-                        href={buildHref("edit", String(account.id))}
-                        scroll={false}
-                        className="surface-hover inline-flex items-center gap-1 rounded-lg border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-2.5 py-1.5 text-xs font-semibold text-[var(--text-secondary)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
+                        href="#"
+                        className="surface-hover inline-flex items-center gap-1 rounded-lg bg-gradient-to-br from-content2/82 to-content1 px-2.5 py-1.5 text-xs font-semibold text-[var(--text-secondary)] transition shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_6px_12px_rgba(2,6,23,0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          void openEditModal(account.id);
+                        }}
                       >
                         <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-                        Edit
+                        Изменить
                       </Link>
                     </div>
                   </div>

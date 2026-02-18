@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronLeft, Plus } from "lucide-react";
 import { EmptyState, ErrorState, LoadingState } from "@/components/async-state";
-import { SegmentedControl } from "@/components/ui/segmented-control";
-import { HeroChip } from "@/components/ui/hero-chip";
+import { UiSegmentedControl } from "@/components/ui/ui-segmented-control";
+import { UiChip } from "@/components/ui/ui-chip";
+import { UiTopBar } from "@/components/ui/ui-top-bar";
 import { useAuth } from "@/features/auth/auth-context";
 import { ApiError } from "@/lib/api-client";
 import { getIconOption } from "@/lib/icon-catalog";
@@ -195,35 +195,22 @@ export default function ShoppingListsPage() {
   return (
     <section className="fixed inset-0 z-40 overscroll-contain bg-[var(--bg-app)]">
       <div className="mx-auto flex h-full w-full max-w-[430px] flex-col">
-        <header className="sticky top-0 z-10 rounded-[var(--radius-lg)] border-b border-[color:var(--border-soft)] bg-[color:color-mix(in_srgb,var(--bg-card)_88%,transparent)] px-3 py-2.5 backdrop-blur">
-          <div className="flex items-center justify-between gap-2">
-            <button
-              type="button"
-              onClick={handleBack}
-              className="surface-hover tap-highlight-none inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] text-[var(--text-secondary)] transition"
-              aria-label="Back"
-            >
-              <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-            </button>
-            <h2 className="text-base font-bold text-[var(--text-primary)]">Shopping Lists</h2>
-            <button
-              type="button"
-              onClick={() => void createQuickList()}
-              className="inline-flex items-center gap-1 rounded-xl bg-[var(--accent-primary)] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[var(--accent-primary-strong)]"
-            >
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              New list
-            </button>
-          </div>
-        </header>
+        <UiTopBar
+          title="Списки покупок"
+          onBack={handleBack}
+          onPrimaryAction={() => void createQuickList()}
+          primaryLabel="Новый список"
+          className="border-b-0"
+          showSaveIcon={false}
+        />
 
         <div className="flex-1 overflow-y-auto px-3 py-3 pb-24">
           <section className="space-y-3">
-            <SegmentedControl
+            <UiSegmentedControl
               options={[
-                { key: "active", label: "Active" },
-                { key: "completed", label: "Completed" },
-                { key: "all", label: "All" },
+                { key: "active", label: "Активные" },
+                { key: "completed", label: "Завершенные" },
+                { key: "all", label: "Все" },
               ]}
               value={filter}
               onChange={setFilter}
@@ -248,7 +235,7 @@ export default function ShoppingListsPage() {
               ) : null}
 
               {!isLoading && lists.length > 0 ? (
-                <div className="space-y-2">
+                <div className="motion-stagger space-y-2">
                   {(filter === "active"
                     ? lists.filter(
                         (list) =>
@@ -271,7 +258,10 @@ export default function ShoppingListsPage() {
                       <Link
                         key={list.id}
                         href={`/shopping-lists/${list.id}`}
-                        className="app-panel block space-y-3 p-3 transition hover:border-[color:var(--accent-primary)] hover:shadow-[0_0_0_1px_var(--accent-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
+                        className="app-panel interactive-hover block space-y-3 p-3 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
+                        style={{
+                          backgroundImage: `radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--accent-primary) 12%, transparent) 0%, transparent 40%), linear-gradient(135deg, color-mix(in srgb, var(--bg-card) 94%, transparent) 0%, color-mix(in srgb, var(--bg-card) 100%, transparent) 100%)`,
+                        }}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
@@ -287,7 +277,7 @@ export default function ShoppingListsPage() {
                         </div>
 
                         <div className="grid grid-cols-2 gap-2">
-                          <div className="flex min-w-0 items-center gap-2 rounded-full border border-[color:var(--border-soft)] bg-[color:color-mix(in_srgb,var(--bg-card)_85%,transparent)] px-3 py-1.5">
+                          <div className="flex min-w-0 items-center gap-2 rounded-full bg-gradient-to-br from-content2/82 to-content1 px-3 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_16px_rgba(2,6,23,0.16)]">
                             <span
                               className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
                               style={{
@@ -307,10 +297,10 @@ export default function ShoppingListsPage() {
                               </p>
                             </div>
                             {shortAccountBadge(account ?? null) ? (
-                              <HeroChip className="shrink-0">{shortAccountBadge(account ?? null)}</HeroChip>
+                              <UiChip className="shrink-0">{shortAccountBadge(account ?? null)}</UiChip>
                             ) : null}
                           </div>
-                          <div className="flex min-w-0 items-center gap-2 rounded-full border border-[color:var(--border-soft)] bg-[color:color-mix(in_srgb,var(--bg-card)_85%,transparent)] px-3 py-1.5">
+                          <div className="flex min-w-0 items-center gap-2 rounded-full bg-gradient-to-br from-content2/82 to-content1 px-3 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_16px_rgba(2,6,23,0.16)]">
                             <span
                               className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
                               style={{
@@ -333,11 +323,11 @@ export default function ShoppingListsPage() {
                         </div>
 
                         <div className="flex items-center justify-between text-sm font-semibold text-[var(--text-primary)]">
-                          <span className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border-soft)] bg-[color:color-mix(in_srgb,var(--bg-card)_85%,transparent)] px-3 py-1">
+                          <span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-br from-content2/82 to-content1 px-3 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_16px_rgba(2,6,23,0.16)]">
                             Товаров:{" "}
                             <span className="text-[var(--text-secondary)]">{list.items.length}</span>
                           </span>
-                          <span className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border-soft)] bg-[color:color-mix(in_srgb,var(--bg-card)_85%,transparent)] px-3 py-1">
+                          <span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-br from-content2/82 to-content1 px-3 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_16px_rgba(2,6,23,0.16)]">
                             Итого:{" "}
                             <span className="text-[var(--text-secondary)]">
                               {formatAmount(

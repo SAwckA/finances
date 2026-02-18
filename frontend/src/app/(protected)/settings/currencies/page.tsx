@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Input } from "@heroui/react";
 import { EmptyState, ErrorState, LoadingState } from "@/components/async-state";
-import { ScreenHeader } from "@/components/screen-header";
+import { UiPageHeader } from "@/components/ui/ui-page-header";
 import { ApiError } from "@/lib/api-client";
 import { useAuth } from "@/features/auth/auth-context";
 import type { CurrencyResponse } from "@/lib/types";
@@ -62,11 +62,11 @@ export default function CurrenciesSettingsPage() {
 
   return (
     <>
-      <ScreenHeader
+      <UiPageHeader
         title="Валюты"
         description="Справочник валют для счетов и отображения финансовых сумм."
       />
-      <section className="mb-4 rounded-2xl border border-default-200 bg-white p-4">
+      <section className="app-panel mb-4 p-4">
         <Input
           label="Поиск валюты"
           placeholder="USD, EUR, ₽..."
@@ -88,13 +88,13 @@ export default function CurrenciesSettingsPage() {
 
         {!isLoading
           ? filteredCurrencies.map((currency) => (
-              <article key={currency.code} className="rounded-2xl border border-default-200 bg-white p-4">
+              <article key={currency.code} className="app-panel p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <h2 className="text-base font-semibold text-default-900">{currency.code}</h2>
-                    <p className="text-sm text-default-600">{currency.name}</p>
+                    <h2 className="text-base font-semibold text-[var(--text-primary)]">{currency.code}</h2>
+                    <p className="text-sm text-[var(--text-secondary)]">{currency.name}</p>
                   </div>
-                  <p className="text-xl font-semibold text-default-900">{currency.symbol}</p>
+                  <p className="text-xl font-semibold text-[var(--text-primary)]">{currency.symbol}</p>
                 </div>
               </article>
             ))

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState, type ComponentType } from "react";
 import {
   Bell,
   ChevronRight,
+  Coins,
   KeyRound,
   PieChart,
   Repeat,
@@ -35,72 +36,71 @@ type SettingLink = {
 
 const SETTINGS_LINKS: SettingLink[] = [
   {
+    href: "/settings/currencies",
+    title: "Валюты",
+    description: "Курсы и отображение сумм",
+    icon: Coins,
+    iconClassName: "bg-cyan-500/18 text-cyan-500",
+  },
+  {
     href: "/categories",
-    title: "Categories",
-    description: "Manage expense categories",
+    title: "Категории",
+    description: "Доходы и расходы",
     icon: Tags,
-    iconClassName:
-      "bg-[color:color-mix(in_srgb,#3b82f6_18%,transparent)] text-[#3b82f6]",
+    iconClassName: "bg-primary-500/15 text-primary-600",
   },
   {
     href: "/accounts",
-    title: "Payment Sources",
-    description: "Banks, cards & wallets",
+    title: "Счета",
+    description: "Банки, карты и наличные",
     icon: Wallet,
-    iconClassName:
-      "bg-[color:color-mix(in_srgb,#10b981_18%,transparent)] text-[#10b981]",
+    iconClassName: "bg-success-500/15 text-success-600",
   },
   {
     href: "/recurring",
-    title: "Recurring payments",
-    description: "Subscriptions and regular charges",
+    title: "Регулярные платежи",
+    description: "Подписки и автосписания",
     icon: Repeat,
-    iconClassName:
-      "bg-[color:color-mix(in_srgb,#6366f1_18%,transparent)] text-[#6366f1]",
+    iconClassName: "bg-secondary-500/15 text-secondary-600",
   },
   {
     href: "/settings/api-keys",
-    title: "API Keys",
-    description: "External integrations",
+    title: "API-ключи",
+    description: "Внешние интеграции",
     icon: KeyRound,
-    iconClassName:
-      "bg-[color:color-mix(in_srgb,#8b5cf6_18%,transparent)] text-[#8b5cf6]",
+    iconClassName: "bg-primary-500/15 text-primary-600",
     disabled: true,
   },
   {
     href: "/settings/budgets",
-    title: "Budget Settings",
-    description: "Limits & alerts",
+    title: "Лимиты бюджета",
+    description: "Ограничения и уведомления",
     icon: PieChart,
-    iconClassName:
-      "bg-[color:color-mix(in_srgb,#f59e0b_18%,transparent)] text-[#f59e0b]",
+    iconClassName: "bg-warning-500/15 text-warning-600",
     disabled: true,
   },
   {
     href: "/settings/notifications",
-    title: "Notifications",
-    description: "Alerts & reminders",
+    title: "Уведомления",
+    description: "Напоминания и события",
     icon: Bell,
-    iconClassName:
-      "bg-[color:color-mix(in_srgb,#f43f5e_18%,transparent)] text-[#f43f5e]",
+    iconClassName: "bg-danger-500/15 text-danger-600",
     disabled: true,
   },
   {
     href: "/settings/export",
-    title: "Data Export",
-    description: "CSV, PDF reports",
+    title: "Экспорт данных",
+    description: "CSV и PDF-отчеты",
     icon: Upload,
-    iconClassName:
-      "bg-[color:color-mix(in_srgb,#6366f1_18%,transparent)] text-[#6366f1]",
+    iconClassName: "bg-secondary-500/15 text-secondary-600",
     disabled: true,
   },
   {
     href: "/settings/privacy",
-    title: "Privacy & Security",
-    description: "Permissions & backup",
+    title: "Конфиденциальность",
+    description: "Безопасность и резервные копии",
     icon: Shield,
-    iconClassName:
-      "bg-[color:color-mix(in_srgb,var(--text-secondary)_12%,transparent)] text-[var(--text-secondary)]",
+    iconClassName: "bg-default-400/20 text-[var(--text-secondary)]",
     disabled: true,
   },
 ];
@@ -114,7 +114,7 @@ function getErrorMessage(error: unknown): string {
     return error.message;
   }
 
-  return "Не удалось загрузить настройки workspace.";
+  return "Не удалось загрузить настройки рабочего пространства.";
 }
 
 export default function SettingsPage() {
@@ -152,40 +152,45 @@ export default function SettingsPage() {
     <section className="space-y-3">
       <header className="app-panel overflow-hidden">
         <div className="dark-hero px-4 py-4">
-          <h1 className="text-2xl font-bold text-white/95">
-            {(user?.name ?? "User") + "'s"} Workspace
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">
+            Пространство {user?.name ?? "пользователя"}
           </h1>
-          <p className="mt-0.5 text-sm text-white/80">Personal Finance</p>
-          <p className="mt-1 text-xs font-semibold text-success-300">Active • {stats.sources} sources connected</p>
+          <p className="mt-0.5 text-sm text-[var(--text-secondary)]">Личные финансы</p>
+          <p className="mt-1 text-xs font-semibold text-cyan-600">
+            Управление данными и справочниками
+          </p>
         </div>
         <div className="grid grid-cols-3 gap-2 p-3">
-          <article className="rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] p-2.5 text-center">
-            <p className="text-2xl font-bold text-[#6366f1]">{stats.categories}</p>
-            <p className="text-xs font-semibold text-[var(--text-secondary)]">Categories</p>
+          <article className="rounded-2xl bg-gradient-to-br from-content2/82 to-content1 p-2.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_16px_rgba(2,6,23,0.14)]">
+            <p className="text-2xl font-bold text-cyan-500">{stats.categories}</p>
+            <p className="text-xs font-semibold text-[var(--text-secondary)]">Категории</p>
           </article>
-          <article className="rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] p-2.5 text-center">
-            <p className="text-2xl font-bold text-[#10b981]">{stats.sources}</p>
-            <p className="text-xs font-semibold text-[var(--text-secondary)]">Sources</p>
+          <article className="rounded-2xl bg-gradient-to-br from-content2/82 to-content1 p-2.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_16px_rgba(2,6,23,0.14)]">
+            <p className="text-2xl font-bold text-success-600">{stats.sources}</p>
+            <p className="text-xs font-semibold text-[var(--text-secondary)]">Счета</p>
           </article>
-          <article className="rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] p-2.5 text-center">
-            <p className="text-2xl font-bold text-[#f59e0b]">{stats.apiKeys}</p>
-            <p className="text-xs font-semibold text-[var(--text-secondary)]">API Keys</p>
+          <article className="rounded-2xl bg-gradient-to-br from-content2/82 to-content1 p-2.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_16px_rgba(2,6,23,0.14)]">
+            <p className="text-2xl font-bold text-warning-600">{stats.apiKeys}</p>
+            <p className="text-xs font-semibold text-[var(--text-secondary)]">API-ключи</p>
           </article>
         </div>
       </header>
 
       {errorMessage ? <ErrorState message={errorMessage} /> : null}
-      {isLoading ? <LoadingState message="Загружаем настройки workspace..." /> : null}
+      {isLoading ? <LoadingState message="Загружаем настройки..." /> : null}
 
       {!isLoading ? (
         <section className="space-y-2">
+          <p className="px-1 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-secondary)]">
+            Настройки
+          </p>
           {SETTINGS_LINKS.map((item) => {
             const Icon = item.icon;
             if (item.disabled) {
               return (
                 <article
                   key={item.title}
-                  className="app-panel flex items-center justify-between gap-3 p-3 opacity-70"
+                  className="app-panel flex items-center justify-between gap-3 p-3 opacity-75"
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     <span className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${item.iconClassName}`}>
@@ -196,15 +201,19 @@ export default function SettingsPage() {
                       <p className="truncate text-xs text-[var(--text-secondary)]">{item.description}</p>
                     </div>
                   </div>
-                  <span className="rounded-full bg-[color:color-mix(in_srgb,var(--text-secondary)_12%,transparent)] px-2 py-1 text-[10px] font-semibold uppercase text-[var(--text-secondary)]">
-                    Soon
+                  <span className="rounded-full bg-[var(--surface-hover)] px-2 py-1 text-[10px] font-semibold uppercase text-[var(--text-secondary)]">
+                    Скоро
                   </span>
                 </article>
               );
             }
 
             return (
-              <Link key={item.title} href={item.href} className="app-panel flex items-center justify-between gap-3 p-3">
+              <Link
+                key={item.title}
+                href={item.href}
+                className="app-panel interactive-hover flex items-center justify-between gap-3 p-3 transition"
+              >
                 <div className="flex min-w-0 items-center gap-3">
                   <span className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${item.iconClassName}`}>
                     <Icon className="h-4.5 w-4.5" />
@@ -214,7 +223,9 @@ export default function SettingsPage() {
                     <p className="truncate text-xs text-[var(--text-secondary)]">{item.description}</p>
                   </div>
                 </div>
-                <ChevronRight className="h-4 w-4 text-[var(--text-secondary)]" />
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-content2/82 to-content1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_6px_12px_rgba(2,6,23,0.12)]">
+                  <ChevronRight className="h-4 w-4 text-[var(--text-secondary)]" />
+                </span>
               </Link>
             );
           })}

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import { Card, CardBody, CardHeader, CardFooter } from "@heroui/react";
+import { Card, CardBody, CardFooter, CardHeader } from "@heroui/react";
 
-type HeroCardProps = {
+type UiSurfaceCardProps = {
   children: ReactNode;
   header?: ReactNode;
   footer?: ReactNode;
@@ -9,9 +9,9 @@ type HeroCardProps = {
   bodyClassName?: string;
 };
 
-export function HeroCard({ children, header, footer, className, bodyClassName }: HeroCardProps) {
+export function UiSurfaceCard({ children, header, footer, className, bodyClassName }: UiSurfaceCardProps) {
   return (
-    <Card className={className} shadow="sm">
+    <Card className={`app-panel shadow-none ${className ?? ""}`.trim()}>
       {header ? <CardHeader>{header}</CardHeader> : null}
       <CardBody className={bodyClassName}>{children}</CardBody>
       {footer ? <CardFooter>{footer}</CardFooter> : null}

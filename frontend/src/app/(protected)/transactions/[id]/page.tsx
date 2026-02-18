@@ -5,10 +5,10 @@ import { useCallback, useEffect, useState, type FormEvent, type SetStateAction }
 import { Chip } from "@heroui/react";
 import { ListChecks, Repeat } from "lucide-react";
 import { ErrorState, LoadingState } from "@/components/async-state";
-import { TransactionEditorHeader } from "@/components/transactions/transaction-editor-header";
+import { UiTopBar } from "@/components/ui/ui-top-bar";
 import { TransactionFormFields } from "@/components/transactions/transaction-form-fields";
-import { HeroChip } from "@/components/ui/hero-chip";
-import { HeroInlineAction } from "@/components/ui/hero-inline-action";
+import { UiChip } from "@/components/ui/ui-chip";
+import { UiInlineAction } from "@/components/ui/ui-inline-action";
 import { useAuth } from "@/features/auth/auth-context";
 import { ApiError } from "@/lib/api-client";
 import type {
@@ -290,8 +290,8 @@ export default function TransactionDetailsPage() {
 
   return (
     <section className="space-y-3 pb-1">
-      <TransactionEditorHeader
-        title="Edit Transaction"
+      <UiTopBar
+        title="Редактирование транзакции"
         onBack={goBack}
         formId={transaction && form ? "transaction-edit-form" : undefined}
         isSaving={isSaving}
@@ -304,20 +304,20 @@ export default function TransactionDetailsPage() {
         <form id="transaction-edit-form" className="space-y-3" onSubmit={handleSubmit}>
           <section className="app-panel space-y-3 p-3">
             <div className="flex items-center justify-between">
-              <div className="text-sm font-semibold text-[var(--text-primary)]">Details</div>
+              <div className="text-sm font-semibold text-[var(--text-primary)]">Детали</div>
               <div className="flex items-center gap-1.5">
                 {transaction.recurring_transaction_id ? (
-                  <HeroChip>
+                  <UiChip>
                     <Repeat className="h-3 w-3" aria-hidden="true" />
                     Повторяющийся платеж
-                  </HeroChip>
+                  </UiChip>
                 ) : null}
                 <Chip className={typeBadgeClass(transaction.type)} size="sm" variant="flat">
                   {transaction.type === "income"
-                    ? "Income"
+                    ? "Доход"
                     : transaction.type === "expense"
-                      ? "Expense"
-                      : "Transfer"}
+                      ? "Расход"
+                      : "Перевод"}
                 </Chip>
               </div>
             </div>
@@ -343,15 +343,15 @@ export default function TransactionDetailsPage() {
             {transaction.recurring_transaction_id ? (
               <section className="rounded-2xl bg-gradient-to-b from-content2/78 to-content1 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_20px_rgba(2,6,23,0.2)]">
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-secondary)]">
-                  Recurring Source
+                  Источник регулярного платежа
                 </p>
                 <div className="mt-2 flex items-center justify-between gap-2">
                   <p className="text-sm text-[var(--text-primary)]">
                     Операция создана из регулярного платежа #{transaction.recurring_transaction_id}
                   </p>
-                  <HeroInlineAction href={`/recurring?focus=${transaction.recurring_transaction_id}`}>
-                    Open
-                  </HeroInlineAction>
+                  <UiInlineAction href={`/recurring?focus=${transaction.recurring_transaction_id}`}>
+                    Открыть
+                  </UiInlineAction>
                 </div>
               </section>
             ) : null}
@@ -370,7 +370,7 @@ export default function TransactionDetailsPage() {
                     {shoppingListDetails?.name ?? "Список покупок"}
                   </p>
                 </div>
-                <HeroInlineAction href={`/shopping-lists/${transaction.shopping_list_id}`}>Open</HeroInlineAction>
+                <UiInlineAction href={`/shopping-lists/${transaction.shopping_list_id}`}>Открыть</UiInlineAction>
               </div>
 
               {isShoppingListLoading ? <LoadingState message="Загружаем список покупок…" /> : null}
@@ -408,7 +408,7 @@ export default function TransactionDetailsPage() {
               onClick={() => void deleteTransaction()}
               disabled={isSaving}
             >
-              Delete transaction
+              Удалить транзакцию
             </button>
           </section>
         </form>

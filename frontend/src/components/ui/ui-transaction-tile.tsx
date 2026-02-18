@@ -1,10 +1,10 @@
+import type { ReactNode } from "react";
 import { ArrowDown, ArrowRightLeft, ArrowUp } from "lucide-react";
 import { Card, CardBody } from "@heroui/react";
 import { getIconOption } from "@/lib/icon-catalog";
-import type { ReactNode } from "react";
 import type { TransactionType } from "@/lib/types";
 
-type TransactionRowProps = {
+type UiTransactionTileProps = {
   name: string;
   subtitle: ReactNode;
   amount: string;
@@ -49,7 +49,7 @@ function typeMeta(type: TransactionType): {
   };
 }
 
-export function TransactionRow({
+export function UiTransactionTile({
   name,
   subtitle,
   amount,
@@ -60,7 +60,7 @@ export function TransactionRow({
   metaBadge,
   className,
   onPress,
-}: TransactionRowProps) {
+}: UiTransactionTileProps) {
   const meta = typeMeta(type);
   const categoryOption = categoryIcon ? getIconOption(categoryIcon) : null;
   const Icon = categoryOption ? categoryOption.icon : meta.fallbackIcon;
@@ -69,24 +69,21 @@ export function TransactionRow({
     : undefined;
   const iconClassName = categoryColor ? "" : meta.iconClassName;
 
-  const cardClassName = `w-full interactive-hover bg-gradient-to-br from-content2/80 to-content1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_16px_rgba(2,6,23,0.14)] ${className ?? ""}`;
+  const cardClassName = `w-full interactive-hover bg-gradient-to-br from-content2/80 to-content1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_16px_rgba(2,6,23,0.14)] ${
+    className ?? ""
+  }`;
 
   return (
     <Card className={cardClassName} isPressable={Boolean(onPress)} onPress={onPress} shadow="none">
       <CardBody className="px-3 py-2.5">
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2.5">
-            <span
-              className={`inline-flex h-9 w-9 items-center justify-center rounded-xl ${iconClassName}`}
-              style={iconStyle}
-            >
+            <span className={`inline-flex h-9 w-9 items-center justify-center rounded-xl ${iconClassName}`} style={iconStyle}>
               <Icon className="h-4.5 w-4.5" />
             </span>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{name}</p>
-              <div className="flex flex-wrap items-center gap-1.5 text-xs text-[var(--text-secondary)]">
-                {subtitle}
-              </div>
+              <div className="flex flex-wrap items-center gap-1.5 text-xs text-[var(--text-secondary)]">{subtitle}</div>
             </div>
           </div>
           <div className="text-right">

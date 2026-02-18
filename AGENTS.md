@@ -86,3 +86,47 @@ uv.lock
 - Do not define standalone custom light/dark hex palettes in `frontend/src/app/globals.css`; map project tokens to HeroUI semantic variables and configure colors via HeroUI theme.
 - Use the dashboard quick-action hover style as the global interactive hover pattern (`interactive-hover` / `surface-hover`) for clickable cards and tiles.
 - Dashboard payment source cards must remain full-width and use the same primary hover treatment as quick-action tiles.
+
+## Frontend UI Kit v2 Standard
+
+- Используйте только semantic-компоненты `Ui*` из `frontend/src/components/ui/`:
+- `UiTopBar`: full-screen шапка для editor/detail (`Back / Title / Action`).
+- `UiPageHeader`: заголовок обычной страницы (list/settings/profile).
+- `UiSegmentedControl`: единый переключатель режимов и фильтров.
+- `UiChip`: короткие статусы, теги, ID/бейджи.
+- `UiInlineAction`: вторичное inline-действие в карточках и секциях.
+- `UiDateRangeField` и `UiDateTimeField`: все выборы периода/даты.
+- `UiActionTile`: быстрые действия на дашборде и entry points.
+- `UiBalanceSummaryCard`: сводка баланса на дашборде.
+- `UiAccountSelectTile`: выбор счета/источника средств.
+- `UiSourceTile`: компактное представление источника средств.
+- `UiTransactionTile`: строка/плитка операции в лентах.
+- `UiSurfaceCard`: базовая оболочка карточек с общим стилем.
+
+- Обязательные layout-паттерны:
+- `List`: `UiPageHeader` или верхний `app-panel`, далее список карточек в `motion-stagger`.
+- `Editor`: только full-screen (`fixed inset-0`) + `UiTopBar` + scroll-контент.
+- `Detail`: full-screen или page-layout, но шапка всегда `UiTopBar`/`UiPageHeader` и единые карточки.
+- `Auth`: hero-блок + карточка формы в токенах темы, без ad-hoc цветов.
+
+- Цвета и токены:
+- Палитра только slate/cyan через тему HeroUI в `frontend/tailwind.config.ts`.
+- В `frontend/src/app/globals.css` разрешен только token-mapping и общие utility-классы.
+- Нельзя добавлять ad-hoc hex/rgba в page-компоненты, если есть эквивалент через токены/semantic цвета.
+
+- Motion и интерактив:
+- Используйте `framer-motion` для page-enter, hover/press микро-анимаций и раскрывающихся блоков.
+- Для списков/сеток применяйте stagger (`motion-stagger` или motion-элементы).
+- Обязательно сохраняйте fallback для `prefers-reduced-motion`.
+
+- Запрещено:
+- Любые новые `Hero*`-компоненты/импорты и legacy-обертки.
+- Новые header API старого типа (`ScreenHeader`, `EditScreenHeader`, `TransactionEditorHeader`).
+- Локальные UI-стили вне общей системы токенов и `Ui*` компонентов.
+
+- Правила выбора компонентов для новых страниц:
+- Если есть выбор сущности (счет/источник) используйте `UiAccountSelectTile` или `UiSourceTile`.
+- Если есть лента операций, используйте `UiTransactionTile`.
+- Если есть режимы/фильтры типа, используйте `UiSegmentedControl`.
+- Если экран редактирует данные, используйте full-screen `UiTopBar` + секции `app-panel`.
+- Если нужен новый визуальный паттерн, сначала расширяйте `Ui*`-кит, потом применяйте на страницах.

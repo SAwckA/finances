@@ -49,7 +49,7 @@ app.include_router(router)
 app.include_router(google_oauth_router)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "http://192.168.1.135:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -65,6 +65,7 @@ async def health_check():
 uvicorn.run(
     app,
     port=8000,
+    host='0.0.0.0',
     log_config=None,
     access_log=True,
 )

@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Input } from "@heroui/react";
-import { SegmentedControl } from "@/components/ui/segmented-control";
-import { AccountTile } from "@/components/ui/account-tile";
-import { HeroChip } from "@/components/ui/hero-chip";
-import { HeroDateTimeField } from "@/components/ui/hero-date-time-field";
+import { UiSegmentedControl } from "@/components/ui/ui-segmented-control";
+import { UiAccountSelectTile } from "@/components/ui/ui-account-select-tile";
+import { UiChip } from "@/components/ui/ui-chip";
+import { UiDateTimeField } from "@/components/ui/ui-date-time-field";
 import { useAuth } from "@/features/auth/auth-context";
 import { getIconOption } from "@/lib/icon-catalog";
 import type {
@@ -55,7 +55,7 @@ function formatAmount(value: string, currencyCode: string): string {
     return value;
   }
 
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("ru-RU", {
     style: "currency",
     currency: currencyCode,
     minimumFractionDigits: 2,
@@ -65,7 +65,7 @@ function formatAmount(value: string, currencyCode: string): string {
 
 function selectedGradientStyle(color: string): React.CSSProperties {
   return {
-    backgroundImage: `radial-gradient(circle at 10% 0%, ${color}3f 0%, transparent 48%), linear-gradient(135deg, ${color}30 0%, ${color}16 52%, transparent 100%), linear-gradient(135deg, color-mix(in srgb, var(--heroui-content2, #1f2937) 80%, transparent) 0%, color-mix(in srgb, var(--heroui-content1, #111827) 100%, transparent) 100%)`,
+    backgroundImage: `radial-gradient(circle at 10% 0%, ${color}3f 0%, transparent 48%), linear-gradient(135deg, ${color}30 0%, ${color}16 52%, transparent 100%), linear-gradient(135deg, color-mix(in srgb, var(--heroui-content2) 80%, transparent) 0%, color-mix(in srgb, var(--heroui-content1) 100%, transparent) 100%)`,
     boxShadow: `0 0 0 2px ${color}66, 0 12px 24px rgba(2, 6, 23, 0.24)`,
   };
 }
@@ -216,11 +216,11 @@ export function TransactionFormFields<TFormState extends TransactionFormFieldsSt
   return (
     <div className={className ?? ""}>
       {showTypeSelector ? (
-        <SegmentedControl
+        <UiSegmentedControl
           options={[
-            { key: "expense", label: "Expense" },
-            { key: "income", label: "Income" },
-            { key: "transfer", label: "Transfer" },
+            { key: "expense", label: "Расход" },
+            { key: "income", label: "Доход" },
+            { key: "transfer", label: "Перевод" },
           ]}
           value={transactionType}
           onChange={(nextType) => onTypeChange?.(nextType)}
@@ -229,16 +229,16 @@ export function TransactionFormFields<TFormState extends TransactionFormFieldsSt
 
       <div className="mt-3 space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-[var(--text-secondary)]">Amount</span>
-          <HeroChip>
-            {selectedCurrency ? `${selectedCurrency.code} ${selectedCurrency.symbol}` : "Currency"}
-          </HeroChip>
+          <span className="text-sm text-[var(--text-secondary)]">Сумма</span>
+          <UiChip>
+            {selectedCurrency ? `${selectedCurrency.code} ${selectedCurrency.symbol}` : "Валюта"}
+          </UiChip>
         </div>
 
         <div className="rounded-2xl bg-gradient-to-b from-content2/80 to-content1 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_24px_rgba(2,6,23,0.22)] transition focus-within:shadow-[0_0_0_2px_var(--ring-primary),inset_0_1px_0_rgba(255,255,255,0.08),0_12px_26px_rgba(2,6,23,0.24)]">
           <div className="flex items-center gap-3">
             <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-secondary)]">
-              Total
+              Итого
             </span>
             <div className="h-px flex-1 bg-[color:var(--border-soft)]" />
             <button
@@ -246,7 +246,7 @@ export function TransactionFormFields<TFormState extends TransactionFormFieldsSt
               className="text-xs font-semibold text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]"
               onClick={() => setForm((prev) => ({ ...prev, amount: "" }))}
             >
-              Clear
+              Очистить
             </button>
           </div>
 
@@ -316,16 +316,16 @@ export function TransactionFormFields<TFormState extends TransactionFormFieldsSt
       </div>
 
       <section className="mt-3">
-        <p className="mb-1.5 text-base font-semibold text-default-700">Payment Source</p>
+        <p className="mb-1.5 text-base font-semibold text-default-700">Счет списания</p>
         <div className="grid grid-cols-2 gap-2">
           {accounts.map((account) => {
             const selected = String(account.id) === form.accountId;
             const balance = accountBalances.find((item) => item.account_id === account.id);
             return (
-              <AccountTile
+              <UiAccountSelectTile
                 key={account.id}
                 account={account}
-                balanceLabel={balance ? formatAmount(balance.balance, balance.currency_code) : "Balance unknown"}
+                balanceLabel={balance ? formatAmount(balance.balance, balance.currency_code) : "Баланс неизвестен"}
                 selected={selected}
                 onPress={() =>
                   setForm((prev) => ({
@@ -341,7 +341,7 @@ export function TransactionFormFields<TFormState extends TransactionFormFieldsSt
 
       {transactionType === "transfer" ? (
         <section className="mt-3">
-          <p className="mb-1.5 text-base font-semibold text-default-700">Target Source</p>
+          <p className="mb-1.5 text-base font-semibold text-default-700">Счет зачисления</p>
           <div className="grid grid-cols-2 gap-2">
             {accounts
               .filter((account) => String(account.id) !== form.accountId)
@@ -349,11 +349,11 @@ export function TransactionFormFields<TFormState extends TransactionFormFieldsSt
                 const selected = String(account.id) === form.targetAccountId;
                 const balance = accountBalances.find((item) => item.account_id === account.id);
                 return (
-                  <AccountTile
+                  <UiAccountSelectTile
                     key={account.id}
                     account={account}
                     balanceLabel={
-                      balance ? formatAmount(balance.balance, balance.currency_code) : "Balance unknown"
+                      balance ? formatAmount(balance.balance, balance.currency_code) : "Баланс неизвестен"
                     }
                     selected={selected}
                     onPress={() =>
@@ -369,7 +369,7 @@ export function TransactionFormFields<TFormState extends TransactionFormFieldsSt
         </section>
       ) : (
         <section className="mt-3">
-          <p className="mb-1.5 text-base font-semibold text-default-700">Category</p>
+          <p className="mb-1.5 text-base font-semibold text-default-700">Категория</p>
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -384,7 +384,7 @@ export function TransactionFormFields<TFormState extends TransactionFormFieldsSt
                 <span className="text-xs font-semibold">—</span>
               </span>
               <span className="text-sm font-semibold text-[var(--text-primary)]">
-                Without category
+                Без категории
               </span>
             </button>
             {formCategories.map((category) => {
@@ -426,10 +426,10 @@ export function TransactionFormFields<TFormState extends TransactionFormFieldsSt
       {transactionType === "transfer" && targetAccount ? (
         <section className="mt-3 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-[var(--text-secondary)]">You receive</span>
-            <HeroChip>
-              {targetCurrency ? `${targetCurrency.code} ${targetCurrency.symbol}` : "Currency"}
-            </HeroChip>
+            <span className="text-sm text-[var(--text-secondary)]">К зачислению</span>
+            <UiChip>
+              {targetCurrency ? `${targetCurrency.code} ${targetCurrency.symbol}` : "Валюта"}
+            </UiChip>
           </div>
           {sameCurrency ? (
             <button
@@ -451,18 +451,18 @@ export function TransactionFormFields<TFormState extends TransactionFormFieldsSt
                 }
               }}
             >
-              Amounts differ
+              Суммы различаются
             </button>
           ) : null}
           {showTargetAmount ? (
             <div className="rounded-2xl bg-gradient-to-b from-content2/80 to-content1 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_24px_rgba(2,6,23,0.22)] transition focus-within:shadow-[0_0_0_2px_var(--ring-primary),inset_0_1px_0_rgba(255,255,255,0.08),0_12px_26px_rgba(2,6,23,0.24)]">
               <div className="flex items-center gap-3">
                 <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-secondary)]">
-                  Receive
+                  Получено
                 </span>
                 <div className="h-px flex-1 bg-[color:var(--border-soft)]" />
                 {isRateLoading ? (
-                  <span className="text-xs text-[var(--text-secondary)]">Loading…</span>
+                  <span className="text-xs text-[var(--text-secondary)]">Загрузка…</span>
                 ) : null}
               </div>
               <div className="mt-3 flex items-end gap-2">
@@ -485,17 +485,17 @@ export function TransactionFormFields<TFormState extends TransactionFormFieldsSt
               </div>
               {effectiveRate ? (
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)]">
-                  <HeroChip>
-                    Rate {selectedCurrency?.code} → {targetCurrency?.code}
-                  </HeroChip>
+                  <UiChip>
+                    Курс {selectedCurrency?.code} → {targetCurrency?.code}
+                  </UiChip>
                   <span>
                     1 {selectedCurrency?.code} = {effectiveRate.toFixed(6)} {targetCurrency?.code}
                   </span>
                   {sameCurrency && percentDelta !== null ? (
-                    <HeroChip tone="#0EA5E9">
+                    <UiChip tone="var(--accent-primary)">
                       {percentDelta >= 0 ? "+" : ""}
                       {percentDelta.toFixed(2)}%
-                    </HeroChip>
+                    </UiChip>
                   ) : null}
                 </div>
               ) : null}
@@ -506,16 +506,16 @@ export function TransactionFormFields<TFormState extends TransactionFormFieldsSt
 
       <Input
         classNames={tileFieldClassNames}
-        label="Description"
+        label="Описание"
         labelPlacement="inside"
         value={form.description}
         variant="flat"
         onValueChange={(value) => setForm((prev) => ({ ...prev, description: value }))}
       />
 
-      <HeroDateTimeField
+      <UiDateTimeField
         classNames={tileFieldClassNames}
-        label="Date and time"
+        label="Дата и время"
         value={form.transactionDate}
         onChange={(value) => setForm((prev) => ({ ...prev, transactionDate: value }))}
       />

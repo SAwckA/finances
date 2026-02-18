@@ -15,8 +15,8 @@ import {
 } from "lucide-react";
 import { EmptyState, ErrorState, LoadingState } from "@/components/async-state";
 import { TransactionFormFields } from "@/components/transactions/transaction-form-fields";
-import { TransactionEditorHeader } from "@/components/transactions/transaction-editor-header";
-import { HeroDateRangeField } from "@/components/ui/hero-date-range-field";
+import { UiTopBar } from "@/components/ui/ui-top-bar";
+import { UiDateRangeField } from "@/components/ui/ui-date-range-field";
 import { useAuth } from "@/features/auth/auth-context";
 import { ApiError } from "@/lib/api-client";
 import type {
@@ -97,7 +97,7 @@ function formatAmount(value: string): string {
     return value;
   }
 
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("ru-RU", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   }).format(numeric);
@@ -139,7 +139,7 @@ function parseTransactionType(value: string | null): TransactionType | null {
 function formatDateLabel(isoValue: string): string {
   const date = new Date(isoValue);
   if (Number.isNaN(date.getTime())) {
-    return "Unknown";
+    return "Неизвестно";
   }
 
   const today = new Date();
@@ -148,16 +148,16 @@ function formatDateLabel(isoValue: string): string {
   const diffDays = Math.round((startToday - startDate) / 86_400_000);
 
   if (diffDays <= 0) {
-    return "Today";
+    return "Сегодня";
   }
   if (diffDays === 1) {
-    return "Yesterday";
+    return "Вчера";
   }
   if (diffDays <= 6) {
-    return `${diffDays} days ago`;
+    return `${diffDays} дн. назад`;
   }
 
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat("ru-RU", {
     month: "short",
     day: "numeric",
   }).format(date);
@@ -173,7 +173,7 @@ function transactionMeta(type: TransactionType): {
     return {
       amountClassName: "text-success-700",
       sign: "+",
-      label: "Income",
+      label: "Доход",
       icon: TrendingUp,
     };
   }
@@ -182,7 +182,7 @@ function transactionMeta(type: TransactionType): {
     return {
       amountClassName: "text-secondary-700",
       sign: "",
-      label: "Transfer",
+      label: "Перевод",
       icon: ArrowRightLeft,
     };
   }
@@ -190,7 +190,7 @@ function transactionMeta(type: TransactionType): {
   return {
     amountClassName: "text-danger-700",
     sign: "-",
-    label: "Expense",
+    label: "Расход",
     icon: TrendingDown,
   };
 }
@@ -536,8 +536,8 @@ export default function TransactionsPage() {
       {createMode ? (
         <section className="fixed inset-0 z-50 overscroll-contain bg-[var(--bg-app)]">
           <div className="mx-auto flex h-full w-full max-w-[430px] flex-col">
-            <TransactionEditorHeader
-              title="Add Transaction"
+            <UiTopBar
+              title="Новая транзакция"
               onBack={() => router.back()}
               formId="transaction-form"
               isSaving={isSubmitting}
@@ -580,7 +580,7 @@ export default function TransactionsPage() {
         >
           <div className="flex items-center justify-between">
             <h1 className="section-title text-[1.35rem]">
-              {editingTransactionId ? "Edit Transaction" : "Add Transaction"}
+              {editingTransactionId ? "Редактирование транзакции" : "Новая транзакция"}
             </h1>
             {editingTransactionId ? (
               <button
@@ -588,7 +588,7 @@ export default function TransactionsPage() {
                 className="rounded-lg bg-default-100 px-2.5 py-1.5 text-xs font-semibold text-default-700 transition hover:bg-default-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-default-300"
                 onClick={resetForm}
               >
-                Cancel Edit
+                Отмена
               </button>
             ) : null}
           </div>
@@ -614,7 +614,7 @@ export default function TransactionsPage() {
 
           {editingTransactionId && editingShoppingListId ? (
             <section className="app-panel space-y-2 p-3">
-              <p className="text-sm font-semibold text-default-800">Shopping list</p>
+              <p className="text-sm font-semibold text-default-800">Список покупок</p>
               {isShoppingListLoading ? (
                 <LoadingState message="Загружаем список покупок…" />
               ) : null}
@@ -645,7 +645,7 @@ export default function TransactionsPage() {
 
           {editingTransactionId && editingRecurringTransactionId ? (
             <section className="app-panel space-y-2 p-3">
-              <p className="text-sm font-semibold text-default-800">Recurring source</p>
+              <p className="text-sm font-semibold text-default-800">Источник регулярного платежа</p>
               <p className="text-xs text-default-500">
                 Эта транзакция создана из регулярного платежа #{editingRecurringTransactionId}.
               </p>
@@ -653,7 +653,7 @@ export default function TransactionsPage() {
                 href={`/recurring?focus=${editingRecurringTransactionId}`}
                 className="inline-flex w-fit items-center rounded-lg bg-default-100 px-2.5 py-1.5 text-xs font-semibold text-default-700 transition hover:bg-default-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-default-300"
               >
-                Open recurring
+                Открыть регулярный
               </Link>
             </section>
           ) : null}
@@ -664,15 +664,15 @@ export default function TransactionsPage() {
             disabled={isSubmitting}
           >
             {isSubmitting
-              ? "Saving…"
+              ? "Сохраняем…"
               : editingTransactionId
-                ? "Save Transaction"
-                : `Create ${form.type === "income" ? "Income" : form.type === "expense" ? "Expense" : "Transfer"}`}
+                ? "Сохранить"
+                : `Создать: ${form.type === "income" ? "Доход" : form.type === "expense" ? "Расход" : "Перевод"}`}
           </button>
 
         {selectedCurrency ? (
           <p className="text-center text-xs text-default-500">
-            Account currency: {selectedCurrency.code} ({selectedCurrency.symbol})
+            Валюта счета: {selectedCurrency.code} ({selectedCurrency.symbol})
           </p>
         ) : null}
         </form>
@@ -681,53 +681,57 @@ export default function TransactionsPage() {
       {!createMode ? (
         <>
           <section className="app-panel p-3">
-            <p className="mb-2 text-base font-semibold text-default-800">Filters</p>
+            <p className="mb-2 text-base font-semibold text-default-800">Фильтры</p>
             <div className="grid grid-cols-2 gap-2">
               <label className="text-sm text-default-700">
-                Type
-                <select
-                  className="mt-1 block w-full rounded-xl border border-default-300 bg-white px-3 py-2 text-sm"
-                  name="typeFilter"
-                  autoComplete="off"
-                  value={filters.type}
-                  onChange={(event) =>
-                    setFilters((prev) => ({
-                      ...prev,
-                      type: event.target.value as TransactionTypeFilter,
-                    }))
-                  }
-                >
-                  <option value="all">All</option>
-                  <option value="expense">Expense</option>
-                  <option value="income">Income</option>
-                  <option value="transfer">Transfer</option>
-                </select>
+                Тип
+                <div className="mt-1 rounded-2xl bg-gradient-to-br from-content2/82 to-content1 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_22px_rgba(2,6,23,0.18)] transition focus-within:shadow-[0_0_0_2px_var(--ring-primary),inset_0_1px_0_rgba(255,255,255,0.1),0_12px_24px_rgba(2,6,23,0.24)]">
+                  <select
+                    className="w-full bg-transparent py-0.5 text-sm font-semibold text-[var(--text-primary)] outline-none"
+                    name="typeFilter"
+                    autoComplete="off"
+                    value={filters.type}
+                    onChange={(event) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        type: event.target.value as TransactionTypeFilter,
+                      }))
+                    }
+                  >
+                    <option value="all">Все</option>
+                    <option value="expense">Расход</option>
+                    <option value="income">Доход</option>
+                    <option value="transfer">Перевод</option>
+                  </select>
+                </div>
               </label>
               <label className="text-sm text-default-700">
-                Source
-                <select
-                  className="mt-1 block w-full rounded-xl border border-default-300 bg-white px-3 py-2 text-sm"
-                  name="accountFilter"
-                  autoComplete="off"
-                  value={filters.accountId}
-                  onChange={(event) =>
-                    setFilters((prev) => ({
-                      ...prev,
-                      accountId: event.target.value,
-                    }))
-                  }
-                >
-                  <option value="all">All accounts</option>
-                  {accounts.map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {account.name}
-                    </option>
-                  ))}
-                </select>
+                Счет
+                <div className="mt-1 rounded-2xl bg-gradient-to-br from-content2/82 to-content1 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_22px_rgba(2,6,23,0.18)] transition focus-within:shadow-[0_0_0_2px_var(--ring-primary),inset_0_1px_0_rgba(255,255,255,0.1),0_12px_24px_rgba(2,6,23,0.24)]">
+                  <select
+                    className="w-full bg-transparent py-0.5 text-sm font-semibold text-[var(--text-primary)] outline-none"
+                    name="accountFilter"
+                    autoComplete="off"
+                    value={filters.accountId}
+                    onChange={(event) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        accountId: event.target.value,
+                      }))
+                    }
+                  >
+                    <option value="all">Все счета</option>
+                    {accounts.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        {account.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </label>
               <div className="col-span-2">
-                <HeroDateRangeField
-                  label="Period"
+                <UiDateRangeField
+                  label="Период"
                   value={{ startDate: filters.startDate, endDate: filters.endDate }}
                   onChange={(value) =>
                     setFilters((prev) => ({
@@ -744,13 +748,13 @@ export default function TransactionsPage() {
               className="mt-2 rounded-lg bg-default-100 px-2.5 py-1.5 text-xs font-semibold text-default-700 transition hover:bg-default-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-default-300"
               onClick={() => setFilters(DEFAULT_FILTERS)}
             >
-              Reset Filters
+              Сбросить фильтры
             </button>
           </section>
 
           {errorMessage ? <ErrorState message={errorMessage} /> : null}
 
-          <section className="space-y-2">
+          <section className="motion-stagger space-y-2">
             {isLoading ? <LoadingState message="Загружаем операции…" /> : null}
             {!isLoading && transactions.length === 0 ? (
               <EmptyState message="Операции не найдены." />
@@ -790,14 +794,14 @@ export default function TransactionsPage() {
 
                       <div className="text-sm text-default-700">
                         <p>
-                          {account?.name ?? "Unknown account"}
+                          {account?.name ?? "Неизвестный счет"}
                           {targetAccount ? ` -> ${targetAccount.name}` : ""}
                         </p>
                         {category ? <p className="text-xs text-default-500">{category.name}</p> : null}
                         {transaction.recurring_transaction_id ? (
                           <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-secondary-50 px-2 py-0.5 text-[11px] font-semibold text-secondary-700">
                             <Repeat className="h-3.5 w-3.5" />
-                            Recurring #{transaction.recurring_transaction_id}
+                            Регулярный #{transaction.recurring_transaction_id}
                           </p>
                         ) : null}
                         {transaction.description ? (
@@ -812,7 +816,7 @@ export default function TransactionsPage() {
                           onClick={() => handleEdit(transaction)}
                         >
                           <Pencil className="h-3.5 w-3.5" />
-                          Edit
+                          Изменить
                         </button>
                         <button
                           type="button"
@@ -820,7 +824,7 @@ export default function TransactionsPage() {
                           onClick={() => handleClone(transaction)}
                         >
                           <Copy className="h-3.5 w-3.5" />
-                          Clone
+                          Копия
                         </button>
                         <button
                           type="button"
@@ -828,7 +832,7 @@ export default function TransactionsPage() {
                           onClick={() => void handleDelete(transaction.id)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
-                          Delete
+                          Удалить
                         </button>
                       </div>
                     </article>
@@ -844,10 +848,10 @@ export default function TransactionsPage() {
               disabled={page <= 1 || isLoading}
               onClick={() => setPage((prev) => prev - 1)}
             >
-              Back
+              Назад
             </button>
             <p className="text-sm text-default-700">
-              Page {Math.min(page, totalPages)} / {totalPages}
+              Страница {Math.min(page, totalPages)} / {totalPages}
             </p>
             <button
               type="button"
@@ -855,7 +859,7 @@ export default function TransactionsPage() {
               disabled={isLoading || page >= totalPages}
               onClick={() => setPage((prev) => prev + 1)}
             >
-              Next
+              Далее
               <ChevronRight className="h-3.5 w-3.5" />
             </button>
           </section>

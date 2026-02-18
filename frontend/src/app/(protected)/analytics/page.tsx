@@ -1,16 +1,14 @@
 "use client";
 
 import { EmptyState } from "@/components/async-state";
+import { UiPageHeader } from "@/components/ui/ui-page-header";
 
 export default function AnalyticsPage() {
   return (
     <section className="space-y-3">
-      <section className="app-panel p-3">
-        <h1 className="section-title text-[1.2rem] text-[var(--text-primary)]">Analytics</h1>
-        <p className="section-caption">Comming soon.</p>
-      </section>
+      <UiPageHeader title="Аналитика" description="Раздел находится в активной разработке." />
 
-      <EmptyState message="Comming soon." />
+      <EmptyState message="Скоро здесь появятся детальные отчеты и тренды." />
     </section>
   );
 }

@@ -1,8 +1,8 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { type CSSProperties, FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Button, DatePicker, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger } from "@heroui/react";
+import { Button, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger } from "@heroui/react";
 import {
   ClockArrowUp,
   MoreHorizontal,
@@ -13,12 +13,11 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { EmptyState, ErrorState, LoadingState } from "@/components/async-state";
-import { TransactionEditorHeader } from "@/components/transactions/transaction-editor-header";
-import { SegmentedControl } from "@/components/ui/segmented-control";
+import { UiTopBar } from "@/components/ui/ui-top-bar";
+import { UiSegmentedControl } from "@/components/ui/ui-segmented-control";
 import { useAuth } from "@/features/auth/auth-context";
 import { ApiError } from "@/lib/api-client";
 import { getIconOption } from "@/lib/icon-catalog";
-import { fromDateValue, toDateValue } from "@/lib/date-ui";
 import type {
   AccountResponse,
   CategoryResponse,
@@ -88,6 +87,12 @@ const DEFAULT_FORM: RecurringFormState = {
   startDate: todayDateValue(),
   endDate: "",
 };
+
+const FORM_FIELD_SHELL_CLASS =
+  "mt-1 flex items-center gap-2 rounded-2xl bg-gradient-to-br from-content2/82 to-content1 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_22px_rgba(2,6,23,0.18)] transition focus-within:shadow-[0_0_0_2px_var(--ring-primary),inset_0_1px_0_rgba(255,255,255,0.1),0_12px_24px_rgba(2,6,23,0.24)]";
+
+const FORM_FIELD_INPUT_CLASS =
+  "w-full bg-transparent py-0.5 text-base font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none";
 
 function formatAmount(value: string): string {
   const numeric = Number(value);
@@ -182,6 +187,13 @@ function toSoftBackground(hexColor: string, alpha: number): string {
   return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 
+function selectedGradientStyle(color: string): CSSProperties {
+  return {
+    backgroundImage: `radial-gradient(circle at 10% 0%, ${color}3f 0%, transparent 48%), linear-gradient(135deg, ${color}30 0%, ${color}16 52%, transparent 100%), linear-gradient(135deg, color-mix(in srgb, var(--heroui-content2) 80%, transparent) 0%, color-mix(in srgb, var(--heroui-content1) 100%, transparent) 100%)`,
+    boxShadow: `0 0 0 2px ${color}66, 0 12px 24px rgba(2, 6, 23, 0.24)`,
+  };
+}
+
 export default function RecurringPage() {
   const { authenticatedRequest } = useAuth();
   const router = useRouter();
@@ -221,6 +233,10 @@ export default function RecurringPage() {
     () => categories.filter((category) => category.type === form.type),
     [categories, form.type],
   );
+  const selectedFormAccount = form.accountId ? accountById.get(Number(form.accountId)) : null;
+  const selectedFormCurrency = selectedFormAccount
+    ? currencyByCode.get(selectedFormAccount.currency_code)
+    : null;
 
   const selectedItems = view === "pending" ? pendingItems : recurringItems;
   const focusRecurringId = useMemo(() => {
@@ -542,11 +558,12 @@ export default function RecurringPage() {
     return (
       <section className="fixed inset-0 z-50 overscroll-contain bg-[var(--bg-app)]">
         <div className="mx-auto flex h-full w-full max-w-[430px] flex-col">
-          <TransactionEditorHeader
+          <UiTopBar
             title={editingId ? "Изменить регулярный платеж" : "Новый регулярный платеж"}
             onBack={closeEditor}
             formId={FORM_ID}
             isSaving={isSubmitting}
+            className="border-b-0"
           />
 
           <div className="flex-1 overflow-y-auto px-3 py-3">
@@ -557,7 +574,7 @@ export default function RecurringPage() {
                 <section>
                   <p className="mb-1.5 text-base font-semibold text-[var(--text-primary)]">Тип операции</p>
                   {!editingId ? (
-                    <SegmentedControl
+                    <UiSegmentedControl
                       options={[
                         { key: "expense", label: "Расход" },
                         { key: "income", label: "Доход" },
@@ -572,7 +589,7 @@ export default function RecurringPage() {
                       }
                     />
                   ) : (
-                    <p className="rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-sm text-[var(--text-secondary)]">
+                    <p className="rounded-xl bg-gradient-to-br from-content2/82 to-content1 px-3 py-2 text-sm text-[var(--text-secondary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_16px_rgba(2,6,23,0.14)]">
                       Тип нельзя изменить в текущем API.
                     </p>
                   )}
@@ -589,11 +606,12 @@ export default function RecurringPage() {
                           key={account.id}
                           type="button"
                           disabled={Boolean(editingId)}
-                          className={`rounded-2xl border px-2.5 py-2 text-left transition ${
+                          className={`interactive-hover rounded-2xl px-2.5 py-2 text-left transition ${
                             active
-                              ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/10"
-                              : "border-[color:var(--border-soft)] bg-[var(--bg-card)]"
+                              ? "text-[var(--text-primary)]"
+                              : "bg-gradient-to-br from-content2/80 to-content1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_22px_rgba(2,6,23,0.18)]"
                           } disabled:opacity-65`}
+                          style={active ? selectedGradientStyle(account.color) : undefined}
                           onClick={() => setForm((prev) => ({ ...prev, accountId: String(account.id) }))}
                         >
                           <div className="flex items-center gap-2">
@@ -613,13 +631,15 @@ export default function RecurringPage() {
 
                 <label className="block text-sm text-[var(--text-secondary)]">
                   Название
-                  <input
-                    className="mt-1 block w-full rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
-                    value={form.name}
-                    onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-                    placeholder="Например: Spotify Premium"
-                    required
-                  />
+                  <div className={FORM_FIELD_SHELL_CLASS}>
+                    <input
+                      className={FORM_FIELD_INPUT_CLASS}
+                      value={form.name}
+                      onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+                      placeholder="Например: Аренда квартиры"
+                      required
+                    />
+                  </div>
                 </label>
 
                 <section>
@@ -632,11 +652,12 @@ export default function RecurringPage() {
                         <button
                           key={category.id}
                           type="button"
-                          className={`rounded-2xl border px-2.5 py-2 text-left transition ${
+                          className={`interactive-hover rounded-2xl px-2.5 py-2 text-left transition ${
                             active
-                              ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/10"
-                              : "border-[color:var(--border-soft)] bg-[var(--bg-card)]"
+                              ? "text-[var(--text-primary)]"
+                              : "bg-gradient-to-br from-content2/80 to-content1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_22px_rgba(2,6,23,0.18)]"
                           }`}
+                          style={active ? selectedGradientStyle(category.color) : undefined}
                           onClick={() => setForm((prev) => ({ ...prev, categoryId: String(category.id) }))}
                         >
                           <div className="flex items-center gap-2">
@@ -658,20 +679,27 @@ export default function RecurringPage() {
 
                 <label className="block text-sm text-[var(--text-secondary)]">
                   Сумма
-                  <input
-                    className="mt-1 block w-full rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-sm text-[var(--text-primary)]"
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    value={form.amount}
-                    onChange={(event) => setForm((prev) => ({ ...prev, amount: event.target.value }))}
-                    required
-                  />
+                  <div className="mt-1 rounded-2xl bg-gradient-to-b from-content2/80 to-content1 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_24px_rgba(2,6,23,0.22)]">
+                    <div className="flex items-end gap-2">
+                      <input
+                        className="w-full bg-transparent text-3xl font-extrabold tracking-tight text-[var(--text-primary)] outline-none"
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={form.amount}
+                        onChange={(event) => setForm((prev) => ({ ...prev, amount: event.target.value }))}
+                        required
+                      />
+                      <span className="text-2xl font-extrabold text-[var(--text-secondary)]">
+                        {selectedFormCurrency?.symbol ?? "₽"}
+                      </span>
+                    </div>
+                  </div>
                 </label>
 
                 <section>
                   <p className="mb-1.5 text-base font-semibold text-[var(--text-primary)]">Периодичность</p>
-                  <SegmentedControl
+                  <UiSegmentedControl
                     options={FREQUENCY_OPTIONS.map((item) => ({ key: item.key, label: item.label }))}
                     value={form.frequency}
                     onChange={(nextFrequency) =>
@@ -694,65 +722,73 @@ export default function RecurringPage() {
                 {form.frequency === "weekly" ? (
                   <label className="block text-sm text-[var(--text-secondary)]">
                     День недели
-                    <select
-                      className="mt-1 block w-full rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-sm text-[var(--text-primary)]"
-                      value={form.dayOfWeek}
-                      onChange={(event) => setForm((prev) => ({ ...prev, dayOfWeek: event.target.value }))}
-                      required
-                    >
-                      {WEEK_DAYS.map((day) => (
-                        <option key={day.value} value={day.value}>
-                          {day.label}
-                        </option>
-                      ))}
-                    </select>
+                    <div className={FORM_FIELD_SHELL_CLASS}>
+                      <select
+                        className={FORM_FIELD_INPUT_CLASS}
+                        value={form.dayOfWeek}
+                        onChange={(event) => setForm((prev) => ({ ...prev, dayOfWeek: event.target.value }))}
+                        required
+                      >
+                        {WEEK_DAYS.map((day) => (
+                          <option key={day.value} value={day.value}>
+                            {day.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </label>
                 ) : null}
 
                 {form.frequency === "monthly" ? (
                   <label className="block text-sm text-[var(--text-secondary)]">
                     День месяца
-                    <input
-                      className="mt-1 block w-full rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-sm text-[var(--text-primary)]"
-                      type="number"
-                      min="1"
-                      max="31"
-                      value={form.dayOfMonth}
-                      onChange={(event) => setForm((prev) => ({ ...prev, dayOfMonth: event.target.value }))}
-                      required
-                    />
+                    <div className={FORM_FIELD_SHELL_CLASS}>
+                      <input
+                        className={FORM_FIELD_INPUT_CLASS}
+                        type="number"
+                        min="1"
+                        max="31"
+                        value={form.dayOfMonth}
+                        onChange={(event) => setForm((prev) => ({ ...prev, dayOfMonth: event.target.value }))}
+                        required
+                      />
+                    </div>
                   </label>
                 ) : null}
 
                 <section className="grid grid-cols-2 gap-2">
                   <label className="text-sm text-[var(--text-secondary)]">
                     Дата начала
-                    <DatePicker
-                      className="mt-1"
-                      granularity="day"
-                      value={toDateValue(form.startDate)}
-                      isDisabled={Boolean(editingId)}
-                      onChange={(value) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          startDate: fromDateValue(value),
-                        }))
-                      }
-                    />
+                    <div className={FORM_FIELD_SHELL_CLASS}>
+                      <input
+                        className={FORM_FIELD_INPUT_CLASS}
+                        disabled={Boolean(editingId)}
+                        type="date"
+                        value={form.startDate}
+                        onChange={(event) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            startDate: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
                   </label>
                   <label className="text-sm text-[var(--text-secondary)]">
                     Дата окончания
-                    <DatePicker
-                      className="mt-1"
-                      granularity="day"
-                      value={toDateValue(form.endDate)}
-                      onChange={(value) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          endDate: fromDateValue(value),
-                        }))
-                      }
-                    />
+                    <div className={FORM_FIELD_SHELL_CLASS}>
+                      <input
+                        className={FORM_FIELD_INPUT_CLASS}
+                        type="date"
+                        value={form.endDate}
+                        onChange={(event) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            endDate: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
                   </label>
                 </section>
 
@@ -780,7 +816,7 @@ export default function RecurringPage() {
         </div>
       </section>
 
-      <SegmentedControl
+      <UiSegmentedControl
         options={[
           { key: "all", label: "Все" },
           { key: "active", label: "Активные" },
@@ -793,7 +829,7 @@ export default function RecurringPage() {
 
       {errorMessage ? <ErrorState className="mb-3" message={errorMessage} /> : null}
 
-      <section className="space-y-3">
+      <section className="motion-stagger space-y-3">
         {isLoading ? <LoadingState message="Загружаем регулярные операции..." /> : null}
 
         {!isLoading && selectedItems.length === 0 ? (
@@ -814,19 +850,19 @@ export default function RecurringPage() {
               return (
                 <article
                   key={item.id}
-                  className={`app-panel p-3 ${
+                  className={`app-panel interactive-hover p-3 ${
                     item.is_active
-                      ? "border-[color:var(--border-soft)] bg-[var(--bg-card)]"
-                      : "border-[color:var(--border-soft)] bg-[color:color-mix(in_srgb,var(--bg-card)_78%,var(--surface-hover)_22%)]"
+                      ? "bg-gradient-to-br from-content2/80 to-content1"
+                      : "bg-gradient-to-br from-content2/70 to-content1/90 opacity-90"
                   } ${focusRecurringId === item.id ? "ring-2 ring-secondary-300" : ""}`}
                 >
                   <div className="mb-2 flex items-start justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-2">
                       <span
-                        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold ${
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
                           isIncome
-                              ? "border-success-400/40 bg-success-500/15 text-success-600 dark:text-success-300"
-                              : "border-danger-400/40 bg-danger-500/15 text-danger-600 dark:text-danger-300"
+                              ? "bg-success-500/15 text-success-600 dark:text-success-300"
+                              : "bg-danger-500/15 text-danger-600 dark:text-danger-300"
                         }`}
                       >
                         {isIncome ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
@@ -887,7 +923,7 @@ export default function RecurringPage() {
                     <div className="flex min-w-0 items-center gap-2">
                       {account && AccountIcon ? (
                         <span
-                          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-black/10"
+                          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
                           style={{
                             backgroundColor: toSoftBackground(account.color, 0.18),
                             color: account.color,
@@ -930,7 +966,7 @@ export default function RecurringPage() {
                     <div className="flex min-w-0 items-center gap-2">
                       {category && CategoryIcon ? (
                         <span
-                          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-black/10"
+                          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
                           style={{
                             backgroundColor: toSoftBackground(category.color, 0.18),
                             color: category.color,

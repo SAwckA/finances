@@ -2,66 +2,90 @@
 @import "tailwindcss";
 
 :root {
-  --bg-app: var(--heroui-background, #f4f7ff);
-  --bg-card: var(--heroui-content1, #ffffff);
-  --bg-surface-dark: var(--heroui-content2, #111827);
-  --bg-surface-dark-soft: var(--heroui-content3, #1f2937);
-  --text-primary: var(--heroui-foreground, #11181c);
-  --text-secondary: var(--heroui-foreground-500, #687076);
-  --text-on-dark: var(--heroui-foreground, #ecedee);
-  --accent-primary: var(--heroui-primary, #006fee);
-  --accent-primary-strong: var(--heroui-primary-600, #005bc4);
-  --accent-success: var(--heroui-success, #17c964);
-  --accent-danger: var(--heroui-danger, #f31260);
-  --accent-warning: var(--heroui-warning, #f5a524);
-  --border-soft: var(--heroui-divider, var(--heroui-default-200, #d4d4d8));
-  --ring-primary: color-mix(in srgb, var(--accent-primary) 32%, transparent);
+  --bg-app: var(--heroui-background);
+  --bg-card: var(--heroui-content1);
+  --bg-muted: var(--heroui-content2);
+  --bg-soft: var(--heroui-content3);
+  --text-primary: var(--heroui-foreground);
+  --text-secondary: var(--heroui-foreground-500);
+  --text-on-dark: var(--heroui-foreground);
+  --accent-primary: var(--heroui-primary);
+  --accent-primary-strong: var(--heroui-primary-600);
+  --accent-success: var(--heroui-success);
+  --accent-danger: var(--heroui-danger);
+  --accent-warning: var(--heroui-warning);
+  --border-soft: var(--heroui-divider);
+  --ring-primary: color-mix(in srgb, var(--accent-primary) 36%, transparent);
   --radius-md: 14px;
   --radius-lg: 18px;
   --radius-xl: 22px;
-  --shadow-soft: 0 6px 16px rgba(15, 23, 42, 0.06);
-  --shadow-strong: 0 14px 28px rgba(15, 23, 42, 0.14);
-  --input-bg: var(--heroui-content1, #ffffff);
-  --surface-hover: var(--heroui-default-100, #f4f4f5);
-  --skeleton-base: var(--heroui-content2, #e6eefc);
-  --skeleton-shimmer: var(--heroui-content3, #f3f7ff);
+  --shadow-soft: 0 8px 18px rgba(2, 6, 23, 0.1);
+  --shadow-strong: 0 18px 34px rgba(2, 6, 23, 0.18);
+  --input-bg: var(--heroui-content1);
+  --surface-hover: color-mix(in srgb, var(--heroui-content2) 75%, var(--heroui-content1));
+  --skeleton-base: color-mix(in srgb, var(--heroui-content2) 82%, var(--heroui-content1));
+  --skeleton-shimmer: color-mix(in srgb, var(--heroui-content3) 78%, var(--heroui-content1));
+  --nav-shell-bg: linear-gradient(180deg, #e9f1f8 0%, #dde8f2 100%);
+  --nav-shell-solid: #e3edf6;
+  --nav-shell-shadow:
+    0 -12px 28px rgba(15, 23, 42, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  --nav-chip-bg: linear-gradient(180deg, #dbe8f4 0%, #cfdfec 100%);
+  --nav-chip-text: #334155;
+  --nav-chip-active-bg: linear-gradient(180deg, #c7f1fb 0%, #afe9f7 100%);
+  --nav-chip-active-text: #0e7490;
+  --nav-chip-active-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 8px 18px rgba(6, 182, 212, 0.2);
   color-scheme: light;
 }
 
 :root[data-theme="dark"] {
-  --bg-app: var(--heroui-background, #0b0f19);
-  --bg-card: var(--heroui-content1, #111827);
-  --bg-surface-dark: var(--heroui-content2, #0f172a);
-  --bg-surface-dark-soft: var(--heroui-content3, #1f2937);
-  --text-primary: var(--heroui-foreground, #ecedee);
-  --text-secondary: var(--heroui-foreground-500, #a1a1aa);
-  --text-on-dark: var(--heroui-foreground, #ecedee);
-  --accent-primary: var(--heroui-primary, #338ef7);
-  --accent-primary-strong: var(--heroui-primary-600, #006fee);
-  --accent-success: var(--heroui-success, #17c964);
-  --accent-danger: var(--heroui-danger, #f31260);
-  --accent-warning: var(--heroui-warning, #f5a524);
-  --border-soft: var(--heroui-divider, var(--heroui-default-300, #27272a));
+  --bg-app: var(--heroui-background);
+  --bg-card: var(--heroui-content1);
+  --bg-muted: var(--heroui-content2);
+  --bg-soft: var(--heroui-content3);
+  --text-primary: var(--heroui-foreground);
+  --text-secondary: var(--heroui-foreground-500);
+  --text-on-dark: var(--heroui-foreground);
+  --accent-primary: var(--heroui-primary);
+  --accent-primary-strong: var(--heroui-primary-600);
+  --accent-success: var(--heroui-success);
+  --accent-danger: var(--heroui-danger);
+  --accent-warning: var(--heroui-warning);
+  --border-soft: var(--heroui-divider);
   --ring-primary: color-mix(in srgb, var(--accent-primary) 44%, transparent);
   --shadow-soft: 0 8px 20px rgba(2, 6, 23, 0.34);
-  --shadow-strong: 0 16px 34px rgba(2, 6, 23, 0.44);
-  --input-bg: var(--heroui-content1, #111827);
-  --surface-hover: var(--heroui-content3, #1f2937);
-  --skeleton-base: var(--heroui-content2, #1f2937);
-  --skeleton-shimmer: var(--heroui-content3, #273549);
+  --shadow-strong: 0 18px 36px rgba(2, 6, 23, 0.44);
+  --input-bg: var(--heroui-content1);
+  --surface-hover: color-mix(in srgb, var(--heroui-content3) 85%, var(--heroui-content2));
+  --skeleton-base: color-mix(in srgb, var(--heroui-content2) 84%, var(--heroui-content1));
+  --skeleton-shimmer: color-mix(in srgb, var(--heroui-content3) 78%, var(--heroui-content1));
+  --nav-shell-bg: linear-gradient(180deg, #0f1f33 0%, #0b1729 100%);
+  --nav-shell-solid: #0d1a2d;
+  --nav-shell-shadow:
+    0 -16px 40px rgba(2, 6, 23, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --nav-chip-bg: linear-gradient(180deg, #132942 0%, #102239 100%);
+  --nav-chip-text: #cbd5e1;
+  --nav-chip-active-bg: linear-gradient(180deg, #13304d 0%, #0f2740 100%);
+  --nav-chip-active-text: #67e8f9;
+  --nav-chip-active-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 8px 16px rgba(6, 182, 212, 0.16);
   color-scheme: dark;
 }
 
 body {
   background:
-    radial-gradient(circle at 20% -10%, color-mix(in srgb, var(--accent-primary) 8%, transparent) 0%, transparent 42%),
-    radial-gradient(circle at 120% 120%, color-mix(in srgb, var(--accent-success) 5%, transparent) 0%, transparent 44%),
+    radial-gradient(circle at 18% -14%, color-mix(in srgb, var(--accent-primary) 11%, transparent) 0%, transparent 42%),
+    radial-gradient(circle at 110% 120%, color-mix(in srgb, var(--accent-success) 8%, transparent) 0%, transparent 46%),
     var(--bg-app);
-  font-family: "Manrope", "Inter", sans-serif;
   color: var(--text-primary);
+  font-family: "Manrope", "Inter", sans-serif;
   min-height: 100vh;
-  -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 @layer base {
@@ -73,24 +97,19 @@ body {
     background:
       linear-gradient(
         180deg,
-        color-mix(in srgb, var(--input-bg) 92%, white 8%) 0%,
+        color-mix(in srgb, var(--input-bg) 93%, white 7%) 0%,
         color-mix(in srgb, var(--input-bg) 100%, transparent) 100%
-      );
+    );
+    box-shadow: none;
     color: var(--text-primary);
     outline: none;
-    box-shadow:
-      inset 0 1px 0 color-mix(in srgb, var(--heroui-foreground, #fff) 10%, transparent),
-      0 8px 18px color-mix(in srgb, black 14%, transparent);
-    transition: box-shadow 150ms ease, background-color 150ms ease;
+    transition: background-color 160ms ease;
   }
 
   input:focus,
   select:focus,
   textarea:focus {
-    box-shadow:
-      inset 0 1px 0 color-mix(in srgb, var(--heroui-foreground, #fff) 16%, transparent),
-      0 0 0 2px color-mix(in srgb, var(--accent-primary) 42%, transparent),
-      0 10px 20px color-mix(in srgb, var(--accent-primary) 18%, transparent);
+    box-shadow: none;
   }
 
   button:focus-visible,
@@ -125,31 +144,30 @@ body {
     border: 0;
     border-radius: var(--radius-lg);
     background:
-      radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--accent-primary) 9%, transparent) 0%, transparent 42%),
+      radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--accent-primary) 7%, transparent) 0%, transparent 42%),
       linear-gradient(
         180deg,
-        color-mix(in srgb, var(--bg-card) 92%, white 8%) 0%,
+        color-mix(in srgb, var(--bg-card) 93%, white 7%) 0%,
         color-mix(in srgb, var(--bg-card) 100%, transparent) 100%
       );
     box-shadow:
-      inset 0 1px 0 color-mix(in srgb, var(--heroui-foreground, #fff) 10%, transparent),
+      inset 0 1px 0 color-mix(in srgb, white 10%, transparent),
       var(--shadow-soft);
   }
 
   .section-title {
-    font-size: 1.125rem;
-    line-height: 1.4;
-    font-weight: 700;
     color: var(--text-primary);
+    font-size: 1.125rem;
+    font-weight: 700;
+    line-height: 1.4;
   }
 
   .section-caption {
+    color: var(--text-secondary);
     font-size: 0.875rem;
     line-height: 1.35;
-    color: var(--text-secondary);
   }
 
-  /* Subtle hover for small surface controls (chips, icon buttons, etc.). */
   .surface-hover {
     transition: background-color 180ms ease, box-shadow 180ms ease;
   }
@@ -159,11 +177,10 @@ body {
   .surface-hover[data-pressed="true"] {
     background-color: var(--surface-hover);
     box-shadow:
-      inset 0 1px 0 color-mix(in srgb, var(--heroui-foreground, #fff) 10%, transparent),
-      0 0 0 1px color-mix(in srgb, var(--border-soft) 82%, var(--accent-primary) 18%);
+      inset 0 1px 0 color-mix(in srgb, white 10%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--border-soft) 80%, var(--accent-primary) 20%);
   }
 
-  /* Primary hover pattern for clickable cards and tiles (dashboard quick actions). */
   .interactive-hover {
     transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
     will-change: transform, box-shadow;
@@ -174,20 +191,99 @@ body {
   .interactive-hover[data-pressed="true"] {
     transform: translateY(-0.125rem);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16),
       0 14px 28px rgba(2, 6, 23, 0.24);
   }
 
   .dark-hero {
     color: var(--text-on-dark);
     background:
-      radial-gradient(circle at 18% 0%, #2f72ff 0%, transparent 46%),
-      radial-gradient(circle at 95% 100%, #0b7fcf 0%, transparent 42%),
-      linear-gradient(180deg, var(--bg-surface-dark) 0%, #141f34 100%);
+      radial-gradient(circle at 18% 0%, color-mix(in srgb, var(--accent-primary) 38%, transparent) 0%, transparent 46%),
+      radial-gradient(circle at 95% 100%, color-mix(in srgb, var(--accent-success) 26%, transparent) 0%, transparent 42%),
+      linear-gradient(180deg, color-mix(in srgb, var(--bg-soft) 92%, black 8%) 0%, color-mix(in srgb, var(--bg-muted) 96%, black 4%) 100%);
+  }
+
+  :root:not([data-theme="dark"]) .dark-hero {
+    color: var(--text-primary);
+    background:
+      radial-gradient(circle at 18% 0%, rgba(6, 182, 212, 0.16) 0%, transparent 46%),
+      radial-gradient(circle at 95% 100%, rgba(16, 185, 129, 0.1) 0%, transparent 42%),
+      linear-gradient(180deg, #e8f2fb 0%, #dce8f3 100%);
   }
 
   .tap-highlight-none {
     -webkit-tap-highlight-color: transparent;
+  }
+
+  .nav-shell-surface {
+    background-color: var(--nav-shell-solid);
+    background: var(--nav-shell-bg);
+    box-shadow: var(--nav-shell-shadow);
+    opacity: 1;
+    backdrop-filter: none;
+  }
+
+  .nav-chip-idle {
+    background: transparent;
+    color: var(--nav-chip-text);
+  }
+
+  .nav-chip-solid {
+    background: var(--nav-chip-bg);
+    color: var(--nav-chip-text);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  }
+
+  .nav-chip-solid:hover {
+    color: var(--text-primary);
+  }
+
+  .nav-chip-idle:hover {
+    background: var(--nav-chip-bg);
+    color: var(--text-primary);
+  }
+
+  .nav-chip-active {
+    background: var(--nav-chip-active-bg);
+    color: var(--nav-chip-active-text);
+    box-shadow: var(--nav-chip-active-shadow);
+  }
+
+  .motion-enter {
+    animation: motion-fade-slide-up 220ms ease both;
+  }
+
+  .motion-enter-delayed {
+    animation: motion-fade-slide-up 260ms ease 40ms both;
+  }
+
+  .motion-stagger > * {
+    animation: motion-fade-slide-up 220ms ease both;
+  }
+
+  .motion-stagger > *:nth-child(1) {
+    animation-delay: 0ms;
+  }
+
+  .motion-stagger > *:nth-child(2) {
+    animation-delay: 30ms;
+  }
+
+  .motion-stagger > *:nth-child(3) {
+    animation-delay: 60ms;
+  }
+
+  .motion-stagger > *:nth-child(4) {
+    animation-delay: 90ms;
+  }
+
+  .motion-stagger > *:nth-child(5) {
+    animation-delay: 120ms;
+  }
+
+  .motion-collapsible {
+    overflow: clip;
+    transition: grid-template-rows 180ms ease, opacity 180ms ease;
   }
 }
 
@@ -200,11 +296,15 @@ body {
   }
 }
 
-:root[data-theme="dark"] body {
-  background:
-    radial-gradient(circle at 20% -10%, color-mix(in srgb, var(--accent-primary) 12%, transparent) 0%, transparent 44%),
-    radial-gradient(circle at 110% 120%, color-mix(in srgb, var(--accent-success) 7%, transparent) 0%, transparent 46%),
-    var(--bg-app);
+@keyframes motion-fade-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 :root[data-theme="dark"] .surface-hover:hover,
@@ -212,7 +312,7 @@ body {
 :root[data-theme="dark"] .surface-hover[data-pressed="true"] {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 0 0 1px color-mix(in srgb, var(--heroui-content3, #1f2937) 66%, var(--accent-primary) 34%);
+    0 0 0 1px color-mix(in srgb, var(--heroui-content3) 66%, var(--accent-primary) 34%);
 }
 
 :root[data-theme="dark"] .interactive-hover:hover,
@@ -221,4 +321,15 @@ body {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     0 12px 22px rgba(2, 6, 23, 0.34);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
 }

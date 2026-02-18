@@ -1,22 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Accordion,
-  AccordionItem,
-  Button,
-  Input,
-  Modal,
-  ModalBody,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  useDisclosure,
-} from "@heroui/react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Accordion, AccordionItem, Button, Input } from "@heroui/react";
 import { CopyPlus, Plus, Trash2 } from "lucide-react";
 import { EmptyState, ErrorState, LoadingState } from "@/components/async-state";
 import { ColorPickerField } from "@/components/color-picker-field";
 import { IconPickerField } from "@/components/icon-picker-field";
+import { UiTopBar } from "@/components/ui/ui-top-bar";
 import { useAuth } from "@/features/auth/auth-context";
 import { ApiError } from "@/lib/api-client";
 import { getIconOption } from "@/lib/icon-catalog";
@@ -49,6 +41,9 @@ type CreateListFormState = {
   categoryId: string;
 };
 
+const TEMPLATE_FORM_ID = "shopping-template-editor-form";
+const CREATE_LIST_FORM_ID = "shopping-template-create-list-form";
+
 const DEFAULT_TEMPLATE_FORM: TemplateFormState = {
   name: "",
   color: "#2563EB",
@@ -68,6 +63,12 @@ const DEFAULT_CREATE_LIST_FORM: CreateListFormState = {
   accountId: "",
   categoryId: "",
 };
+
+const FORM_FIELD_SHELL_CLASS =
+  "mt-1 flex items-center gap-2 rounded-2xl bg-gradient-to-br from-content2/82 to-content1 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_22px_rgba(2,6,23,0.18)] transition focus-within:shadow-[0_0_0_2px_var(--ring-primary),inset_0_1px_0_rgba(255,255,255,0.1),0_12px_24px_rgba(2,6,23,0.24)]";
+
+const FORM_FIELD_INPUT_CLASS =
+  "w-full bg-transparent py-0.5 text-base font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none";
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
@@ -102,18 +103,9 @@ function toSoftBackground(hexColor: string, alpha: number): string {
 
 export default function ShoppingTemplatesPage() {
   const { authenticatedRequest } = useAuth();
-  const {
-    isOpen: isTemplateModalOpen,
-    onOpen: onTemplateModalOpen,
-    onOpenChange: onTemplateModalOpenChange,
-    onClose: onTemplateModalClose,
-  } = useDisclosure();
-  const {
-    isOpen: isCreateListModalOpen,
-    onOpen: onCreateListModalOpen,
-    onOpenChange: onCreateListModalOpenChange,
-    onClose: onCreateListModalClose,
-  } = useDisclosure();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const [templates, setTemplates] = useState<ShoppingTemplateResponse[]>([]);
   const [accounts, setAccounts] = useState<AccountResponse[]>([]);
@@ -124,10 +116,25 @@ export default function ShoppingTemplatesPage() {
   const [sourceTemplate, setSourceTemplate] = useState<ShoppingTemplateResponse | null>(null);
   const [itemDrafts, setItemDrafts] = useState<Record<number, TemplateItemDraftState>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [isEditorLoading, setIsEditorLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const createParam = searchParams.get("create");
+  const editParam = searchParams.get("edit");
+  const createListParam = searchParams.get("createList");
+  const isCreateMode = createParam === "1" || createParam === "true";
+  const parsedEditId = editParam ? Number(editParam) : null;
+  const editTemplateId = Number.isInteger(parsedEditId) && (parsedEditId as number) > 0 ? (parsedEditId as number) : null;
+  const parsedCreateListId = createListParam ? Number(createListParam) : null;
+  const createListTemplateId =
+    Number.isInteger(parsedCreateListId) && (parsedCreateListId as number) > 0
+      ? (parsedCreateListId as number)
+      : null;
+  const isTemplateEditorOpen = isCreateMode || editTemplateId !== null;
+  const isCreateListEditorOpen = createListTemplateId !== null;
 
   const accountById = useMemo(
     () => new Map(accounts.map((account) => [account.id, account])),
@@ -173,52 +180,141 @@ export default function ShoppingTemplatesPage() {
     void loadData();
   }, [loadData]);
 
-  const resetTemplateForm = () => {
-    setEditingTemplateId(null);
-    setTemplateForm({
-      ...DEFAULT_TEMPLATE_FORM,
-      defaultAccountId: accounts[0] ? String(accounts[0].id) : "",
-      defaultCategoryId: expenseCategories[0] ? String(expenseCategories[0].id) : "",
-    });
-  };
+  const clearEditorParams = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("create");
+    params.delete("edit");
+    params.delete("createList");
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }, [pathname, router, searchParams]);
 
-  const openCreateTemplateModal = () => {
-    resetTemplateForm();
-    onTemplateModalOpen();
-  };
+  const buildHref = useCallback(
+    (name: "create" | "edit" | "createList", value: string | null) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (value) {
+        params.set(name, value);
+      } else {
+        params.delete(name);
+      }
 
-  const openEditTemplateModal = (template: ShoppingTemplateResponse) => {
-    setEditingTemplateId(template.id);
-    setTemplateForm({
-      name: template.name,
-      color: template.color,
-      icon: template.icon,
-      defaultAccountId: template.default_account_id ? String(template.default_account_id) : "",
-      defaultCategoryId: template.default_category_id ? String(template.default_category_id) : "",
-    });
-    onTemplateModalOpen();
-  };
+      if (name === "create") {
+        params.delete("edit");
+        params.delete("createList");
+      }
+      if (name === "edit") {
+        params.delete("create");
+        params.delete("createList");
+      }
+      if (name === "createList") {
+        params.delete("create");
+        params.delete("edit");
+      }
 
-  const closeTemplateModal = () => {
-    onTemplateModalClose();
-    resetTemplateForm();
-  };
+      const query = params.toString();
+      return query ? `${pathname}?${query}` : pathname;
+    },
+    [pathname, searchParams],
+  );
 
-  const openCreateListModal = (template: ShoppingTemplateResponse) => {
+  useEffect(() => {
+    if (!isTemplateEditorOpen) {
+      setEditingTemplateId(null);
+      setIsEditorLoading(false);
+      return;
+    }
+
+    if (isCreateMode) {
+      setEditingTemplateId(null);
+      setIsEditorLoading(false);
+      setTemplateForm({
+        ...DEFAULT_TEMPLATE_FORM,
+        defaultAccountId: accounts[0] ? String(accounts[0].id) : "",
+        defaultCategoryId: expenseCategories[0] ? String(expenseCategories[0].id) : "",
+      });
+      return;
+    }
+
+    if (!editTemplateId) {
+      return;
+    }
+
+    const localTemplate = templates.find((template) => template.id === editTemplateId);
+    if (localTemplate) {
+      setEditingTemplateId(localTemplate.id);
+      setIsEditorLoading(false);
+      setTemplateForm({
+        name: localTemplate.name,
+        color: localTemplate.color,
+        icon: localTemplate.icon,
+        defaultAccountId: localTemplate.default_account_id ? String(localTemplate.default_account_id) : "",
+        defaultCategoryId: localTemplate.default_category_id ? String(localTemplate.default_category_id) : "",
+      });
+      return;
+    }
+
+    let active = true;
+    const loadById = async () => {
+      setIsEditorLoading(true);
+      try {
+        const template = await authenticatedRequest<ShoppingTemplateResponse>(
+          `/api/shopping-templates/${editTemplateId}`,
+        );
+        if (!active) {
+          return;
+        }
+        setEditingTemplateId(template.id);
+        setTemplateForm({
+          name: template.name,
+          color: template.color,
+          icon: template.icon,
+          defaultAccountId: template.default_account_id ? String(template.default_account_id) : "",
+          defaultCategoryId: template.default_category_id ? String(template.default_category_id) : "",
+        });
+      } catch (error) {
+        if (active) {
+          setErrorMessage(getErrorMessage(error));
+        }
+      } finally {
+        if (active) {
+          setIsEditorLoading(false);
+        }
+      }
+    };
+
+    void loadById();
+    return () => {
+      active = false;
+    };
+  }, [
+    accounts,
+    authenticatedRequest,
+    editTemplateId,
+    expenseCategories,
+    isCreateMode,
+    isTemplateEditorOpen,
+    templates,
+  ]);
+
+  useEffect(() => {
+    if (!isCreateListEditorOpen) {
+      setSourceTemplate(null);
+      setCreateListForm(DEFAULT_CREATE_LIST_FORM);
+      return;
+    }
+
+    const template = templates.find((item) => item.id === createListTemplateId) ?? null;
+    if (!template) {
+      return;
+    }
+
     setSourceTemplate(template);
     setCreateListForm({
       name: `${template.name} (${new Date().toLocaleDateString("ru-RU")})`,
       accountId: template.default_account_id ? String(template.default_account_id) : "",
       categoryId: template.default_category_id ? String(template.default_category_id) : "",
     });
-    onCreateListModalOpen();
-  };
-
-  const closeCreateListModal = () => {
-    setSourceTemplate(null);
-    setCreateListForm(DEFAULT_CREATE_LIST_FORM);
-    onCreateListModalClose();
-  };
+  }, [createListTemplateId, isCreateListEditorOpen, templates]);
 
   const handleSaveTemplate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -255,7 +351,7 @@ export default function ShoppingTemplatesPage() {
         await authenticatedRequest("/api/shopping-templates", { method: "POST", body: payload });
       }
 
-      closeTemplateModal();
+      clearEditorParams();
       await loadData();
     } catch (error) {
       setErrorMessage(getErrorMessage(error));
@@ -352,7 +448,7 @@ export default function ShoppingTemplatesPage() {
       await authenticatedRequest(`/api/shopping-templates/${sourceTemplate.id}/create-list${suffix}`, {
         method: "POST",
       });
-      closeCreateListModal();
+      clearEditorParams();
     } catch (error) {
       setErrorMessage(getErrorMessage(error));
     } finally {
@@ -360,18 +456,179 @@ export default function ShoppingTemplatesPage() {
     }
   };
 
+  if (isTemplateEditorOpen) {
+    return (
+      <section className="fixed inset-0 z-50 overscroll-contain bg-[var(--bg-app)]">
+        <div className="mx-auto flex h-full w-full max-w-[430px] flex-col">
+          <UiTopBar
+            title={editingTemplateId ? "Редактирование шаблона" : "Новый шаблон"}
+            onBack={clearEditorParams}
+            formId={TEMPLATE_FORM_ID}
+            isSaving={isSubmitting}
+          />
+          <div className="flex-1 overflow-y-auto px-3 py-3">
+            {isEditorLoading ? <LoadingState message="Загружаем шаблон..." /> : null}
+            {!isEditorLoading ? (
+              <form id={TEMPLATE_FORM_ID} className="app-panel space-y-3 p-3" onSubmit={handleSaveTemplate}>
+                <label className="block text-sm text-[var(--text-secondary)]">
+                  Название
+                  <div className={FORM_FIELD_SHELL_CLASS}>
+                    <input
+                      className={FORM_FIELD_INPUT_CLASS}
+                      value={templateForm.name}
+                      onChange={(event) => setTemplateForm((prev) => ({ ...prev, name: event.target.value }))}
+                      placeholder="Введите название шаблона…"
+                      required
+                    />
+                  </div>
+                </label>
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                  <ColorPickerField
+                    label="Цвет"
+                    value={templateForm.color}
+                    onChange={(value) => setTemplateForm((prev) => ({ ...prev, color: value }))}
+                  />
+                  <IconPickerField
+                    label="Иконка"
+                    value={templateForm.icon}
+                    onChange={(value) => setTemplateForm((prev) => ({ ...prev, icon: value }))}
+                  />
+                </div>
+                <label className="block text-sm text-[var(--text-secondary)]">
+                  Счет по умолчанию
+                  <div className={FORM_FIELD_SHELL_CLASS}>
+                    <select
+                      className={FORM_FIELD_INPUT_CLASS}
+                      value={templateForm.defaultAccountId}
+                      onChange={(event) =>
+                        setTemplateForm((prev) => ({ ...prev, defaultAccountId: event.target.value }))
+                      }
+                    >
+                      <option value="">Не указан</option>
+                      {accounts.map((account) => (
+                        <option key={account.id} value={account.id}>
+                          {account.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </label>
+                <label className="block text-sm text-[var(--text-secondary)]">
+                  Категория по умолчанию
+                  <div className={FORM_FIELD_SHELL_CLASS}>
+                    <select
+                      className={FORM_FIELD_INPUT_CLASS}
+                      value={templateForm.defaultCategoryId}
+                      onChange={(event) =>
+                        setTemplateForm((prev) => ({ ...prev, defaultCategoryId: event.target.value }))
+                      }
+                    >
+                      <option value="">Не указана</option>
+                      {expenseCategories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </label>
+                {errorMessage ? <ErrorState message={errorMessage} /> : null}
+              </form>
+            ) : null}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (isCreateListEditorOpen) {
+    return (
+      <section className="fixed inset-0 z-50 overscroll-contain bg-[var(--bg-app)]">
+        <div className="mx-auto flex h-full w-full max-w-[430px] flex-col">
+          <UiTopBar
+            title="Создать список из шаблона"
+            onBack={clearEditorParams}
+            formId={CREATE_LIST_FORM_ID}
+            isSaving={isSubmitting}
+            primaryLabel="Создать"
+          />
+          <div className="flex-1 overflow-y-auto px-3 py-3">
+            <form id={CREATE_LIST_FORM_ID} className="app-panel space-y-3 p-3" onSubmit={handleCreateList}>
+              <label className="block text-sm text-[var(--text-secondary)]">
+                Название списка
+                <div className={FORM_FIELD_SHELL_CLASS}>
+                  <input
+                    className={FORM_FIELD_INPUT_CLASS}
+                    value={createListForm.name}
+                    onChange={(event) => setCreateListForm((prev) => ({ ...prev, name: event.target.value }))}
+                    placeholder="Введите название списка…"
+                  />
+                </div>
+              </label>
+              <label className="block text-sm text-[var(--text-secondary)]">
+                Счет
+                <div className={FORM_FIELD_SHELL_CLASS}>
+                  <select
+                    className={FORM_FIELD_INPUT_CLASS}
+                    value={createListForm.accountId}
+                    onChange={(event) => setCreateListForm((prev) => ({ ...prev, accountId: event.target.value }))}
+                  >
+                    <option value="">Использовать из шаблона</option>
+                    {accounts.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        {account.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </label>
+              <label className="block text-sm text-[var(--text-secondary)]">
+                Категория
+                <div className={FORM_FIELD_SHELL_CLASS}>
+                  <select
+                    className={FORM_FIELD_INPUT_CLASS}
+                    value={createListForm.categoryId}
+                    onChange={(event) => setCreateListForm((prev) => ({ ...prev, categoryId: event.target.value }))}
+                  >
+                    <option value="">Использовать из шаблона</option>
+                    {expenseCategories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </label>
+              {sourceTemplate ? (
+                <p className="text-xs text-[var(--text-secondary)]">
+                  Список будет создан на основе шаблона «{sourceTemplate.name}».
+                </p>
+              ) : null}
+              {errorMessage ? <ErrorState message={errorMessage} /> : null}
+            </form>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="space-y-3">
       <section className="app-panel p-3">
-        <h1 className="section-title text-[1.35rem]">Shopping Templates</h1>
-        <p className="section-caption">Reusable packs of goods to create lists in one click.</p>
-        <div className="flex items-center justify-between gap-2">
+        <h1 className="section-title text-[1.35rem]">Шаблоны покупок</h1>
+        <p className="section-caption">Переиспользуемые наборы товаров для быстрого создания списков.</p>
+        <div className="mt-3 flex items-center justify-between gap-2">
           <Button size="sm" variant="flat" isLoading={isRefreshing} onPress={() => void loadData()}>
-            Refresh
+            Обновить
           </Button>
-          <Button color="primary" size="sm" startContent={<Plus className="h-4 w-4" />} onPress={openCreateTemplateModal}>
-            New template
-          </Button>
+          <Link
+            href={buildHref("create", "1")}
+            scroll={false}
+            className="inline-flex items-center gap-1 rounded-xl bg-[var(--accent-primary)] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[var(--accent-primary-strong)]"
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Новый шаблон
+          </Link>
         </div>
       </section>
 
@@ -416,18 +673,21 @@ export default function ShoppingTemplatesPage() {
                 >
                   <div className="space-y-3">
                     <div className="flex flex-wrap gap-2">
-                      <Button size="sm" variant="flat" onPress={() => openEditTemplateModal(template)}>
-                        Изменить
-                      </Button>
-                      <Button
-                        size="sm"
-                        color="primary"
-                        variant="flat"
-                        startContent={<CopyPlus className="h-4 w-4" />}
-                        onPress={() => openCreateListModal(template)}
+                      <Link
+                        href={buildHref("edit", String(template.id))}
+                        scroll={false}
+                        className="inline-flex items-center rounded-xl border border-[color:var(--border-soft)] bg-[var(--bg-card)] px-3 py-1.5 text-sm font-medium text-[var(--text-secondary)] transition hover:bg-[var(--surface-hover)]"
                       >
+                        Изменить
+                      </Link>
+                      <Link
+                        href={buildHref("createList", String(template.id))}
+                        scroll={false}
+                        className="inline-flex items-center gap-1 rounded-xl border border-primary-300/50 bg-primary-500/10 px-3 py-1.5 text-sm font-medium text-primary-700 transition hover:bg-primary-500/15"
+                      >
+                        <CopyPlus className="h-4 w-4" />
                         Создать список
-                      </Button>
+                      </Link>
                       <Button
                         size="sm"
                         color="danger"
@@ -521,139 +781,6 @@ export default function ShoppingTemplatesPage() {
           </Accordion>
         ) : null}
       </section>
-
-      <Modal
-        isOpen={isTemplateModalOpen}
-        onOpenChange={onTemplateModalOpenChange}
-        scrollBehavior="inside"
-        placement="center"
-      >
-        <ModalContent>
-          <form onSubmit={handleSaveTemplate}>
-            <ModalHeader>{editingTemplateId ? "Редактировать шаблон" : "Новый шаблон"}</ModalHeader>
-            <ModalBody className="space-y-2.5">
-              <Input
-                label="Название"
-                value={templateForm.name}
-                onValueChange={(value) => setTemplateForm((prev) => ({ ...prev, name: value }))}
-                isRequired
-              />
-              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                <ColorPickerField
-                  label="Цвет"
-                  value={templateForm.color}
-                  onChange={(value) => setTemplateForm((prev) => ({ ...prev, color: value }))}
-                />
-                <IconPickerField
-                  label="Иконка"
-                  value={templateForm.icon}
-                  onChange={(value) => setTemplateForm((prev) => ({ ...prev, icon: value }))}
-                />
-              </div>
-              <label className="block text-sm text-default-700">
-                Счет по умолчанию
-                <select
-                  className="mt-1 block w-full rounded-xl border border-default-300 bg-white px-3 py-2 text-sm"
-                  value={templateForm.defaultAccountId}
-                  onChange={(event) =>
-                    setTemplateForm((prev) => ({ ...prev, defaultAccountId: event.target.value }))
-                  }
-                >
-                  <option value="">Не указан</option>
-                  {accounts.map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {account.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-sm text-default-700">
-                Категория по умолчанию
-                <select
-                  className="mt-1 block w-full rounded-xl border border-default-300 bg-white px-3 py-2 text-sm"
-                  value={templateForm.defaultCategoryId}
-                  onChange={(event) =>
-                    setTemplateForm((prev) => ({ ...prev, defaultCategoryId: event.target.value }))
-                  }
-                >
-                  <option value="">Не указана</option>
-                  {expenseCategories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </ModalBody>
-            <ModalFooter>
-              <Button variant="flat" type="button" onPress={closeTemplateModal}>
-                Отмена
-              </Button>
-              <Button color="primary" type="submit" isLoading={isSubmitting}>
-                {editingTemplateId ? "Сохранить" : "Создать"}
-              </Button>
-            </ModalFooter>
-          </form>
-        </ModalContent>
-      </Modal>
-
-      <Modal
-        isOpen={isCreateListModalOpen}
-        onOpenChange={onCreateListModalOpenChange}
-        scrollBehavior="inside"
-        placement="center"
-      >
-        <ModalContent>
-          <form onSubmit={handleCreateList}>
-            <ModalHeader>Создать список из шаблона</ModalHeader>
-            <ModalBody className="space-y-2">
-              <Input
-                label="Название списка"
-                value={createListForm.name}
-                onValueChange={(value) => setCreateListForm((prev) => ({ ...prev, name: value }))}
-              />
-              <label className="block text-sm text-default-700">
-                Счет
-                <select
-                  className="mt-1 block w-full rounded-xl border border-default-300 bg-white px-3 py-2 text-sm"
-                  value={createListForm.accountId}
-                  onChange={(event) => setCreateListForm((prev) => ({ ...prev, accountId: event.target.value }))}
-                >
-                  <option value="">Использовать из шаблона</option>
-                  {accounts.map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {account.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-sm text-default-700">
-                Категория
-                <select
-                  className="mt-1 block w-full rounded-xl border border-default-300 bg-white px-3 py-2 text-sm"
-                  value={createListForm.categoryId}
-                  onChange={(event) => setCreateListForm((prev) => ({ ...prev, categoryId: event.target.value }))}
-                >
-                  <option value="">Использовать из шаблона</option>
-                  {expenseCategories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </ModalBody>
-            <ModalFooter>
-              <Button variant="flat" type="button" onPress={closeCreateListModal}>
-                Отмена
-              </Button>
-              <Button color="primary" type="submit" isLoading={isSubmitting}>
-                Создать
-              </Button>
-            </ModalFooter>
-          </form>
-        </ModalContent>
-      </Modal>
     </section>
   );
 }

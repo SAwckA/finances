@@ -36,8 +36,8 @@ export default function LoginPage() {
   return (
     <section className="app-panel space-y-4 p-4">
       <div>
-        <h2 className="text-xl font-bold text-default-900">Sign In</h2>
-        <p className="text-sm text-default-500">Continue with Google to access your workspace.</p>
+        <h2 className="text-xl font-bold text-[var(--text-primary)]">Вход</h2>
+        <p className="text-sm text-[var(--text-secondary)]">Продолжите через Google, чтобы открыть рабочее пространство.</p>
       </div>
 
       {errorMessage ? <p className="text-sm font-medium text-danger-700">{errorMessage}</p> : null}
@@ -48,7 +48,7 @@ export default function LoginPage() {
         onClick={handleGoogleLogin}
         disabled={pending}
       >
-        {pending ? "Redirecting..." : "Continue with Google"}
+        {pending ? "Перенаправляем..." : "Продолжить через Google"}
       </button>
     </section>
   );

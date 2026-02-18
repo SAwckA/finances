@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { Chip } from "@heroui/react";
 
-type HeroChipProps = {
+type UiChipProps = {
   children: ReactNode;
   tone?: string;
   size?: "sm" | "md" | "lg";
@@ -9,13 +9,7 @@ type HeroChipProps = {
   className?: string;
 };
 
-export function HeroChip({
-  children,
-  tone,
-  size = "sm",
-  variant = "flat",
-  className,
-}: HeroChipProps) {
+export function UiChip({ children, tone, size = "sm", variant = "flat", className }: UiChipProps) {
   const style: CSSProperties | undefined = tone
     ? {
         backgroundColor: `${tone}1a`,
@@ -25,7 +19,7 @@ export function HeroChip({
     : undefined;
 
   return (
-    <Chip className={className} size={size} variant={variant} style={style}>
+    <Chip className={className} size={size} style={style} variant={variant}>
       {children}
     </Chip>
   );
