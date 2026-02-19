@@ -11,7 +11,9 @@ Workflow: `.github/workflows/build-images.yml`
 - собирает образы `backend`, `frontend`, `caddy`, `scheduler`
 - пушит их в GHCR
 - ставит тег образа, равный SHA коммита (`${{ github.sha }}`)
-- для `frontend` использует обязательный input `frontend_api_base_url`
+
+`frontend` читает API URL из runtime-переменной `NEXT_PUBLIC_API_BASE_URL` при старте контейнера,
+поэтому смена API-домена не требует пересборки образа.
 
 ## Формат имен образов
 

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
 import { Providers } from "@/app/providers";
 
@@ -15,6 +16,7 @@ export default function RootLayout({
   return (
     <html lang="ru" suppressHydrationWarning>
       <head>
+        <Script src="/env-config.js" strategy="beforeInteractive" />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var k="finances.theme.preference";var v=localStorage.getItem(k);var p=v==="light"||v==="dark"||v==="system"?v:"system";var s=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";var t=p==="system"?s:p;document.documentElement.dataset.theme=t;document.documentElement.classList.toggle("dark",t==="dark");}catch(e){}})();`,

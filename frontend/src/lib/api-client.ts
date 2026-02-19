@@ -1,5 +1,21 @@
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "http://localhost:8000";
+declare global {
+  interface Window {
+    __APP_CONFIG__?: {
+      apiBaseUrl?: string;
+    };
+  }
+}
+
+function resolveApiBaseUrl(): string {
+  if (typeof window !== "undefined") {
+    const runtimeBaseUrl = window.__APP_CONFIG__?.apiBaseUrl?.replace(/\/$/, "");
+    if (runtimeBaseUrl) {
+      return runtimeBaseUrl;
+    }
+  }
+
+  return process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "http://localhost:8000";
+}
 
 type RequestOptions = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -22,7 +38,8 @@ export class ApiError extends Error {
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const url = path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
+  const apiBaseUrl = resolveApiBaseUrl();
+  const url = path.startsWith("http") ? path : `${apiBaseUrl}${path}`;
   const headers = new Headers(options.headers);
   const method = options.method ?? "GET";
 

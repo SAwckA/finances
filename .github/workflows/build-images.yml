@@ -2,11 +2,6 @@ name: Build and Push Images
 
 on:
   workflow_dispatch:
-    inputs:
-      frontend_api_base_url:
-        description: "Public API base URL for frontend build (NEXT_PUBLIC_API_BASE_URL)"
-        required: true
-        default: "https://api-finances.sawcka.ru"
 
 permissions:
   contents: read
@@ -73,4 +68,3 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: ${{ matrix.service == 'frontend' && format('NEXT_PUBLIC_API_BASE_URL={0}', github.event.inputs.frontend_api_base_url) || '' }}
