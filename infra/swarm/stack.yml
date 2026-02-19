@@ -54,7 +54,7 @@ services:
       FRONTEND_BASE_URL: https://${BASE_DOMAIN}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
-      GOOGLE_REDIRECT_URI: https://api.${BASE_DOMAIN}/auth/google/callback
+      GOOGLE_REDIRECT_URI: https://${API_DOMAIN}/auth/google/callback
       EXCHANGE_RATE_JOB_TIMEZONE: UTC
     networks:
       - internal
@@ -75,7 +75,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      NEXT_PUBLIC_API_BASE_URL: https://api.${BASE_DOMAIN}
+      NEXT_PUBLIC_API_BASE_URL: https://${API_DOMAIN}
     networks:
       - edge
     deploy:
@@ -93,6 +93,7 @@ services:
     image: ${IMAGE_PREFIX}/caddy:${IMAGE_TAG}
     environment:
       BASE_DOMAIN: ${BASE_DOMAIN}
+      API_DOMAIN: ${API_DOMAIN}
       ACME_EMAIL: ${ACME_EMAIL}
     secrets:
       - cloudflare_api_token

@@ -14,12 +14,7 @@
 	reverse_proxy frontend:3000
 }
 
-www.{$BASE_DOMAIN} {
-	import cloudflare_tls
-	redir https://{$BASE_DOMAIN}{uri} permanent
-}
-
-api.{$BASE_DOMAIN} {
+{$API_DOMAIN} {
 	import cloudflare_tls
 	encode gzip zstd
 	reverse_proxy backend:8000

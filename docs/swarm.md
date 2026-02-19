@@ -61,7 +61,9 @@ cp infra/swarm/.env.example infra/swarm/.env
 2. Заполнить значения:
 - `IMAGE_PREFIX` (например, `ghcr.io/<owner>/<repo>`)
 - `IMAGE_TAG` (конкретный commit SHA)
-- `BASE_DOMAIN`, `ACME_EMAIL`
+- `BASE_DOMAIN` (например, `finances.sawcka.ru`)
+- `API_DOMAIN` (например, `api-finances.sawcka.ru`)
+- `ACME_EMAIL`
 - DB/Redis credentials
 - `SECRET_KEY`, `JWT_SECRET_KEY`
 - OAuth credentials (если используются)
