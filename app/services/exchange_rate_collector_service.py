@@ -2,6 +2,9 @@ import logging
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
+import httpx
+from sqlalchemy.exc import SQLAlchemyError
+
 from app.config.env import settings
 from app.models.exchange_rate import ExchangeRateRunStatus, ExchangeRateSource
 from app.repositories.currency_repository import CurrencyRepository
@@ -70,19 +73,27 @@ class ExchangeRateCollectorService(BaseService):
                 ecb_timestamp, ecb_rates = await self.ecb_client.fetch_rates_by_date(
                     target_date
                 )
-            except Exception as exc:
+            except httpx.HTTPError as exc:
                 error_count += 1
-                errors.append(f"ECB source unavailable: {exc}")
-                logger.error("ECB source unavailable: %s", exc)
+                errors.append(f"ECB network error: {exc}")
+                logger.error("ECB network error: %s", exc)
+            except ValueError as exc:
+                error_count += 1
+                errors.append(f"ECB data error: {exc}")
+                logger.error("ECB data error: %s", exc)
 
             try:
                 cbr_timestamp, cbr_rates = await self.cbr_client.fetch_rates_by_date(
                     target_date
                 )
-            except Exception as exc:
+            except httpx.HTTPError as exc:
                 error_count += 1
-                errors.append(f"CBR source unavailable: {exc}")
-                logger.error("CBR source unavailable: %s", exc)
+                errors.append(f"CBR network error: {exc}")
+                logger.error("CBR network error: %s", exc)
+            except ValueError as exc:
+                error_count += 1
+                errors.append(f"CBR data error: {exc}")
+                logger.error("CBR data error: %s", exc)
 
             for from_code, to_code in pairs:
                 try:
@@ -104,12 +115,12 @@ class ExchangeRateCollectorService(BaseService):
                         is_backfill=is_backfill,
                     )
                     pairs_saved += 1
-                except Exception as exc:
+                except ValueError as exc:
                     pairs_skipped += 1
                     error_count += 1
                     err_msg = f"pair={from_code}->{to_code}: {exc}"
                     errors.append(err_msg)
-                    logger.exception("Failed to collect exchange rate: %s", err_msg)
+                    logger.warning("Failed to resolve exchange rate: %s", err_msg)
 
             status = (
                 ExchangeRateRunStatus.COMPLETED
@@ -133,7 +144,7 @@ class ExchangeRateCollectorService(BaseService):
                 pairs_skipped,
             )
             return status
-        except Exception as exc:
+        except (SQLAlchemyError, ValueError, RuntimeError) as exc:
             logger.exception("Exchange rates run failed. run_id=%s", run.id)
             await self.exchange_rate_run_repository.finish_run(
                 run.id,

@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 import logging
 
+import sentry_sdk
 import uvicorn
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +19,19 @@ from app.exceptions import AppException
 setup_logging()
 
 logger = logging.getLogger(__name__)
+
+if settings.sentry_dsn != "":
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn,
+        # Add data like request headers and IP for users,
+        # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
+        send_default_pii=True,
+        traces_sample_rate=1 if settings.debug else 0.1,
+        profile_session_sample_rate=1 if settings.debug else 0.1,
+        profile_lifecycle="trace",
+        enable_logs=True,
+        environment="development" if settings.debug else "production",
+    )
 
 
 @asynccontextmanager
@@ -62,10 +76,15 @@ async def health_check():
     return {"status": "ok"}
 
 
-uvicorn.run(
-    app,
-    port=8000,
-    host="0.0.0.0",
-    log_config=None,
-    access_log=True,
-)
+def run() -> None:
+    uvicorn.run(
+        app,
+        port=8000,
+        host="0.0.0.0",
+        log_config=None,
+        access_log=True,
+    )
+
+
+if __name__ == "__main__":
+    run()

@@ -112,4 +112,4 @@ class WorkspaceMembershipRepository(BaseRepository[WorkspaceMembership]):
             WorkspaceMembership.user_id == user_id,
         )
         result = await self.session.execute(query)
-        return result.rowcount > 0  # type: ignore[union-attr]
+        return self._has_affected_rows(result)

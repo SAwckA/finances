@@ -624,7 +624,7 @@ export default function ShoppingTemplatesPage() {
           <Link
             href={buildHref("create", "1")}
             scroll={false}
-            className="inline-flex items-center gap-1 rounded-xl bg-[var(--accent-primary)] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[var(--accent-primary-strong)]"
+            className="inline-flex items-center gap-1 rounded-xl bg-[var(--accent-primary)] px-3 py-2 text-sm font-semibold text-[var(--text-primary)] transition hover:bg-[var(--accent-primary-strong)]"
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
             Новый шаблон

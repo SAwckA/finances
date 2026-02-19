@@ -375,7 +375,7 @@ export default function CategoriesPage() {
                             aria-label={option.label}
                           >
                             {active ? (
-                              <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-black/20 text-white">
+                              <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-black/20 text-[var(--text-primary)]">
                                 <Check className="h-3 w-3" aria-hidden="true" />
                               </span>
                             ) : null}
@@ -419,7 +419,7 @@ export default function CategoriesPage() {
                             aria-label={color}
                           >
                             {active ? (
-                              <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-black/20 text-white">
+                              <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-black/20 text-[var(--text-primary)]">
                                 <Check className="h-3 w-3" aria-hidden="true" />
                               </span>
                             ) : null}
@@ -496,7 +496,7 @@ export default function CategoriesPage() {
           <h1 className="section-title text-[1.35rem] text-[var(--text-primary)]">Категории</h1>
           <Link
             href="#"
-            className="rounded-xl bg-[var(--accent-primary)] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[var(--accent-primary-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
+            className="rounded-xl bg-[var(--accent-primary)] px-3 py-2 text-sm font-semibold text-[var(--text-primary)] transition hover:bg-[var(--accent-primary-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
             onClick={(event) => {
               event.preventDefault();
               void openCreateModal();

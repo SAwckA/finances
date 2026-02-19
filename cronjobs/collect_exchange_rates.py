@@ -1,7 +1,6 @@
 import argparse
 import asyncio
 import logging
-import sys
 from datetime import datetime, timezone
 
 from app.config.logging import setup_logging

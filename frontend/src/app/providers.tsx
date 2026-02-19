@@ -5,6 +5,7 @@ import { I18nProvider } from "@react-aria/i18n";
 import type { ComponentType, ReactNode } from "react";
 import { AuthProvider } from "@/features/auth/auth-context";
 import { ThemeProvider } from "@/features/theme/theme-context";
+import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 
 type ProvidersProps = {
   children: ReactNode;
@@ -22,7 +23,10 @@ export function Providers({ children }: ProvidersProps) {
     <ThemeProvider>
       <I18nProvider locale={locale}>
         <UiProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            <ServiceWorkerRegistration />
+            {children}
+          </AuthProvider>
         </UiProvider>
       </I18nProvider>
     </ThemeProvider>

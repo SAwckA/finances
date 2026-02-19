@@ -858,7 +858,7 @@ export default function ShoppingListDetailPage() {
                               <span
                                 className={`inline-flex h-5 w-5 items-center justify-center rounded-md border ${
                                   item.is_checked
-                                    ? "border-success-400 bg-success-500 text-white"
+                                    ? "border-success-400 bg-success-500 text-[var(--text-primary)]"
                                     : "border-[color:var(--border-soft)] bg-[var(--bg-card)] text-[var(--text-secondary)]"
                                 }`}
                               >
@@ -985,7 +985,7 @@ export default function ShoppingListDetailPage() {
                         />
                         <button
                           type="button"
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent-primary)] text-white transition hover:bg-[var(--accent-primary-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)] disabled:cursor-not-allowed disabled:opacity-65"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent-primary)] text-[var(--text-primary)] transition hover:bg-[var(--accent-primary-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)] disabled:cursor-not-allowed disabled:opacity-65"
                           onClick={() => void handleAddItem()}
                           disabled={isAddItemPending || !canSubmitNewItem}
                           aria-label={isAddItemPending ? "Добавляем" : "Добавить"}

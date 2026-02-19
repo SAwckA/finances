@@ -35,7 +35,7 @@ export function UiSegmentedControl<T extends string>({
           key={option.key}
           className={
             option.key === value
-              ? "bg-gradient-to-r from-primary to-primary-500 text-white shadow-[0_10px_18px_color-mix(in_srgb,var(--accent-primary)_28%,transparent)]"
+              ? "bg-gradient-to-r from-primary to-primary-500 text-[var(--text-primary)] shadow-[0_10px_18px_color-mix(in_srgb,var(--accent-primary)_28%,transparent)]"
               : "interactive-hover bg-content1/60 text-foreground-600"
           }
           color={option.key === value ? "primary" : "default"}

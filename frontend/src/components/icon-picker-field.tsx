@@ -39,7 +39,7 @@ export function IconPickerField({ label, value, onChange }: IconPickerFieldProps
               type="button"
               className={`flex h-11 items-center justify-center rounded-xl border transition ${
                 active
-                  ? "border-default-900 bg-default-900 text-white"
+                  ? "border-default-900 bg-default-900 text-[var(--text-primary)]"
                   : "surface-hover border-default-300 bg-white text-default-700"
               }`}
               onClick={() => onChange(option.value)}

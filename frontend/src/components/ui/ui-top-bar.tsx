@@ -57,7 +57,7 @@ export function UiTopBar({
         <h2 className="truncate text-base font-bold text-[var(--text-primary)]">{title}</h2>
 
         <button
-          className="inline-flex min-w-[120px] items-center justify-center gap-1.5 rounded-2xl bg-[linear-gradient(135deg,#22d3ee_0%,#06b6d4_55%,#0891b2_100%)] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(6,182,212,0.3),inset_0_1px_0_rgba(255,255,255,0.24)] transition hover:brightness-110 disabled:opacity-70"
+          className="inline-flex min-w-[120px] items-center justify-center gap-1.5 rounded-2xl bg-[linear-gradient(135deg,color-mix(in_srgb,var(--accent-primary)_72%,white)_0%,var(--accent-primary)_55%,var(--accent-primary-strong)_100%)] px-4 py-2 text-sm font-semibold text-[var(--text-primary)] shadow-[0_12px_24px_color-mix(in_srgb,var(--accent-primary)_30%,transparent),inset_0_1px_0_color-mix(in_srgb,white_24%,transparent)] transition hover:brightness-110 disabled:opacity-70"
           disabled={resolvedLoading}
           form={formId}
           type={formId ? "submit" : "button"}

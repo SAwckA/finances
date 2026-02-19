@@ -379,7 +379,7 @@ export default function ProfilePage() {
 
               <div className="flex flex-wrap gap-2">
                 <Button
-                  className="bg-[var(--accent-primary)] text-white data-[disabled=true]:bg-content3 data-[disabled=true]:text-[var(--text-secondary)]"
+                  className="bg-[var(--accent-primary)] text-[var(--text-primary)] data-[disabled=true]:bg-content3 data-[disabled=true]:text-[var(--text-secondary)]"
                   type="submit"
                   isLoading={isSubmitting}
                 >

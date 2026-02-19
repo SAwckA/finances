@@ -1,6 +1,5 @@
 from typing import Sequence
 
-from sqlalchemy import select
 from sqlalchemy.orm import selectinload, with_loader_criteria
 
 from app.models.shopping_list import ShoppingItem, ShoppingList, ShoppingListStatus
