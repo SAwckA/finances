@@ -1,0 +1,109 @@
+name: Deploy Swarm
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag (commit SHA). If empty, uses current github.sha."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      APP_DIR: /opt/finances/repo
+      STACK_NAME: finances
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Load secrets from Bitwarden
+        uses: bitwarden/sm-action@v2
+        with:
+          access_token: ${{ secrets.BW_ACCESS_TOKEN }}
+          base_url: https://vault.bitwarden.com
+          secrets: |
+            da34936c-01a6-43c6-8f59-b3f600cfd022 > DEPLOY_HOST
+            ebe1add7-6c53-46a6-8e6e-b3f600d05216 > DEPLOY_USER
+            2e9dbce5-a78e-4e2b-b1a3-b3f600d0a39e > DEPLOY_SSH_KEY
+            a2946ab2-09fc-4eaf-a7db-b3f600d47ae2 > DEPLOY_KNOWN_HOSTS
+            6eadce2c-6eb9-456d-a463-b3f600dbb587 > GHCR_USERNAME
+            6433ff81-5839-4aae-8a68-b3f600d6ef95 > GHCR_PAT
+            433f216f-3b99-4b6e-9bef-b3f600cee133 > SWARM_ENV_FILE
+            17ed14e3-9ed0-4648-8fca-b3f600d70c92 > CLOUDFLARE_API_TOKEN
+
+      - name: Validate Bitwarden mapping and token
+        run: |
+          set -euo pipefail
+          test -n "${{ secrets.BW_ACCESS_TOKEN }}" || (echo "BW_ACCESS_TOKEN is empty" && exit 1)
+          test -n "$DEPLOY_HOST" || (echo "DEPLOY_HOST was not loaded from Bitwarden" && exit 1)
+          test -n "$DEPLOY_USER" || (echo "DEPLOY_USER was not loaded from Bitwarden" && exit 1)
+          test -n "$DEPLOY_SSH_KEY" || (echo "DEPLOY_SSH_KEY was not loaded from Bitwarden" && exit 1)
+          test -n "$DEPLOY_KNOWN_HOSTS" || (echo "DEPLOY_KNOWN_HOSTS was not loaded from Bitwarden" && exit 1)
+          test -n "$GHCR_USERNAME" || (echo "GHCR_USERNAME was not loaded from Bitwarden" && exit 1)
+          test -n "$GHCR_PAT" || (echo "GHCR_PAT was not loaded from Bitwarden" && exit 1)
+          test -n "$SWARM_ENV_FILE" || (echo "SWARM_ENV_FILE was not loaded from Bitwarden" && exit 1)
+          test -n "$CLOUDFLARE_API_TOKEN" || (echo "CLOUDFLARE_API_TOKEN was not loaded from Bitwarden" && exit 1)
+
+      - name: Prepare SSH
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Deploy stack on server
+        env:
+          IMAGE_TAG: ${{ github.event.inputs.image_tag != '' && github.event.inputs.image_tag || github.sha }}
+        run: |
+          SWARM_ENV_B64="$(printf '%s' "$SWARM_ENV_FILE" | base64 -w 0)"
+          CLOUDFLARE_TOKEN_B64="$(printf '%s' "$CLOUDFLARE_API_TOKEN" | base64 -w 0)"
+          GHCR_USERNAME_B64="$(printf '%s' "$GHCR_USERNAME" | base64 -w 0)"
+          GHCR_PAT_B64="$(printf '%s' "$GHCR_PAT" | base64 -w 0)"
+
+          ssh "$DEPLOY_USER@$DEPLOY_HOST" \
+            "SWARM_ENV_B64='$SWARM_ENV_B64' CLOUDFLARE_TOKEN_B64='$CLOUDFLARE_TOKEN_B64' GHCR_USERNAME_B64='$GHCR_USERNAME_B64' GHCR_PAT_B64='$GHCR_PAT_B64' IMAGE_TAG='$IMAGE_TAG' APP_DIR='${APP_DIR}' STACK_NAME='${STACK_NAME}' bash -se" <<'REMOTE'
+          set -euo pipefail
+
+          cd "$APP_DIR"
+          git fetch origin
+          git checkout main
+          git pull --ff-only origin main
+
+          printf '%s' "$SWARM_ENV_B64" | base64 -d > infra/swarm/.env
+          chmod 600 infra/swarm/.env
+
+          if grep -q '^IMAGE_TAG=' infra/swarm/.env; then
+            sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=${IMAGE_TAG}|" infra/swarm/.env
+          else
+            printf '\nIMAGE_TAG=%s\n' "$IMAGE_TAG" >> infra/swarm/.env
+          fi
+
+          if ! docker secret inspect cloudflare_api_token >/dev/null 2>&1; then
+            printf '%s' "$CLOUDFLARE_TOKEN_B64" | base64 -d | docker secret create cloudflare_api_token -
+          fi
+
+          GHCR_USERNAME="$(printf '%s' "$GHCR_USERNAME_B64" | base64 -d)"
+          GHCR_PAT="$(printf '%s' "$GHCR_PAT_B64" | base64 -d)"
+          printf '%s' "$GHCR_PAT" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
+
+          set -a
+          . infra/swarm/.env
+          set +a
+
+          docker stack config \
+            -c infra/swarm/stack.yml \
+            -c infra/swarm/stack.cron.yml >/dev/null
+
+          docker stack deploy \
+            -c infra/swarm/stack.yml \
+            -c infra/swarm/stack.cron.yml \
+            "$STACK_NAME"
+          REMOTE
