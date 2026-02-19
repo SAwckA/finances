@@ -85,7 +85,7 @@ class ShoppingListResponse(ShoppingListBase):
     """Схема ответа с данными списка покупок."""
 
     id: int
-    user_id: int
+    workspace_id: int
     status: ShoppingListStatus
     total_amount: Decimal | None
     confirmed_at: datetime | None
@@ -106,6 +106,7 @@ class ShoppingList(SoftDeleteModel):
     __tablename__ = "shopping_lists"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(ForeignKey("workspaces.id"), index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     name: Mapped[str] = mapped_column(String(100))
 
@@ -125,6 +126,7 @@ class ShoppingList(SoftDeleteModel):
     )
 
     user = relationship("User")
+    workspace = relationship("Workspace")
     account = relationship("Account")
     category = relationship("Category")
     items = relationship(

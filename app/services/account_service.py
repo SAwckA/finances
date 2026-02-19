@@ -39,22 +39,29 @@ class AccountService(BaseService):
     account_repository: AccountRepository
     currency_repository: CurrencyRepository
 
-    async def get_user_accounts(self, user_id: int, skip: int = 0, limit: int = 100):
-        """Получить все счета пользователя."""
-        return await self.account_repository.get_by_user_id(
-            user_id=user_id, skip=skip, limit=limit
+    async def get_workspace_accounts(
+        self,
+        workspace_id: int,
+        skip: int = 0,
+        limit: int = 100,
+    ):
+        """Получить все счета рабочего пространства."""
+        return await self.account_repository.get_by_workspace_id(
+            workspace_id=workspace_id,
+            skip=skip,
+            limit=limit,
         )
 
-    async def get_by_id(self, account_id: int, user_id: int):
+    async def get_by_id(self, account_id: int, workspace_id: int):
         """Получить счёт по ID с проверкой доступа."""
         account = await self.account_repository.get_by_id(account_id)
         if not account:
             raise AccountNotFoundException(details={"account_id": account_id})
-        if account.user_id != user_id:
+        if account.workspace_id != workspace_id:
             raise AccountAccessDeniedException(details={"account_id": account_id})
         return account
 
-    async def create(self, user_id: int, data: AccountCreate):
+    async def create(self, workspace_id: int, actor_user_id: int, data: AccountCreate):
         """Создать новый счёт."""
         currency_code = data.currency_code.upper()
         currency = await self.currency_repository.get_by_code(currency_code)
@@ -65,13 +72,19 @@ class AccountService(BaseService):
 
         account_data = data.model_dump()
         account_data["currency_code"] = currency_code
-        account_data["user_id"] = user_id
-        logger.info(f"Creating account '{data.name}' for user {user_id}")
+        account_data["workspace_id"] = workspace_id
+        account_data["user_id"] = actor_user_id
+        logger.info(
+            "Creating account '%s' for workspace %s by user %s",
+            data.name,
+            workspace_id,
+            actor_user_id,
+        )
         return await self.account_repository.create(account_data)
 
-    async def update(self, account_id: int, user_id: int, data: AccountUpdate):
+    async def update(self, account_id: int, workspace_id: int, data: AccountUpdate):
         """Обновить счёт."""
-        account = await self.get_by_id(account_id, user_id)
+        account = await self.get_by_id(account_id, workspace_id)
 
         update_data = data.model_dump(exclude_unset=True)
         if "currency_code" in update_data:
@@ -88,9 +101,9 @@ class AccountService(BaseService):
         logger.info(f"Updated account {account_id}")
         return updated
 
-    async def delete(self, account_id: int, user_id: int) -> bool:
+    async def delete(self, account_id: int, workspace_id: int) -> bool:
         """Удалить счёт."""
-        await self.get_by_id(account_id, user_id)
+        await self.get_by_id(account_id, workspace_id)
         result = await self.account_repository.delete(account_id)
         logger.info(f"Deleted account {account_id}")
         return result

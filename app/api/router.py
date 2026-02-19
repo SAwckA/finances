@@ -11,6 +11,7 @@ from app.api.controllers import (
     statistics,
     transactions,
     users,
+    workspaces,
 )
 
 router = APIRouter(prefix="/api")
@@ -25,3 +26,4 @@ router.include_router(statistics.router)
 router.include_router(shopping_lists.router)
 router.include_router(shopping_templates.router)
 router.include_router(recurring_transactions.router)
+router.include_router(workspaces.router)

@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, Query
 
-from app.api.dependencies.auth import get_current_active_user
+from app.api.dependencies.auth import (
+    WorkspaceContext,
+    get_current_workspace_context,
+)
 from app.models.shopping_list import ShoppingListResponse
 from app.models.shopping_template import (
     ShoppingTemplateCreate,
@@ -10,7 +13,6 @@ from app.models.shopping_template import (
     ShoppingTemplateResponse,
     ShoppingTemplateUpdate,
 )
-from app.models.user import User
 from app.services.shopping_template_service import ShoppingTemplateService
 
 router = APIRouter(prefix="/shopping-templates", tags=["shopping-templates"])
@@ -20,56 +22,70 @@ router = APIRouter(prefix="/shopping-templates", tags=["shopping-templates"])
 async def get_templates(
     skip: int = 0,
     limit: int = 100,
-    current_user: User = Depends(get_current_active_user),
+    workspace: WorkspaceContext = Depends(get_current_workspace_context),
 ):
-    """Получить все шаблоны списков покупок пользователя."""
+    """Получить все шаблоны списков покупок активного workspace."""
     async with ShoppingTemplateService() as service:
-        return await service.get_user_templates(
-            user_id=current_user.id, skip=skip, limit=limit
+        return await service.get_workspace_templates(
+            workspace_id=workspace.workspace_id,
+            skip=skip,
+            limit=limit,
         )
 
 
 @router.get("/{template_id}", response_model=ShoppingTemplateResponse)
 async def get_template(
     template_id: int,
-    current_user: User = Depends(get_current_active_user),
+    workspace: WorkspaceContext = Depends(get_current_workspace_context),
 ):
     """Получить шаблон по ID."""
     async with ShoppingTemplateService() as service:
-        return await service.get_by_id(template_id=template_id, user_id=current_user.id)
+        return await service.get_by_id(
+            template_id=template_id,
+            workspace_id=workspace.workspace_id,
+        )
 
 
 @router.post("", response_model=ShoppingTemplateResponse, status_code=201)
 async def create_template(
     data: ShoppingTemplateCreate,
-    current_user: User = Depends(get_current_active_user),
+    workspace: WorkspaceContext = Depends(get_current_workspace_context),
 ):
     """Создать новый шаблон."""
     async with ShoppingTemplateService() as service:
-        return await service.create(user_id=current_user.id, data=data)
+        return await service.create(
+            workspace_id=workspace.workspace_id,
+            actor_user_id=workspace.user.id,
+            data=data,
+        )
 
 
 @router.patch("/{template_id}", response_model=ShoppingTemplateResponse)
 async def update_template(
     template_id: int,
     data: ShoppingTemplateUpdate,
-    current_user: User = Depends(get_current_active_user),
+    workspace: WorkspaceContext = Depends(get_current_workspace_context),
 ):
     """Обновить шаблон."""
     async with ShoppingTemplateService() as service:
         return await service.update(
-            template_id=template_id, user_id=current_user.id, data=data
+            template_id=template_id,
+            workspace_id=workspace.workspace_id,
+            data=data,
         )
 
 
 @router.delete("/{template_id}", status_code=204)
 async def delete_template(
     template_id: int,
-    current_user: User = Depends(get_current_active_user),
+    workspace: WorkspaceContext = Depends(get_current_workspace_context),
 ):
     """Удалить шаблон."""
     async with ShoppingTemplateService() as service:
-        await service.delete(template_id=template_id, user_id=current_user.id)
+        await service.delete(
+            template_id=template_id,
+            workspace_id=workspace.workspace_id,
+        )
 
 
 @router.post(
@@ -78,12 +94,14 @@ async def delete_template(
 async def add_template_item(
     template_id: int,
     data: ShoppingTemplateItemCreate,
-    current_user: User = Depends(get_current_active_user),
+    workspace: WorkspaceContext = Depends(get_current_workspace_context),
 ):
     """Добавить товар в шаблон."""
     async with ShoppingTemplateService() as service:
         return await service.add_item(
-            template_id=template_id, user_id=current_user.id, data=data
+            template_id=template_id,
+            workspace_id=workspace.workspace_id,
+            data=data,
         )
 
 
@@ -94,14 +112,14 @@ async def update_template_item(
     template_id: int,
     item_id: int,
     data: ShoppingTemplateItemUpdate,
-    current_user: User = Depends(get_current_active_user),
+    workspace: WorkspaceContext = Depends(get_current_workspace_context),
 ):
     """Обновить товар в шаблоне."""
     async with ShoppingTemplateService() as service:
         return await service.update_item(
             template_id=template_id,
             item_id=item_id,
-            user_id=current_user.id,
+            workspace_id=workspace.workspace_id,
             data=data,
         )
 
@@ -110,12 +128,14 @@ async def update_template_item(
 async def remove_template_item(
     template_id: int,
     item_id: int,
-    current_user: User = Depends(get_current_active_user),
+    workspace: WorkspaceContext = Depends(get_current_workspace_context),
 ):
     """Удалить товар из шаблона."""
     async with ShoppingTemplateService() as service:
         await service.remove_item(
-            template_id=template_id, item_id=item_id, user_id=current_user.id
+            template_id=template_id,
+            item_id=item_id,
+            workspace_id=workspace.workspace_id,
         )
 
 
@@ -125,7 +145,7 @@ async def create_list_from_template(
     name: str | None = Query(None, description="Название списка"),
     account_id: int | None = Query(None, description="ID счёта"),
     category_id: int | None = Query(None, description="ID категории"),
-    current_user: User = Depends(get_current_active_user),
+    workspace: WorkspaceContext = Depends(get_current_workspace_context),
 ):
     """
     Создать список покупок из шаблона.
@@ -135,7 +155,8 @@ async def create_list_from_template(
     async with ShoppingTemplateService() as service:
         return await service.create_list_from_template(
             template_id=template_id,
-            user_id=current_user.id,
+            workspace_id=workspace.workspace_id,
+            actor_user_id=workspace.user.id,
             name=name,
             account_id=account_id,
             category_id=category_id,

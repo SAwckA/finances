@@ -79,7 +79,7 @@ class RecurringExecutionError:
     """Ошибки batch-исполнения recurring."""
 
     recurring_id: int
-    user_id: int
+    workspace_id: int
     message: str
 
 
@@ -105,22 +105,26 @@ class RecurringTransactionService(BaseService):
     account_repository: AccountRepository
     category_repository: CategoryRepository
 
-    async def get_user_recurring_transactions(
+    async def get_workspace_recurring_transactions(
         self,
-        user_id: int,
+        workspace_id: int,
         is_active: bool | None = None,
         skip: int = 0,
         limit: int = 100,
     ):
-        """Получить периодические транзакции пользователя."""
-        return await self.recurring_repository.get_by_user_id(
-            user_id=user_id, is_active=is_active, skip=skip, limit=limit
+        """Получить периодические транзакции рабочего пространства."""
+        return await self.recurring_repository.get_by_workspace_id(
+            workspace_id=workspace_id,
+            is_active=is_active,
+            skip=skip,
+            limit=limit,
         )
 
-    async def get_by_id(self, recurring_id: int, user_id: int):
+    async def get_by_id(self, recurring_id: int, workspace_id: int):
         """Получить периодическую транзакцию по ID с проверкой доступа."""
-        recurring = await self.recurring_repository.get_user_recurring(
-            user_id=user_id, recurring_id=recurring_id
+        recurring = await self.recurring_repository.get_workspace_recurring(
+            workspace_id=workspace_id,
+            recurring_id=recurring_id,
         )
         if not recurring:
             raise RecurringTransactionNotFoundException(
@@ -128,11 +132,12 @@ class RecurringTransactionService(BaseService):
             )
         return recurring
 
-    async def get_pending(self, user_id: int, as_of_date: date | None = None):
-        """Получить ожидающие выполнения транзакции пользователя."""
+    async def get_pending(self, workspace_id: int, as_of_date: date | None = None):
+        """Получить ожидающие выполнения транзакции рабочего пространства."""
         check_date = as_of_date or date.today()
-        return await self.recurring_repository.get_pending_for_user(
-            user_id=user_id, as_of_date=check_date
+        return await self.recurring_repository.get_pending_for_workspace(
+            workspace_id=workspace_id,
+            as_of_date=check_date,
         )
 
     @classmethod
@@ -155,7 +160,7 @@ class RecurringTransactionService(BaseService):
                 async with cls() as service:
                     executed_count = await service._execute_backfill_for_recurring(
                         recurring_id=item.id,
-                        user_id=item.user_id,
+                        workspace_id=item.workspace_id,
                         as_of_date=target_date,
                     )
                 report.successful_executions += executed_count
@@ -164,25 +169,30 @@ class RecurringTransactionService(BaseService):
                 report.errors.append(
                     RecurringExecutionError(
                         recurring_id=item.id,
-                        user_id=item.user_id,
+                        workspace_id=item.workspace_id,
                         message=str(exc),
                     )
                 )
                 logger.exception(
-                    "Failed to execute recurring transaction %s for user %s",
+                    "Failed to execute recurring transaction %s for workspace %s",
                     item.id,
-                    item.user_id,
+                    item.workspace_id,
                 )
 
         return report
 
-    async def create(self, user_id: int, data: RecurringTransactionCreate):
+    async def create(
+        self,
+        workspace_id: int,
+        actor_user_id: int,
+        data: RecurringTransactionCreate,
+    ):
         """Создать периодическую транзакцию."""
         if data.type == TransactionType.TRANSFER:
             raise TransferNotAllowedForRecurringException()
 
-        await self._validate_account(user_id, data.account_id)
-        await self._validate_category(user_id, data.category_id, data.type)
+        await self._validate_account(workspace_id, data.account_id)
+        await self._validate_category(workspace_id, data.category_id, data.type)
         self._validate_frequency_config(
             data.frequency, data.day_of_week, data.day_of_month
         )
@@ -195,7 +205,8 @@ class RecurringTransactionService(BaseService):
         )
 
         recurring_data = {
-            "user_id": user_id,
+            "workspace_id": workspace_id,
+            "user_id": actor_user_id,
             "type": data.type,
             "account_id": data.account_id,
             "category_id": data.category_id,
@@ -211,20 +222,30 @@ class RecurringTransactionService(BaseService):
         }
 
         recurring = await self.recurring_repository.create(recurring_data)
-        logger.info(f"Created recurring transaction {recurring.id} for user {user_id}")
+        logger.info(
+            "Created recurring transaction %s for workspace %s by user %s",
+            recurring.id,
+            workspace_id,
+            actor_user_id,
+        )
         return recurring
 
     async def update(
-        self, recurring_id: int, user_id: int, data: RecurringTransactionUpdate
+        self,
+        recurring_id: int,
+        workspace_id: int,
+        data: RecurringTransactionUpdate,
     ):
         """Обновить периодическую транзакцию."""
-        recurring = await self.get_by_id(recurring_id, user_id)
+        recurring = await self.get_by_id(recurring_id, workspace_id)
 
         update_data = data.model_dump(exclude_unset=True)
 
         if "category_id" in update_data:
             await self._validate_category(
-                user_id, update_data["category_id"], recurring.type
+                workspace_id,
+                update_data["category_id"],
+                recurring.type,
             )
 
         if (
@@ -249,25 +270,25 @@ class RecurringTransactionService(BaseService):
         logger.info(f"Updated recurring transaction {recurring_id}")
         return updated
 
-    async def delete(self, recurring_id: int, user_id: int) -> bool:
+    async def delete(self, recurring_id: int, workspace_id: int) -> bool:
         """Удалить периодическую транзакцию."""
-        await self.get_by_id(recurring_id, user_id)
+        await self.get_by_id(recurring_id, workspace_id)
         result = await self.recurring_repository.delete(recurring_id)
         logger.info(f"Deleted recurring transaction {recurring_id}")
         return result
 
-    async def deactivate(self, recurring_id: int, user_id: int):
+    async def deactivate(self, recurring_id: int, workspace_id: int):
         """Деактивировать периодическую транзакцию."""
-        await self.get_by_id(recurring_id, user_id)
+        await self.get_by_id(recurring_id, workspace_id)
         updated = await self.recurring_repository.update(
             recurring_id, {"is_active": False}
         )
         logger.info(f"Deactivated recurring transaction {recurring_id}")
         return updated
 
-    async def activate(self, recurring_id: int, user_id: int):
+    async def activate(self, recurring_id: int, workspace_id: int):
         """Активировать периодическую транзакцию."""
-        recurring = await self.get_by_id(recurring_id, user_id)
+        recurring = await self.get_by_id(recurring_id, workspace_id)
 
         if recurring.end_date and recurring.end_date < date.today():
             raise RecurringTransactionExpiredException()
@@ -286,13 +307,13 @@ class RecurringTransactionService(BaseService):
         logger.info(f"Activated recurring transaction {recurring_id}")
         return updated
 
-    async def execute(self, recurring_id: int, user_id: int):
+    async def execute(self, recurring_id: int, workspace_id: int):
         """
         Выполнить периодическую транзакцию.
 
         Создаёт реальную транзакцию и обновляет next_execution_date.
         """
-        recurring = await self.get_by_id(recurring_id, user_id)
+        recurring = await self.get_by_id(recurring_id, workspace_id)
 
         if not recurring.is_active:
             raise RecurringTransactionInactiveException()
@@ -333,11 +354,14 @@ class RecurringTransactionService(BaseService):
     async def _execute_backfill_for_recurring(
         self,
         recurring_id: int,
-        user_id: int,
+        workspace_id: int,
         as_of_date: date,
     ) -> int:
         """Выполнить один recurring-шаблон с бэкфиллом до указанной даты."""
-        recurring = await self.get_by_id(recurring_id=recurring_id, user_id=user_id)
+        recurring = await self.get_by_id(
+            recurring_id=recurring_id,
+            workspace_id=workspace_id,
+        )
         if not recurring.is_active:
             return 0
 
@@ -380,6 +404,7 @@ class RecurringTransactionService(BaseService):
     ) -> Transaction:
         """Создать обычную транзакцию из recurring-шаблона."""
         transaction_data = {
+            "workspace_id": recurring.workspace_id,
             "user_id": recurring.user_id,
             "type": recurring.type,
             "account_id": recurring.account_id,
@@ -402,20 +427,23 @@ class RecurringTransactionService(BaseService):
             )
         return updated
 
-    async def _validate_account(self, user_id: int, account_id: int) -> None:
+    async def _validate_account(self, workspace_id: int, account_id: int) -> None:
         """Проверить существование и доступ к счёту."""
         account = await self.account_repository.get_by_id(account_id)
-        if not account or account.user_id != user_id:
+        if not account or account.workspace_id != workspace_id:
             raise AccountNotFoundForRecurringException(
                 details={"account_id": account_id}
             )
 
     async def _validate_category(
-        self, user_id: int, category_id: int, transaction_type: TransactionType
+        self,
+        workspace_id: int,
+        category_id: int,
+        transaction_type: TransactionType,
     ) -> None:
         """Проверить существование и тип категории."""
         category = await self.category_repository.get_by_id(category_id)
-        if not category or category.user_id != user_id:
+        if not category or category.workspace_id != workspace_id:
             raise CategoryNotFoundForRecurringException(
                 details={"category_id": category_id}
             )

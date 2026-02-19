@@ -2,22 +2,37 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { apiRequest, ApiError } from "@/lib/api-client";
-import { clearStoredTokens, readStoredTokens, writeStoredTokens } from "@/lib/auth-storage";
-import type { TokenResponseSchema, UserResponse } from "@/lib/types";
+import {
+  clearStoredActiveWorkspaceId,
+  clearStoredTokens,
+  readStoredActiveWorkspaceId,
+  readStoredTokens,
+  writeStoredActiveWorkspaceId,
+  writeStoredTokens,
+} from "@/lib/auth-storage";
+import type { TokenResponseSchema, UserResponse, WorkspaceResponse } from "@/lib/types";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
+
+type RequestOptions = {
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  body?: unknown;
+  headers?: HeadersInit;
+};
 
 type AuthContextValue = {
   status: AuthStatus;
   user: UserResponse | null;
   tokens: TokenResponseSchema | null;
+  workspaces: WorkspaceResponse[];
+  activeWorkspaceId: number | null;
+  activeWorkspace: WorkspaceResponse | null;
+  setActiveWorkspace: (workspaceId: number) => void;
+  refreshWorkspaces: () => Promise<WorkspaceResponse[]>;
   startGoogleLogin: () => Promise<void>;
   logout: () => void;
   refreshProfile: () => Promise<UserResponse>;
-  authenticatedRequest: <T>(
-    path: string,
-    options?: { method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; body?: unknown },
-  ) => Promise<T>;
+  authenticatedRequest: <T>(path: string, options?: RequestOptions) => Promise<T>;
 };
 
 type GoogleStartResponse = {
@@ -30,24 +45,77 @@ async function loadProfile(accessToken: string): Promise<UserResponse> {
   return apiRequest<UserResponse>("/api/users/me", { token: accessToken });
 }
 
+async function loadWorkspaces(accessToken: string): Promise<WorkspaceResponse[]> {
+  return apiRequest<WorkspaceResponse[]>("/api/workspaces", { token: accessToken });
+}
+
+function pickActiveWorkspaceId(
+  workspaces: WorkspaceResponse[],
+  preferredWorkspaceId: number | null,
+): number | null {
+  if (workspaces.length === 0) {
+    return null;
+  }
+
+  if (preferredWorkspaceId && workspaces.some((workspace) => workspace.id === preferredWorkspaceId)) {
+    return preferredWorkspaceId;
+  }
+
+  const personal = workspaces.find((workspace) => workspace.kind === "personal");
+  if (personal) {
+    return personal.id;
+  }
+
+  return workspaces[0]?.id ?? null;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [user, setUser] = useState<UserResponse | null>(null);
   const [tokens, setTokens] = useState<TokenResponseSchema | null>(null);
+  const [workspaces, setWorkspaces] = useState<WorkspaceResponse[]>([]);
+  const [activeWorkspaceId, setActiveWorkspaceIdState] = useState<number | null>(null);
   const refreshInFlight = useRef<Promise<TokenResponseSchema> | null>(null);
 
-  const persistSession = useCallback((nextTokens: TokenResponseSchema, nextUser: UserResponse) => {
-    setTokens(nextTokens);
-    setUser(nextUser);
-    setStatus("authenticated");
-    writeStoredTokens(nextTokens);
-  }, []);
+  const applyWorkspaceState = useCallback(
+    (workspaceList: WorkspaceResponse[], preferredWorkspaceId: number | null) => {
+      const resolvedActiveId = pickActiveWorkspaceId(workspaceList, preferredWorkspaceId);
+      setWorkspaces(workspaceList);
+      setActiveWorkspaceIdState(resolvedActiveId);
+
+      if (resolvedActiveId) {
+        writeStoredActiveWorkspaceId(resolvedActiveId);
+      } else {
+        clearStoredActiveWorkspaceId();
+      }
+    },
+    [],
+  );
+
+  const persistSession = useCallback(
+    (
+      nextTokens: TokenResponseSchema,
+      nextUser: UserResponse,
+      nextWorkspaces: WorkspaceResponse[],
+      preferredWorkspaceId: number | null,
+    ) => {
+      setTokens(nextTokens);
+      setUser(nextUser);
+      applyWorkspaceState(nextWorkspaces, preferredWorkspaceId);
+      setStatus("authenticated");
+      writeStoredTokens(nextTokens);
+    },
+    [applyWorkspaceState],
+  );
 
   const resetSession = useCallback(() => {
     setTokens(null);
     setUser(null);
+    setWorkspaces([]);
+    setActiveWorkspaceIdState(null);
     setStatus("unauthenticated");
     clearStoredTokens();
+    clearStoredActiveWorkspaceId();
   }, []);
 
   const refreshTokens = useCallback(async (): Promise<TokenResponseSchema> => {
@@ -74,26 +142,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [tokens]);
 
   const authenticatedRequest = useCallback(
-    async <T,>(
-      path: string,
-      options: { method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; body?: unknown } = {},
-    ): Promise<T> => {
+    async <T,>(path: string, options: RequestOptions = {}): Promise<T> => {
       if (!tokens?.access_token) {
         throw new Error("Not authenticated");
       }
 
+      const headers = new Headers(options.headers);
+      const shouldAttachWorkspaceHeader =
+        activeWorkspaceId !== null &&
+        !path.startsWith("/api/workspaces") &&
+        !path.startsWith("/api/users");
+      if (shouldAttachWorkspaceHeader && !headers.has("X-Workspace-Id")) {
+        headers.set("X-Workspace-Id", String(activeWorkspaceId));
+      }
+
       try {
-        return await apiRequest<T>(path, { ...options, token: tokens.access_token });
+        return await apiRequest<T>(path, {
+          ...options,
+          headers,
+          token: tokens.access_token,
+        });
       } catch (error) {
         if (!(error instanceof ApiError) || error.status !== 401) {
           throw error;
         }
 
         const refreshed = await refreshTokens();
-        return apiRequest<T>(path, { ...options, token: refreshed.access_token });
+        return apiRequest<T>(path, {
+          ...options,
+          headers,
+          token: refreshed.access_token,
+        });
       }
     },
-    [refreshTokens, tokens],
+    [activeWorkspaceId, refreshTokens, tokens],
+  );
+
+  const refreshWorkspaces = useCallback(async (): Promise<WorkspaceResponse[]> => {
+    const workspaceList = await authenticatedRequest<WorkspaceResponse[]>("/api/workspaces");
+    const preferredWorkspaceId = activeWorkspaceId ?? readStoredActiveWorkspaceId();
+    applyWorkspaceState(workspaceList, preferredWorkspaceId);
+    return workspaceList;
+  }, [activeWorkspaceId, applyWorkspaceState, authenticatedRequest]);
+
+  const setActiveWorkspace = useCallback(
+    (workspaceId: number) => {
+      if (!workspaces.some((workspace) => workspace.id === workspaceId)) {
+        throw new Error("Workspace is not available for current user");
+      }
+
+      setActiveWorkspaceIdState(workspaceId);
+      writeStoredActiveWorkspaceId(workspaceId);
+    },
+    [workspaces],
   );
 
   const startGoogleLogin = useCallback(async () => {
@@ -115,6 +216,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const hydrate = async () => {
       const url = new URL(window.location.href);
       const authCode = url.searchParams.get("auth_code");
+      const preferredWorkspaceId = readStoredActiveWorkspaceId();
 
       if (authCode) {
         try {
@@ -122,8 +224,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             method: "POST",
             body: { auth_code: authCode },
           });
-          const profile = await loadProfile(exchanged.access_token);
-          persistSession(exchanged, profile);
+          const [profile, workspaceList] = await Promise.all([
+            loadProfile(exchanged.access_token),
+            loadWorkspaces(exchanged.access_token),
+          ]);
+          persistSession(exchanged, profile, workspaceList, preferredWorkspaceId);
           url.searchParams.delete("auth_code");
           window.history.replaceState({}, "", url.toString());
           return;
@@ -140,8 +245,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        const profile = await loadProfile(stored.access_token);
-        persistSession(stored, profile);
+        const [profile, workspaceList] = await Promise.all([
+          loadProfile(stored.access_token),
+          loadWorkspaces(stored.access_token),
+        ]);
+        persistSession(stored, profile, workspaceList, preferredWorkspaceId);
       } catch (error) {
         if (!(error instanceof ApiError) || error.status !== 401) {
           resetSession();
@@ -153,8 +261,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             method: "POST",
             body: { refresh_token: stored.refresh_token },
           });
-          const profile = await loadProfile(refreshed.access_token);
-          persistSession(refreshed, profile);
+          const [profile, workspaceList] = await Promise.all([
+            loadProfile(refreshed.access_token),
+            loadWorkspaces(refreshed.access_token),
+          ]);
+          persistSession(refreshed, profile, workspaceList, preferredWorkspaceId);
         } catch {
           resetSession();
         }
@@ -164,17 +275,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void hydrate();
   }, [persistSession, resetSession]);
 
+  const activeWorkspace = useMemo(
+    () => workspaces.find((workspace) => workspace.id === activeWorkspaceId) ?? null,
+    [activeWorkspaceId, workspaces],
+  );
+
   const contextValue = useMemo<AuthContextValue>(
     () => ({
       status,
       user,
       tokens,
+      workspaces,
+      activeWorkspaceId,
+      activeWorkspace,
+      setActiveWorkspace,
+      refreshWorkspaces,
       startGoogleLogin,
       logout: resetSession,
       refreshProfile,
       authenticatedRequest,
     }),
-    [authenticatedRequest, refreshProfile, resetSession, startGoogleLogin, status, tokens, user],
+    [
+      activeWorkspace,
+      activeWorkspaceId,
+      authenticatedRequest,
+      refreshProfile,
+      refreshWorkspaces,
+      resetSession,
+      setActiveWorkspace,
+      startGoogleLogin,
+      status,
+      tokens,
+      user,
+      workspaces,
+    ],
   );
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;

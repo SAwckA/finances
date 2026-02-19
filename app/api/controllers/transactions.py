@@ -3,14 +3,16 @@ from decimal import Decimal
 
 from fastapi import APIRouter, Depends, Query
 
-from app.api.dependencies.auth import get_current_active_user
+from app.api.dependencies.auth import (
+    WorkspaceContext,
+    get_current_workspace_context,
+)
 from app.models.transaction import (
     TransactionCreate,
     TransactionResponse,
     TransactionType,
     TransactionUpdate,
 )
-from app.models.user import User
 from app.services.exchange_rate_service import ExchangeRateService
 from app.services.transaction_service import TransactionService
 
@@ -21,12 +23,14 @@ router = APIRouter(prefix="/transactions", tags=["transactions"])
 async def get_transactions(
     skip: int = 0,
     limit: int = 100,
-    current_user: User = Depends(get_current_active_user),
+    workspace: WorkspaceContext = Depends(get_current_workspace_context),
 ):
-    """Получить все транзакции текущего пользователя."""
+    """Получить все транзакции активного workspace."""
     async with TransactionService() as service:
-        return await service.get_user_transactions(
-            user_id=current_user.id, skip=skip, limit=limit
+        return await service.get_workspace_transactions(
+            workspace_id=workspace.workspace_id,
+            skip=skip,
+            limit=limit,
         )
 
 
@@ -35,12 +39,12 @@ async def get_account_transactions(
     account_id: int,
     skip: int = 0,
     limit: int = 100,
-    current_user: User = Depends(get_current_active_user),
+    workspace: WorkspaceContext = Depends(get_current_workspace_context),
 ):
     """Получить транзакции по счёту."""
     async with TransactionService() as service:
         return await service.get_account_transactions(
-            user_id=current_user.id,
+            workspace_id=workspace.workspace_id,
             account_id=account_id,
             skip=skip,
             limit=limit,
@@ -54,12 +58,12 @@ async def get_transactions_by_period(
     transaction_type: TransactionType | None = Query(
         None, description="Тип транзакции"
     ),
-    current_user: User = Depends(get_current_active_user),
+    workspace: WorkspaceContext = Depends(get_current_workspace_context),
 ):
     """Получить транзакции за период."""
     async with TransactionService() as service:
         return await service.get_transactions_by_period(
-            user_id=current_user.id,
+            workspace_id=workspace.workspace_id,
             start_date=start_date,
             end_date=end_date,
             transaction_type=transaction_type,
@@ -69,12 +73,13 @@ async def get_transactions_by_period(
 @router.get("/{transaction_id}", response_model=TransactionResponse)
 async def get_transaction(
     transaction_id: int,
-    current_user: User = Depends(get_current_active_user),
+    workspace: WorkspaceContext = Depends(get_current_workspace_context),
 ):
     """Получить транзакцию по ID."""
     async with TransactionService() as service:
         return await service.get_by_id(
-            transaction_id=transaction_id, user_id=current_user.id
+            transaction_id=transaction_id,
+            workspace_id=workspace.workspace_id,
         )
 
 
@@ -83,7 +88,7 @@ async def create_transaction(
     data: TransactionCreate,
     converted_amount: Decimal | None = Query(None, description="Сумма получения"),
     exchange_rate: Decimal | None = Query(None, description="Курс обмена"),
-    current_user: User = Depends(get_current_active_user),
+    workspace: WorkspaceContext = Depends(get_current_workspace_context),
 ):
     """Создать новую транзакцию."""
     exchange_rate_override = exchange_rate
@@ -107,10 +112,12 @@ async def create_transaction(
 
             async with AccountService() as account_service:
                 source = await account_service.get_by_id(
-                    data.account_id, current_user.id
+                    data.account_id,
+                    workspace.workspace_id,
                 )
                 target = await account_service.get_by_id(
-                    data.target_account_id, current_user.id
+                    data.target_account_id,
+                    workspace.workspace_id,
                 )
 
                 if source.currency_code != target.currency_code:
@@ -120,7 +127,8 @@ async def create_transaction(
 
     async with TransactionService() as service:
         return await service.create(
-            user_id=current_user.id,
+            workspace_id=workspace.workspace_id,
+            actor_user_id=workspace.user.id,
             data=data,
             exchange_rate=exchange_rate_override,
             converted_amount=converted_amount_override,
@@ -133,13 +141,13 @@ async def update_transaction(
     data: TransactionUpdate,
     converted_amount: Decimal | None = Query(None, description="Сумма получения"),
     exchange_rate: Decimal | None = Query(None, description="Курс обмена"),
-    current_user: User = Depends(get_current_active_user),
+    workspace: WorkspaceContext = Depends(get_current_workspace_context),
 ):
     """Обновить транзакцию."""
     async with TransactionService() as service:
         return await service.update(
             transaction_id=transaction_id,
-            user_id=current_user.id,
+            workspace_id=workspace.workspace_id,
             data=data,
             exchange_rate_override=exchange_rate,
             converted_amount_override=converted_amount,
@@ -149,8 +157,11 @@ async def update_transaction(
 @router.delete("/{transaction_id}", status_code=204)
 async def delete_transaction(
     transaction_id: int,
-    current_user: User = Depends(get_current_active_user),
+    workspace: WorkspaceContext = Depends(get_current_workspace_context),
 ):
     """Удалить транзакцию."""
     async with TransactionService() as service:
-        await service.delete(transaction_id=transaction_id, user_id=current_user.id)
+        await service.delete(
+            transaction_id=transaction_id,
+            workspace_id=workspace.workspace_id,
+        )

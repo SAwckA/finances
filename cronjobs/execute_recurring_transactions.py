@@ -44,9 +44,9 @@ async def run_job(as_of_date: date) -> int:
 
         for error in report.errors:
             logger.error(
-                "Recurring execution failed. recurring_id=%s user_id=%s message=%s",
+                "Recurring execution failed. recurring_id=%s workspace_id=%s message=%s",
                 error.recurring_id,
-                error.user_id,
+                error.workspace_id,
                 error.message,
             )
 

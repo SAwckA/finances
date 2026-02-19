@@ -9,6 +9,7 @@ from app.models.shopping_list import ShoppingItem, ShoppingList
 from app.models.shopping_template import ShoppingTemplate, ShoppingTemplateItem
 from app.models.transaction import Transaction
 from app.models.user import User
+from app.models.workspace import Workspace, WorkspaceMembership
 
 __all__ = [
     "Account",
@@ -27,4 +28,6 @@ __all__ = [
     "SoftDeleteModel",
     "Transaction",
     "User",
+    "Workspace",
+    "WorkspaceMembership",
 ]

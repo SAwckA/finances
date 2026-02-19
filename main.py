@@ -65,7 +65,7 @@ async def health_check():
 uvicorn.run(
     app,
     port=8000,
-    host='0.0.0.0',
+    host="0.0.0.0",
     log_config=None,
     access_log=True,
 )

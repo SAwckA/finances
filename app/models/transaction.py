@@ -60,7 +60,7 @@ class TransactionResponse(BaseModel):
     """Схема ответа с данными транзакции."""
 
     id: int
-    user_id: int
+    workspace_id: int
     type: TransactionType
     account_id: int
     target_account_id: int | None
@@ -86,6 +86,7 @@ class Transaction(SoftDeleteModel):
     __tablename__ = "transactions"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(ForeignKey("workspaces.id"), index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     type: Mapped[TransactionType] = mapped_column(SQLEnum(TransactionType), index=True)
 
@@ -117,6 +118,7 @@ class Transaction(SoftDeleteModel):
     )
 
     user = relationship("User")
+    workspace = relationship("Workspace")
     account = relationship("Account", foreign_keys=[account_id])
     target_account = relationship("Account", foreign_keys=[target_account_id])
     category = relationship("Category")

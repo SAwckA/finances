@@ -19,16 +19,16 @@ class ShoppingTemplateRepository(BaseRepository[ShoppingTemplate]):
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
-    async def get_by_user_id(
+    async def get_by_workspace_id(
         self,
-        user_id: int,
+        workspace_id: int,
         skip: int = 0,
         limit: int = 100,
     ) -> Sequence[ShoppingTemplate]:
-        """Получить шаблоны пользователя."""
+        """Получить шаблоны рабочего пространства."""
         query = (
             self._base_query()
-            .where(ShoppingTemplate.user_id == user_id)
+            .where(ShoppingTemplate.workspace_id == workspace_id)
             .options(selectinload(ShoppingTemplate.items))
             .order_by(ShoppingTemplate.name)
             .offset(skip)
@@ -37,13 +37,15 @@ class ShoppingTemplateRepository(BaseRepository[ShoppingTemplate]):
         result = await self.session.execute(query)
         return result.scalars().all()
 
-    async def get_user_template(
-        self, user_id: int, template_id: int
+    async def get_workspace_template(
+        self,
+        workspace_id: int,
+        template_id: int,
     ) -> ShoppingTemplate | None:
-        """Получить конкретный шаблон пользователя."""
+        """Получить конкретный шаблон рабочего пространства."""
         query = (
             self._base_query()
-            .where(ShoppingTemplate.user_id == user_id)
+            .where(ShoppingTemplate.workspace_id == workspace_id)
             .where(ShoppingTemplate.id == template_id)
             .options(selectinload(ShoppingTemplate.items))
         )

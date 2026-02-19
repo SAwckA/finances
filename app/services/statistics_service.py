@@ -64,11 +64,14 @@ class StatisticsService(BaseService):
     currency_repository: CurrencyRepository
 
     async def get_account_balance(
-        self, account_id: int, user_id: int
+        self,
+        account_id: int,
+        workspace_id: int,
     ) -> AccountBalance:
         """Получить баланс конкретного счёта."""
-        account = await self.account_repository.get_user_account(
-            user_id=user_id, account_id=account_id
+        account = await self.account_repository.get_workspace_account(
+            workspace_id=workspace_id,
+            account_id=account_id,
         )
         if not account:
             from app.services.account_service import AccountNotFoundException
@@ -76,7 +79,10 @@ class StatisticsService(BaseService):
             raise AccountNotFoundException(details={"account_id": account_id})
 
         currency = await self.currency_repository.get_by_code(account.currency_code)
-        balance = await self.transaction_repository.get_account_balance(account_id)
+        balance = await self.transaction_repository.get_account_balance(
+            workspace_id=workspace_id,
+            account_id=account_id,
+        )
 
         return AccountBalance(
             account_id=account.id,
@@ -86,14 +92,17 @@ class StatisticsService(BaseService):
             balance=balance,
         )
 
-    async def get_all_balances(self, user_id: int) -> list[AccountBalance]:
-        """Получить балансы всех счетов пользователя."""
-        accounts = await self.account_repository.get_by_user_id(user_id)
+    async def get_all_balances(self, workspace_id: int) -> list[AccountBalance]:
+        """Получить балансы всех счетов рабочего пространства."""
+        accounts = await self.account_repository.get_by_workspace_id(workspace_id)
         balances = []
 
         for account in accounts:
             currency = await self.currency_repository.get_by_code(account.currency_code)
-            balance = await self.transaction_repository.get_account_balance(account.id)
+            balance = await self.transaction_repository.get_account_balance(
+                workspace_id=workspace_id,
+                account_id=account.id,
+            )
             balances.append(
                 AccountBalance(
                     account_id=account.id,
@@ -108,26 +117,29 @@ class StatisticsService(BaseService):
 
     async def get_total_balance(
         self,
-        user_id: int,
+        workspace_id: int,
         target_currency_code: str,
     ) -> Decimal:
         """
         Получить общий баланс всех счетов в указанной валюте.
 
         Args:
-            user_id: ID пользователя
+            workspace_id: ID рабочего пространства
             target_currency_code: Код валюты для отображения (например, "RUB")
 
         Returns:
             Общий баланс в указанной валюте
         """
-        accounts = await self.account_repository.get_by_user_id(user_id)
+        accounts = await self.account_repository.get_by_workspace_id(workspace_id)
         exchange_service = ExchangeRateService()
         total = Decimal("0")
 
         for account in accounts:
             currency = await self.currency_repository.get_by_code(account.currency_code)
-            balance = await self.transaction_repository.get_account_balance(account.id)
+            balance = await self.transaction_repository.get_account_balance(
+                workspace_id=workspace_id,
+                account_id=account.id,
+            )
 
             if not currency:
                 continue
@@ -146,7 +158,7 @@ class StatisticsService(BaseService):
 
     async def get_period_statistics(
         self,
-        user_id: int,
+        workspace_id: int,
         start_date: datetime,
         end_date: datetime,
         account_ids: list[int] | None = None,
@@ -156,7 +168,7 @@ class StatisticsService(BaseService):
         Получить статистику за период.
 
         Args:
-            user_id: ID пользователя
+            workspace_id: ID рабочего пространства
             start_date: Начало периода
             end_date: Конец периода
             target_currency_code: Целевая валюта для итоговых сумм
@@ -165,7 +177,7 @@ class StatisticsService(BaseService):
             Статистика с доходами/расходами по категориям
         """
         income_by_category = await self._get_category_summary(
-            user_id=user_id,
+            workspace_id=workspace_id,
             start_date=start_date,
             end_date=end_date,
             transaction_type=TransactionType.INCOME,
@@ -173,7 +185,7 @@ class StatisticsService(BaseService):
         )
 
         expense_by_category = await self._get_category_summary(
-            user_id=user_id,
+            workspace_id=workspace_id,
             start_date=start_date,
             end_date=end_date,
             transaction_type=TransactionType.EXPENSE,
@@ -182,7 +194,7 @@ class StatisticsService(BaseService):
 
         if target_currency_code:
             total_income = await self._get_total_by_type_in_currency(
-                user_id=user_id,
+                workspace_id=workspace_id,
                 start_date=start_date,
                 end_date=end_date,
                 transaction_type=TransactionType.INCOME,
@@ -190,7 +202,7 @@ class StatisticsService(BaseService):
                 target_currency_code=target_currency_code,
             )
             total_expense = await self._get_total_by_type_in_currency(
-                user_id=user_id,
+                workspace_id=workspace_id,
                 start_date=start_date,
                 end_date=end_date,
                 transaction_type=TransactionType.EXPENSE,
@@ -199,14 +211,14 @@ class StatisticsService(BaseService):
             )
         else:
             total_income = await self.transaction_repository.get_sum_by_type(
-                user_id=user_id,
+                workspace_id=workspace_id,
                 start_date=start_date,
                 end_date=end_date,
                 transaction_type=TransactionType.INCOME,
                 account_ids=account_ids,
             )
             total_expense = await self.transaction_repository.get_sum_by_type(
-                user_id=user_id,
+                workspace_id=workspace_id,
                 start_date=start_date,
                 end_date=end_date,
                 transaction_type=TransactionType.EXPENSE,
@@ -225,7 +237,7 @@ class StatisticsService(BaseService):
 
     async def _get_total_by_type_in_currency(
         self,
-        user_id: int,
+        workspace_id: int,
         start_date: datetime,
         end_date: datetime,
         transaction_type: TransactionType,
@@ -235,14 +247,14 @@ class StatisticsService(BaseService):
         exchange_service = ExchangeRateService()
         totals_by_account = (
             await self.transaction_repository.get_sum_by_type_by_account(
-                user_id=user_id,
+                workspace_id=workspace_id,
                 start_date=start_date,
                 end_date=end_date,
                 transaction_type=transaction_type,
                 account_ids=account_ids,
             )
         )
-        accounts = await self.account_repository.get_by_user_id(user_id)
+        accounts = await self.account_repository.get_by_workspace_id(workspace_id)
         account_map = {account.id: account for account in accounts}
         total = Decimal("0")
         target_code = target_currency_code.upper()
@@ -268,7 +280,7 @@ class StatisticsService(BaseService):
 
     async def _get_category_summary(
         self,
-        user_id: int,
+        workspace_id: int,
         start_date: datetime,
         end_date: datetime,
         transaction_type: TransactionType,
@@ -276,7 +288,7 @@ class StatisticsService(BaseService):
     ) -> list[CategorySummary]:
         """Получить суммы по категориям."""
         category_sums = await self.transaction_repository.get_sum_by_category(
-            user_id=user_id,
+            workspace_id=workspace_id,
             start_date=start_date,
             end_date=end_date,
             transaction_type=transaction_type,

@@ -11,17 +11,22 @@ from app.repositories.base_repository import BaseRepository
 class TransactionRepository(BaseRepository[Transaction]):
     """Репозиторий для работы с транзакциями."""
 
-    async def get_by_user_id(
+    async def get_by_workspace_id(
         self,
-        user_id: int,
+        workspace_id: int,
         skip: int = 0,
         limit: int = 100,
     ) -> Sequence[Transaction]:
-        """Получить все транзакции пользователя."""
-        return await self.get_many_by(user_id=user_id, skip=skip, limit=limit)
+        """Получить все транзакции рабочего пространства."""
+        return await self.get_many_by(
+            workspace_id=workspace_id,
+            skip=skip,
+            limit=limit,
+        )
 
     async def get_by_account_id(
         self,
+        workspace_id: int,
         account_id: int,
         skip: int = 0,
         limit: int = 100,
@@ -29,6 +34,7 @@ class TransactionRepository(BaseRepository[Transaction]):
         """Получить транзакции по счёту."""
         query = (
             self._base_query()
+            .where(Transaction.workspace_id == workspace_id)
             .where(
                 (Transaction.account_id == account_id)
                 | (Transaction.target_account_id == account_id)
@@ -42,7 +48,7 @@ class TransactionRepository(BaseRepository[Transaction]):
 
     async def get_by_date_range(
         self,
-        user_id: int,
+        workspace_id: int,
         start_date: datetime,
         end_date: datetime,
         transaction_type: TransactionType | None = None,
@@ -50,7 +56,7 @@ class TransactionRepository(BaseRepository[Transaction]):
         """Получить транзакции за период."""
         query = (
             self._base_query()
-            .where(Transaction.user_id == user_id)
+            .where(Transaction.workspace_id == workspace_id)
             .where(Transaction.transaction_date >= start_date)
             .where(Transaction.transaction_date <= end_date)
         )
@@ -60,11 +66,12 @@ class TransactionRepository(BaseRepository[Transaction]):
         result = await self.session.execute(query)
         return result.scalars().all()
 
-    async def get_account_balance(self, account_id: int) -> Decimal:
+    async def get_account_balance(self, workspace_id: int, account_id: int) -> Decimal:
         """Вычислить баланс счёта на основе транзакций."""
         income_query = (
             select(func.coalesce(func.sum(Transaction.amount), 0))
             .where(Transaction.deleted_at.is_(None))
+            .where(Transaction.workspace_id == workspace_id)
             .where(Transaction.account_id == account_id)
             .where(Transaction.type == TransactionType.INCOME)
         )
@@ -72,6 +79,7 @@ class TransactionRepository(BaseRepository[Transaction]):
         expense_query = (
             select(func.coalesce(func.sum(Transaction.amount), 0))
             .where(Transaction.deleted_at.is_(None))
+            .where(Transaction.workspace_id == workspace_id)
             .where(Transaction.account_id == account_id)
             .where(Transaction.type == TransactionType.EXPENSE)
         )
@@ -79,6 +87,7 @@ class TransactionRepository(BaseRepository[Transaction]):
         transfer_out_query = (
             select(func.coalesce(func.sum(Transaction.amount), 0))
             .where(Transaction.deleted_at.is_(None))
+            .where(Transaction.workspace_id == workspace_id)
             .where(Transaction.account_id == account_id)
             .where(Transaction.type == TransactionType.TRANSFER)
         )
@@ -86,6 +95,7 @@ class TransactionRepository(BaseRepository[Transaction]):
         transfer_in_query = (
             select(func.coalesce(func.sum(Transaction.converted_amount), 0))
             .where(Transaction.deleted_at.is_(None))
+            .where(Transaction.workspace_id == workspace_id)
             .where(Transaction.target_account_id == account_id)
             .where(Transaction.type == TransactionType.TRANSFER)
         )
@@ -104,7 +114,7 @@ class TransactionRepository(BaseRepository[Transaction]):
 
     async def get_sum_by_category(
         self,
-        user_id: int,
+        workspace_id: int,
         start_date: datetime,
         end_date: datetime,
         transaction_type: TransactionType,
@@ -114,7 +124,7 @@ class TransactionRepository(BaseRepository[Transaction]):
         query = (
             select(Transaction.category_id, func.sum(Transaction.amount))
             .where(Transaction.deleted_at.is_(None))
-            .where(Transaction.user_id == user_id)
+            .where(Transaction.workspace_id == workspace_id)
             .where(Transaction.type == transaction_type)
             .where(Transaction.transaction_date >= start_date)
             .where(Transaction.transaction_date <= end_date)
@@ -128,7 +138,7 @@ class TransactionRepository(BaseRepository[Transaction]):
 
     async def get_sum_by_type(
         self,
-        user_id: int,
+        workspace_id: int,
         start_date: datetime,
         end_date: datetime,
         transaction_type: TransactionType,
@@ -138,7 +148,7 @@ class TransactionRepository(BaseRepository[Transaction]):
         query = (
             select(func.coalesce(func.sum(Transaction.amount), 0))
             .where(Transaction.deleted_at.is_(None))
-            .where(Transaction.user_id == user_id)
+            .where(Transaction.workspace_id == workspace_id)
             .where(Transaction.type == transaction_type)
             .where(Transaction.transaction_date >= start_date)
             .where(Transaction.transaction_date <= end_date)
@@ -150,7 +160,7 @@ class TransactionRepository(BaseRepository[Transaction]):
 
     async def get_sum_by_type_by_account(
         self,
-        user_id: int,
+        workspace_id: int,
         start_date: datetime,
         end_date: datetime,
         transaction_type: TransactionType,
@@ -162,7 +172,7 @@ class TransactionRepository(BaseRepository[Transaction]):
                 Transaction.account_id, func.coalesce(func.sum(Transaction.amount), 0)
             )
             .where(Transaction.deleted_at.is_(None))
-            .where(Transaction.user_id == user_id)
+            .where(Transaction.workspace_id == workspace_id)
             .where(Transaction.type == transaction_type)
             .where(Transaction.transaction_date >= start_date)
             .where(Transaction.transaction_date <= end_date)

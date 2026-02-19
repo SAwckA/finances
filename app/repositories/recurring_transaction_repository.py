@@ -8,15 +8,17 @@ from app.repositories.base_repository import BaseRepository
 class RecurringTransactionRepository(BaseRepository[RecurringTransaction]):
     """Репозиторий для работы с периодическими транзакциями."""
 
-    async def get_by_user_id(
+    async def get_by_workspace_id(
         self,
-        user_id: int,
+        workspace_id: int,
         is_active: bool | None = None,
         skip: int = 0,
         limit: int = 100,
     ) -> Sequence[RecurringTransaction]:
-        """Получить периодические транзакции пользователя."""
-        query = self._base_query().where(RecurringTransaction.user_id == user_id)
+        """Получить периодические транзакции рабочего пространства."""
+        query = self._base_query().where(
+            RecurringTransaction.workspace_id == workspace_id
+        )
         if is_active is not None:
             query = query.where(RecurringTransaction.is_active == is_active)
         query = (
@@ -27,11 +29,13 @@ class RecurringTransactionRepository(BaseRepository[RecurringTransaction]):
         result = await self.session.execute(query)
         return result.scalars().all()
 
-    async def get_user_recurring(
-        self, user_id: int, recurring_id: int
+    async def get_workspace_recurring(
+        self,
+        workspace_id: int,
+        recurring_id: int,
     ) -> RecurringTransaction | None:
-        """Получить конкретную периодическую транзакцию пользователя."""
-        return await self.get_by(user_id=user_id, id=recurring_id)
+        """Получить конкретную периодическую транзакцию рабочего пространства."""
+        return await self.get_by(workspace_id=workspace_id, id=recurring_id)
 
     async def get_pending(self, as_of_date: date) -> Sequence[RecurringTransaction]:
         """
@@ -51,13 +55,15 @@ class RecurringTransactionRepository(BaseRepository[RecurringTransaction]):
         result = await self.session.execute(query)
         return result.scalars().all()
 
-    async def get_pending_for_user(
-        self, user_id: int, as_of_date: date
+    async def get_pending_for_workspace(
+        self,
+        workspace_id: int,
+        as_of_date: date,
     ) -> Sequence[RecurringTransaction]:
-        """Получить ожидающие выполнения транзакции пользователя."""
+        """Получить ожидающие выполнения транзакции рабочего пространства."""
         query = (
             self._base_query()
-            .where(RecurringTransaction.user_id == user_id)
+            .where(RecurringTransaction.workspace_id == workspace_id)
             .where(RecurringTransaction.is_active.is_(True))
             .where(RecurringTransaction.next_execution_date <= as_of_date)
         )
@@ -67,13 +73,13 @@ class RecurringTransactionRepository(BaseRepository[RecurringTransaction]):
     async def get_pending_global(
         self, as_of_date: date
     ) -> Sequence[RecurringTransaction]:
-        """Получить ожидающие выполнения транзакции всех пользователей."""
+        """Получить ожидающие выполнения транзакции всех рабочих пространств."""
         query = (
             self._base_query()
             .where(RecurringTransaction.is_active.is_(True))
             .where(RecurringTransaction.next_execution_date <= as_of_date)
             .order_by(
-                RecurringTransaction.user_id,
+                RecurringTransaction.workspace_id,
                 RecurringTransaction.next_execution_date,
                 RecurringTransaction.id,
             )

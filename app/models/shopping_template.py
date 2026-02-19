@@ -83,7 +83,7 @@ class ShoppingTemplateResponse(ShoppingTemplateBase):
     """Схема ответа с данными шаблона."""
 
     id: int
-    user_id: int
+    workspace_id: int
     created_at: datetime
     items: list[ShoppingTemplateItemResponse] = Field(default_factory=list)
 
@@ -99,6 +99,7 @@ class ShoppingTemplate(SoftDeleteModel):
     __tablename__ = "shopping_templates"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(ForeignKey("workspaces.id"), index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
 
     name: Mapped[str] = mapped_column(String(100))
@@ -113,6 +114,7 @@ class ShoppingTemplate(SoftDeleteModel):
     )
 
     user = relationship("User")
+    workspace = relationship("Workspace")
     default_account = relationship("Account")
     default_category = relationship("Category")
     items = relationship(

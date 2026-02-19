@@ -1,13 +1,15 @@
 from fastapi import APIRouter, Depends, Query
 
-from app.api.dependencies.auth import get_current_active_user
+from app.api.dependencies.auth import (
+    WorkspaceContext,
+    get_current_workspace_context,
+)
 from app.models.category import (
     CategoryCreate,
     CategoryResponse,
     CategoryType,
     CategoryUpdate,
 )
-from app.models.user import User
 from app.services.category_service import CategoryService
 
 router = APIRouter(prefix="/categories", tags=["categories"])
@@ -18,12 +20,12 @@ async def get_categories(
     category_type: CategoryType | None = Query(None, description="Фильтр по типу"),
     skip: int = 0,
     limit: int = 100,
-    current_user: User = Depends(get_current_active_user),
+    workspace: WorkspaceContext = Depends(get_current_workspace_context),
 ):
-    """Получить все категории текущего пользователя."""
+    """Получить категории активного workspace."""
     async with CategoryService() as service:
-        return await service.get_user_categories(
-            user_id=current_user.id,
+        return await service.get_workspace_categories(
+            workspace_id=workspace.workspace_id,
             category_type=category_type,
             skip=skip,
             limit=limit,
@@ -33,41 +35,53 @@ async def get_categories(
 @router.get("/{category_id}", response_model=CategoryResponse)
 async def get_category(
     category_id: int,
-    current_user: User = Depends(get_current_active_user),
+    workspace: WorkspaceContext = Depends(get_current_workspace_context),
 ):
     """Получить категорию по ID."""
     async with CategoryService() as service:
-        return await service.get_by_id(category_id=category_id, user_id=current_user.id)
+        return await service.get_by_id(
+            category_id=category_id,
+            workspace_id=workspace.workspace_id,
+        )
 
 
 @router.post("", response_model=CategoryResponse, status_code=201)
 async def create_category(
     data: CategoryCreate,
-    current_user: User = Depends(get_current_active_user),
+    workspace: WorkspaceContext = Depends(get_current_workspace_context),
 ):
     """Создать новую категорию."""
     async with CategoryService() as service:
-        return await service.create(user_id=current_user.id, data=data)
+        return await service.create(
+            workspace_id=workspace.workspace_id,
+            actor_user_id=workspace.user.id,
+            data=data,
+        )
 
 
 @router.patch("/{category_id}", response_model=CategoryResponse)
 async def update_category(
     category_id: int,
     data: CategoryUpdate,
-    current_user: User = Depends(get_current_active_user),
+    workspace: WorkspaceContext = Depends(get_current_workspace_context),
 ):
     """Обновить категорию."""
     async with CategoryService() as service:
         return await service.update(
-            category_id=category_id, user_id=current_user.id, data=data
+            category_id=category_id,
+            workspace_id=workspace.workspace_id,
+            data=data,
         )
 
 
 @router.delete("/{category_id}", status_code=204)
 async def delete_category(
     category_id: int,
-    current_user: User = Depends(get_current_active_user),
+    workspace: WorkspaceContext = Depends(get_current_workspace_context),
 ):
     """Удалить категорию."""
     async with CategoryService() as service:
-        await service.delete(category_id=category_id, user_id=current_user.id)
+        await service.delete(
+            category_id=category_id,
+            workspace_id=workspace.workspace_id,
+        )

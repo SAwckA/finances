@@ -57,7 +57,7 @@ class CategoryResponse(CategoryBase):
     """Схема ответа с данными категории."""
 
     id: int
-    user_id: int
+    workspace_id: int
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -72,6 +72,7 @@ class Category(SoftDeleteModel):
     __tablename__ = "categories"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(ForeignKey("workspaces.id"), index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     name: Mapped[str] = mapped_column(String(100))
     color: Mapped[str] = mapped_column(String(7))
@@ -79,3 +80,4 @@ class Category(SoftDeleteModel):
     type: Mapped[CategoryType] = mapped_column(SQLEnum(CategoryType))
 
     user = relationship("User", back_populates="categories")
+    workspace = relationship("Workspace")

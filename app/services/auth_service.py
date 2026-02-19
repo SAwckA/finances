@@ -15,6 +15,7 @@ from app.exceptions import AuthException, ConflictException
 from app.repositories.auth_exchange_code_repository import AuthExchangeCodeRepository
 from app.repositories.user_repository import UserRepository
 from app.services.base_service import BaseService
+from app.services.workspace_service import WorkspaceService
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +97,7 @@ class AuthService(BaseService):
 
         async with self.user_repository.session.begin_nested():
             user = await self._find_or_create_google_user(profile)
+            await self._ensure_personal_workspace(user.id)
             auth_code = await self._issue_auth_exchange_code(user.id)
 
         return auth_code
@@ -113,6 +115,7 @@ class AuthService(BaseService):
         user = await self.user_repository.get_by_id(exchange_code.user_id)
         if not user or not user.is_active:
             raise InvalidCredentialsException(message="Аккаунт деактивирован")
+        await self._ensure_personal_workspace(user.id)
 
         return TokenResponse(
             access_token=create_access_token(user.id),
@@ -126,6 +129,7 @@ class AuthService(BaseService):
         user = await self.user_repository.get_by_id(payload.user_id)
         if not user or not user.is_active:
             raise InvalidCredentialsException()
+        await self._ensure_personal_workspace(user.id)
 
         logger.info(f"Tokens refreshed for user: {user.id}")
 
@@ -251,6 +255,11 @@ class AuthService(BaseService):
         )
 
         return raw_code
+
+    async def _ensure_personal_workspace(self, user_id: int) -> None:
+        """Гарантирует наличие персонального workspace для пользователя."""
+        async with WorkspaceService(session=self.user_repository.session) as service:
+            await service.resolve_personal_workspace(user_id)
 
     def _create_google_state(self) -> str:
         """Создает короткоживущий подписанный state для OAuth callback."""

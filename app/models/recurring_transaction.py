@@ -71,7 +71,7 @@ class RecurringTransactionResponse(RecurringTransactionBase):
     """Схема ответа с данными периодической транзакции."""
 
     id: int
-    user_id: int
+    workspace_id: int
     is_active: bool
     next_execution_date: date
     last_executed_at: datetime | None
@@ -89,6 +89,7 @@ class RecurringTransaction(SoftDeleteModel):
     __tablename__ = "recurring_transactions"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(ForeignKey("workspaces.id"), index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
 
     type: Mapped[TransactionType] = mapped_column(SQLEnum(TransactionType))
@@ -113,6 +114,7 @@ class RecurringTransaction(SoftDeleteModel):
     is_active: Mapped[bool] = mapped_column(default=True, index=True)
 
     user = relationship("User")
+    workspace = relationship("Workspace")
     account = relationship("Account")
     category = relationship("Category")
     transactions = relationship("Transaction", back_populates="recurring_transaction")

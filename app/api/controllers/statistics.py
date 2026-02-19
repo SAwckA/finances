@@ -4,8 +4,10 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
-from app.api.dependencies.auth import get_current_active_user
-from app.models.user import User
+from app.api.dependencies.auth import (
+    WorkspaceContext,
+    get_current_workspace_context,
+)
 from app.services.statistics_service import StatisticsService
 
 
@@ -56,11 +58,11 @@ router = APIRouter(prefix="/statistics", tags=["statistics"])
 
 @router.get("/balance", response_model=list[AccountBalanceResponse])
 async def get_all_balances(
-    current_user: User = Depends(get_current_active_user),
+    workspace: WorkspaceContext = Depends(get_current_workspace_context),
 ):
-    """Получить балансы всех счетов пользователя."""
+    """Получить балансы всех счетов активного workspace."""
     async with StatisticsService() as service:
-        balances = await service.get_all_balances(user_id=current_user.id)
+        balances = await service.get_all_balances(workspace_id=workspace.workspace_id)
         return [
             AccountBalanceResponse(
                 account_id=b.account_id,
@@ -76,12 +78,13 @@ async def get_all_balances(
 @router.get("/balance/{account_id}", response_model=AccountBalanceResponse)
 async def get_account_balance(
     account_id: int,
-    current_user: User = Depends(get_current_active_user),
+    workspace: WorkspaceContext = Depends(get_current_workspace_context),
 ):
     """Получить баланс конкретного счёта."""
     async with StatisticsService() as service:
         balance = await service.get_account_balance(
-            account_id=account_id, user_id=current_user.id
+            account_id=account_id,
+            workspace_id=workspace.workspace_id,
         )
         return AccountBalanceResponse(
             account_id=balance.account_id,
@@ -95,12 +98,13 @@ async def get_account_balance(
 @router.get("/total", response_model=TotalBalanceResponse)
 async def get_total_balance(
     currency: str = Query("RUB", description="Код валюты для отображения"),
-    current_user: User = Depends(get_current_active_user),
+    workspace: WorkspaceContext = Depends(get_current_workspace_context),
 ):
     """Получить общий баланс всех счетов в указанной валюте."""
     async with StatisticsService() as service:
         total = await service.get_total_balance(
-            user_id=current_user.id, target_currency_code=currency
+            workspace_id=workspace.workspace_id,
+            target_currency_code=currency,
         )
         return TotalBalanceResponse(total_balance=total, currency_code=currency.upper())
 
@@ -111,12 +115,12 @@ async def get_period_statistics(
     end_date: datetime = Query(..., description="Конец периода"),
     account_ids: list[int] | None = Query(None, description="Фильтр по счетам"),
     currency: str | None = Query(None, description="Целевая валюта для итогов"),
-    current_user: User = Depends(get_current_active_user),
+    workspace: WorkspaceContext = Depends(get_current_workspace_context),
 ):
     """Получить статистику доходов и расходов за период."""
     async with StatisticsService() as service:
         stats = await service.get_period_statistics(
-            user_id=current_user.id,
+            workspace_id=workspace.workspace_id,
             start_date=start_date,
             end_date=end_date,
             account_ids=account_ids,

@@ -104,34 +104,44 @@ class ShoppingListService(BaseService):
     category_repository: CategoryRepository
     transaction_repository: TransactionRepository
 
-    async def get_user_lists(
+    async def get_workspace_lists(
         self,
-        user_id: int,
+        workspace_id: int,
         status: ShoppingListStatus | None = None,
         skip: int = 0,
         limit: int = 100,
     ):
-        """Получить списки покупок пользователя."""
-        return await self.shopping_list_repository.get_by_user_id(
-            user_id=user_id, status=status, skip=skip, limit=limit
+        """Получить списки покупок рабочего пространства."""
+        return await self.shopping_list_repository.get_by_workspace_id(
+            workspace_id=workspace_id,
+            status=status,
+            skip=skip,
+            limit=limit,
         )
 
-    async def get_by_id(self, list_id: int, user_id: int):
+    async def get_by_id(self, list_id: int, workspace_id: int):
         """Получить список покупок по ID с проверкой доступа."""
-        shopping_list = await self.shopping_list_repository.get_user_list(
-            user_id=user_id, list_id=list_id
+        shopping_list = await self.shopping_list_repository.get_workspace_list(
+            workspace_id=workspace_id,
+            list_id=list_id,
         )
         if not shopping_list:
             raise ShoppingListNotFoundException(details={"list_id": list_id})
         return shopping_list
 
-    async def create(self, user_id: int, data: ShoppingListCreate):
+    async def create(
+        self,
+        workspace_id: int,
+        actor_user_id: int,
+        data: ShoppingListCreate,
+    ):
         """Создать новый список покупок."""
-        await self._validate_account(user_id, data.account_id)
-        await self._validate_category(user_id, data.category_id)
+        await self._validate_account(workspace_id, data.account_id)
+        await self._validate_category(workspace_id, data.category_id)
 
         list_data = {
-            "user_id": user_id,
+            "workspace_id": workspace_id,
+            "user_id": actor_user_id,
             "name": data.name,
             "account_id": data.account_id,
             "category_id": data.category_id,
@@ -146,14 +156,19 @@ class ShoppingListService(BaseService):
                 shopping_list.id, items_data
             )
 
-        logger.info(f"Created shopping list '{data.name}' for user {user_id}")
+        logger.info(
+            "Created shopping list '%s' for workspace %s by user %s",
+            data.name,
+            workspace_id,
+            actor_user_id,
+        )
         return await self.shopping_list_repository.get_by_id_with_items(
             shopping_list.id
         )
 
-    async def update(self, list_id: int, user_id: int, data: ShoppingListUpdate):
+    async def update(self, list_id: int, workspace_id: int, data: ShoppingListUpdate):
         """Обновить список покупок."""
-        shopping_list = await self.get_by_id(list_id, user_id)
+        shopping_list = await self.get_by_id(list_id, workspace_id)
 
         if shopping_list.status == ShoppingListStatus.COMPLETED:
             raise ShoppingListAlreadyCompletedException()
@@ -161,26 +176,31 @@ class ShoppingListService(BaseService):
         update_data = data.model_dump(exclude_unset=True)
 
         if "account_id" in update_data:
-            await self._validate_account(user_id, update_data["account_id"])
+            await self._validate_account(workspace_id, update_data["account_id"])
         if "category_id" in update_data:
-            await self._validate_category(user_id, update_data["category_id"])
+            await self._validate_category(workspace_id, update_data["category_id"])
 
         await self.shopping_list_repository.update(list_id, update_data)
         logger.info(f"Updated shopping list {list_id}")
         return await self.shopping_list_repository.get_by_id_with_items(list_id)
 
-    async def delete(self, list_id: int, user_id: int) -> bool:
+    async def delete(self, list_id: int, workspace_id: int) -> bool:
         """Удалить список покупок."""
-        shopping_list = await self.get_by_id(list_id, user_id)
+        shopping_list = await self.get_by_id(list_id, workspace_id)
         if shopping_list.status == ShoppingListStatus.COMPLETED:
             raise ShoppingListAlreadyCompletedException()
         result = await self.shopping_list_repository.delete(list_id)
         logger.info(f"Deleted shopping list {list_id}")
         return result
 
-    async def add_item(self, list_id: int, user_id: int, data: ShoppingItemCreate):
+    async def add_item(
+        self,
+        list_id: int,
+        workspace_id: int,
+        data: ShoppingItemCreate,
+    ):
         """Добавить товар в список."""
-        shopping_list = await self.get_by_id(list_id, user_id)
+        shopping_list = await self.get_by_id(list_id, workspace_id)
 
         if shopping_list.status == ShoppingListStatus.COMPLETED:
             raise ShoppingListAlreadyCompletedException()
@@ -198,10 +218,14 @@ class ShoppingListService(BaseService):
         return item
 
     async def update_item(
-        self, list_id: int, item_id: int, user_id: int, data: ShoppingItemUpdate
+        self,
+        list_id: int,
+        item_id: int,
+        workspace_id: int,
+        data: ShoppingItemUpdate,
     ):
         """Обновить товар в списке."""
-        shopping_list = await self.get_by_id(list_id, user_id)
+        shopping_list = await self.get_by_id(list_id, workspace_id)
 
         if shopping_list.status == ShoppingListStatus.COMPLETED:
             raise ShoppingListAlreadyCompletedException()
@@ -223,9 +247,14 @@ class ShoppingListService(BaseService):
         logger.info(f"Updated item {item_id} in shopping list {list_id}")
         return updated
 
-    async def remove_item(self, list_id: int, item_id: int, user_id: int) -> bool:
+    async def remove_item(
+        self,
+        list_id: int,
+        item_id: int,
+        workspace_id: int,
+    ) -> bool:
         """Удалить товар из списка."""
-        shopping_list = await self.get_by_id(list_id, user_id)
+        shopping_list = await self.get_by_id(list_id, workspace_id)
 
         if shopping_list.status == ShoppingListStatus.COMPLETED:
             raise ShoppingListAlreadyCompletedException()
@@ -241,9 +270,9 @@ class ShoppingListService(BaseService):
         logger.info(f"Removed item {item_id} from shopping list {list_id}")
         return result
 
-    async def confirm(self, list_id: int, user_id: int):
+    async def confirm(self, list_id: int, workspace_id: int):
         """Подтвердить список покупок."""
-        shopping_list = await self.get_by_id(list_id, user_id)
+        shopping_list = await self.get_by_id(list_id, workspace_id)
 
         if shopping_list.status == ShoppingListStatus.COMPLETED:
             raise ShoppingListAlreadyCompletedException()
@@ -261,9 +290,9 @@ class ShoppingListService(BaseService):
         logger.info(f"Confirmed shopping list {list_id}")
         return await self.shopping_list_repository.get_by_id_with_items(list_id)
 
-    async def revert_to_draft(self, list_id: int, user_id: int):
+    async def revert_to_draft(self, list_id: int, workspace_id: int):
         """Вернуть список покупок в режим черновика."""
-        shopping_list = await self.get_by_id(list_id, user_id)
+        shopping_list = await self.get_by_id(list_id, workspace_id)
 
         if shopping_list.status == ShoppingListStatus.COMPLETED:
             raise ShoppingListAlreadyCompletedException()
@@ -281,13 +310,13 @@ class ShoppingListService(BaseService):
         logger.info(f"Reverted shopping list {list_id} to draft")
         return await self.shopping_list_repository.get_by_id_with_items(list_id)
 
-    async def complete(self, list_id: int, user_id: int):
+    async def complete(self, list_id: int, workspace_id: int, actor_user_id: int):
         """
         Завершить список покупок и создать транзакцию.
 
         Создаёт детализированную транзакцию с привязкой к списку покупок.
         """
-        shopping_list = await self.get_by_id(list_id, user_id)
+        shopping_list = await self.get_by_id(list_id, workspace_id)
 
         if shopping_list.status == ShoppingListStatus.COMPLETED:
             raise ShoppingListAlreadyCompletedException()
@@ -305,7 +334,8 @@ class ShoppingListService(BaseService):
             total_amount += item.price * item.quantity
 
         transaction_data = {
-            "user_id": user_id,
+            "workspace_id": workspace_id,
+            "user_id": actor_user_id,
             "type": TransactionType.EXPENSE,
             "account_id": shopping_list.account_id,
             "category_id": shopping_list.category_id,
@@ -331,18 +361,18 @@ class ShoppingListService(BaseService):
         )
         return await self.shopping_list_repository.get_by_id_with_items(list_id)
 
-    async def _validate_account(self, user_id: int, account_id: int) -> None:
+    async def _validate_account(self, workspace_id: int, account_id: int) -> None:
         """Проверить существование и доступ к счёту."""
         account = await self.account_repository.get_by_id(account_id)
-        if not account or account.user_id != user_id:
+        if not account or account.workspace_id != workspace_id:
             raise AccountNotFoundForShoppingListException(
                 details={"account_id": account_id}
             )
 
-    async def _validate_category(self, user_id: int, category_id: int) -> None:
+    async def _validate_category(self, workspace_id: int, category_id: int) -> None:
         """Проверить существование и доступ к категории."""
         category = await self.category_repository.get_by_id(category_id)
-        if not category or category.user_id != user_id:
+        if not category or category.workspace_id != workspace_id:
             raise CategoryNotFoundForShoppingListException(
                 details={"category_id": category_id}
             )

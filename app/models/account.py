@@ -51,7 +51,7 @@ class AccountResponse(AccountBase):
     """Схема ответа с данными счёта."""
 
     id: int
-    user_id: int
+    workspace_id: int
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -66,6 +66,7 @@ class Account(SoftDeleteModel):
     __tablename__ = "accounts"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(ForeignKey("workspaces.id"), index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     name: Mapped[str] = mapped_column(String(100))
     color: Mapped[str] = mapped_column(String(7))
@@ -74,4 +75,5 @@ class Account(SoftDeleteModel):
     short_identifier: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
     user = relationship("User", back_populates="accounts")
+    workspace = relationship("Workspace")
     currency = relationship("Currency")

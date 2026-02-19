@@ -28,17 +28,17 @@ class ShoppingListRepository(BaseRepository[ShoppingList]):
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
-    async def get_by_user_id(
+    async def get_by_workspace_id(
         self,
-        user_id: int,
+        workspace_id: int,
         status: ShoppingListStatus | None = None,
         skip: int = 0,
         limit: int = 100,
     ) -> Sequence[ShoppingList]:
-        """Получить списки покупок пользователя."""
+        """Получить списки покупок рабочего пространства."""
         query = (
             self._base_query()
-            .where(ShoppingList.user_id == user_id)
+            .where(ShoppingList.workspace_id == workspace_id)
             .options(
                 selectinload(ShoppingList.items),
                 selectinload(ShoppingList.transaction),
@@ -55,11 +55,15 @@ class ShoppingListRepository(BaseRepository[ShoppingList]):
         result = await self.session.execute(query)
         return result.scalars().all()
 
-    async def get_user_list(self, user_id: int, list_id: int) -> ShoppingList | None:
-        """Получить конкретный список пользователя."""
+    async def get_workspace_list(
+        self,
+        workspace_id: int,
+        list_id: int,
+    ) -> ShoppingList | None:
+        """Получить конкретный список рабочего пространства."""
         query = (
             self._base_query()
-            .where(ShoppingList.user_id == user_id)
+            .where(ShoppingList.workspace_id == workspace_id)
             .where(ShoppingList.id == list_id)
             .options(
                 selectinload(ShoppingList.items),

@@ -31,49 +31,60 @@ class CategoryService(BaseService):
 
     category_repository: CategoryRepository
 
-    async def get_user_categories(
+    async def get_workspace_categories(
         self,
-        user_id: int,
+        workspace_id: int,
         category_type: CategoryType | None = None,
         skip: int = 0,
         limit: int = 100,
     ):
-        """Получить категории пользователя."""
+        """Получить категории рабочего пространства."""
         if category_type:
-            return await self.category_repository.get_by_user_and_type(
-                user_id=user_id, category_type=category_type, skip=skip, limit=limit
+            return await self.category_repository.get_by_workspace_and_type(
+                workspace_id=workspace_id,
+                category_type=category_type,
+                skip=skip,
+                limit=limit,
             )
-        return await self.category_repository.get_by_user_id(
-            user_id=user_id, skip=skip, limit=limit
+        return await self.category_repository.get_by_workspace_id(
+            workspace_id=workspace_id,
+            skip=skip,
+            limit=limit,
         )
 
-    async def get_by_id(self, category_id: int, user_id: int):
+    async def get_by_id(self, category_id: int, workspace_id: int):
         """Получить категорию по ID с проверкой доступа."""
         category = await self.category_repository.get_by_id(category_id)
         if not category:
             raise CategoryNotFoundException(details={"category_id": category_id})
-        if category.user_id != user_id:
+        if category.workspace_id != workspace_id:
             raise CategoryAccessDeniedException(details={"category_id": category_id})
         return category
 
-    async def create(self, user_id: int, data: CategoryCreate):
+    async def create(self, workspace_id: int, actor_user_id: int, data: CategoryCreate):
         """Создать новую категорию."""
         category_data = data.model_dump()
-        category_data["user_id"] = user_id
-        logger.info(f"Creating category '{data.name}' for user {user_id}")
+        category_data["workspace_id"] = workspace_id
+        category_data["user_id"] = actor_user_id
+        logger.info(
+            "Creating category '%s' for workspace %s by user %s",
+            data.name,
+            workspace_id,
+            actor_user_id,
+        )
         return await self.category_repository.create(category_data)
 
-    async def update(self, category_id: int, user_id: int, data: CategoryUpdate):
+    async def update(self, category_id: int, workspace_id: int, data: CategoryUpdate):
         """Обновить категорию."""
-        category = await self.get_by_id(category_id, user_id)
+        category = await self.get_by_id(category_id, workspace_id)
         update_data = data.model_dump(exclude_unset=True)
         updated = await self.category_repository.update(category.id, update_data)
         logger.info(f"Updated category {category_id}")
         return updated
 
-    async def delete(self, category_id: int, user_id: int) -> bool:
+    async def delete(self, category_id: int, workspace_id: int) -> bool:
         """Удалить категорию."""
-        await self.get_by_id(category_id, user_id)
+        await self.get_by_id(category_id, workspace_id)
         result = await self.category_repository.delete(category_id)
         logger.info(f"Deleted category {category_id}")
         return result

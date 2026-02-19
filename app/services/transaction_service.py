@@ -12,13 +12,10 @@ from app.models.transaction import TransactionCreate, TransactionType, Transacti
 from app.repositories.account_repository import AccountRepository
 from app.repositories.category_repository import CategoryRepository
 from app.repositories.transaction_repository import TransactionRepository
-from app.services.exchange_rate_service import ExchangeRateService
 from app.services.base_service import BaseService
+from app.services.exchange_rate_service import ExchangeRateService
 
 logger = logging.getLogger(__name__)
-
-
-# === EXCEPTIONS ===
 
 
 class TransactionNotFoundException(NotFoundException):
@@ -69,9 +66,6 @@ class InvalidCategoryTypeException(BusinessLogicException):
     message = "Тип категории не соответствует типу транзакции"
 
 
-# === SERVICE ===
-
-
 class TransactionService(BaseService):
     """Сервис для работы с транзакциями."""
 
@@ -79,20 +73,22 @@ class TransactionService(BaseService):
     account_repository: AccountRepository
     category_repository: CategoryRepository
 
-    async def get_user_transactions(
+    async def get_workspace_transactions(
         self,
-        user_id: int,
+        workspace_id: int,
         skip: int = 0,
         limit: int = 100,
     ):
-        """Получить транзакции пользователя."""
-        return await self.transaction_repository.get_by_user_id(
-            user_id=user_id, skip=skip, limit=limit
+        """Получить транзакции рабочего пространства."""
+        return await self.transaction_repository.get_by_workspace_id(
+            workspace_id=workspace_id,
+            skip=skip,
+            limit=limit,
         )
 
     async def get_account_transactions(
         self,
-        user_id: int,
+        workspace_id: int,
         account_id: int,
         skip: int = 0,
         limit: int = 100,
@@ -103,36 +99,39 @@ class TransactionService(BaseService):
             raise AccountNotFoundForTransactionException(
                 details={"account_id": account_id}
             )
-        if account.user_id != user_id:
+        if account.workspace_id != workspace_id:
             raise TransactionAccessDeniedException(details={"account_id": account_id})
 
         return await self.transaction_repository.get_by_account_id(
-            account_id=account_id, skip=skip, limit=limit
+            workspace_id=workspace_id,
+            account_id=account_id,
+            skip=skip,
+            limit=limit,
         )
 
     async def get_transactions_by_period(
         self,
-        user_id: int,
+        workspace_id: int,
         start_date: datetime,
         end_date: datetime,
         transaction_type: TransactionType | None = None,
     ):
         """Получить транзакции за период."""
         return await self.transaction_repository.get_by_date_range(
-            user_id=user_id,
+            workspace_id=workspace_id,
             start_date=start_date,
             end_date=end_date,
             transaction_type=transaction_type,
         )
 
-    async def get_by_id(self, transaction_id: int, user_id: int):
+    async def get_by_id(self, transaction_id: int, workspace_id: int):
         """Получить транзакцию по ID с проверкой доступа."""
         transaction = await self.transaction_repository.get_by_id(transaction_id)
         if not transaction:
             raise TransactionNotFoundException(
                 details={"transaction_id": transaction_id}
             )
-        if transaction.user_id != user_id:
+        if transaction.workspace_id != workspace_id:
             raise TransactionAccessDeniedException(
                 details={"transaction_id": transaction_id}
             )
@@ -140,20 +139,22 @@ class TransactionService(BaseService):
 
     async def create(
         self,
-        user_id: int,
+        workspace_id: int,
+        actor_user_id: int,
         data: TransactionCreate,
         exchange_rate: Decimal | None = None,
         converted_amount: Decimal | None = None,
     ):
         """Создать новую транзакцию."""
         account = await self.account_repository.get_by_id(data.account_id)
-        if not account or account.user_id != user_id:
+        if not account or account.workspace_id != workspace_id:
             raise AccountNotFoundForTransactionException(
                 details={"account_id": data.account_id}
             )
 
-        transaction_data = {
-            "user_id": user_id,
+        transaction_data: dict[str, object] = {
+            "workspace_id": workspace_id,
+            "user_id": actor_user_id,
             "type": data.type,
             "account_id": data.account_id,
             "amount": data.amount,
@@ -162,7 +163,7 @@ class TransactionService(BaseService):
         }
 
         if data.type == TransactionType.TRANSFER:
-            await self._validate_transfer(user_id, data)
+            await self._validate_transfer(workspace_id, data)
             transaction_data["target_account_id"] = data.target_account_id
 
             target_account = None
@@ -170,6 +171,7 @@ class TransactionService(BaseService):
                 target_account = await self.account_repository.get_by_id(
                     data.target_account_id
                 )
+
             if converted_amount is not None:
                 transaction_data["converted_amount"] = converted_amount
                 if exchange_rate is None:
@@ -187,16 +189,22 @@ class TransactionService(BaseService):
             else:
                 transaction_data["converted_amount"] = data.amount
         else:
-            await self._validate_income_expense(user_id, data)
+            await self._validate_income_expense(workspace_id, data)
             if data.category_id:
                 transaction_data["category_id"] = data.category_id
 
         logger.info(
-            f"Creating {data.type.value} transaction for user {user_id}: {data.amount}"
+            "Creating %s transaction for workspace %s by user %s: %s",
+            data.type.value,
+            workspace_id,
+            actor_user_id,
+            data.amount,
         )
         return await self.transaction_repository.create(transaction_data)
 
-    async def _validate_transfer(self, user_id: int, data: TransactionCreate) -> None:
+    async def _validate_transfer(
+        self, workspace_id: int, data: TransactionCreate
+    ) -> None:
         """Валидация данных для перевода."""
         if not data.target_account_id:
             raise TransferRequiresTargetAccountException()
@@ -206,18 +214,20 @@ class TransactionService(BaseService):
             raise CategoryNotAllowedForTransferException()
 
         target_account = await self.account_repository.get_by_id(data.target_account_id)
-        if not target_account or target_account.user_id != user_id:
+        if not target_account or target_account.workspace_id != workspace_id:
             raise AccountNotFoundForTransactionException(
                 details={"target_account_id": data.target_account_id}
             )
 
     async def _validate_income_expense(
-        self, user_id: int, data: TransactionCreate
+        self,
+        workspace_id: int,
+        data: TransactionCreate,
     ) -> None:
         """Валидация данных для дохода/расхода."""
         if data.category_id:
             category = await self.category_repository.get_by_id(data.category_id)
-            if not category or category.user_id != user_id:
+            if not category or category.workspace_id != workspace_id:
                 raise CategoryNotFoundForTransactionException(
                     details={"category_id": data.category_id}
                 )
@@ -236,13 +246,13 @@ class TransactionService(BaseService):
     async def update(
         self,
         transaction_id: int,
-        user_id: int,
+        workspace_id: int,
         data: TransactionUpdate,
         exchange_rate_override: Decimal | None = None,
         converted_amount_override: Decimal | None = None,
     ):
         """Обновить транзакцию."""
-        transaction = await self.get_by_id(transaction_id, user_id)
+        transaction = await self.get_by_id(transaction_id, workspace_id)
 
         update_data = data.model_dump(exclude_unset=True)
 
@@ -252,7 +262,7 @@ class TransactionService(BaseService):
                     details={"account_id": None}
                 )
             account = await self.account_repository.get_by_id(update_data["account_id"])
-            if not account or account.user_id != user_id:
+            if not account or account.workspace_id != workspace_id:
                 raise AccountNotFoundForTransactionException(
                     details={"account_id": update_data["account_id"]}
                 )
@@ -267,7 +277,7 @@ class TransactionService(BaseService):
                 target = await self.account_repository.get_by_id(
                     update_data["target_account_id"]
                 )
-                if not target or target.user_id != user_id:
+                if not target or target.workspace_id != workspace_id:
                     raise AccountNotFoundForTransactionException(
                         details={"target_account_id": update_data["target_account_id"]}
                     )
@@ -279,7 +289,7 @@ class TransactionService(BaseService):
             category = await self.category_repository.get_by_id(
                 update_data["category_id"]
             )
-            if not category or category.user_id != user_id:
+            if not category or category.workspace_id != workspace_id:
                 raise CategoryNotFoundForTransactionException(
                     details={"category_id": update_data["category_id"]}
                 )
@@ -293,7 +303,8 @@ class TransactionService(BaseService):
         ):
             source_account_id = update_data.get("account_id", transaction.account_id)
             target_account_id = update_data.get(
-                "target_account_id", transaction.target_account_id
+                "target_account_id",
+                transaction.target_account_id,
             )
 
             if not target_account_id:
@@ -303,11 +314,11 @@ class TransactionService(BaseService):
 
             source_account = await self.account_repository.get_by_id(source_account_id)
             target_account = await self.account_repository.get_by_id(target_account_id)
-            if not source_account or source_account.user_id != user_id:
+            if not source_account or source_account.workspace_id != workspace_id:
                 raise AccountNotFoundForTransactionException(
                     details={"account_id": source_account_id}
                 )
-            if not target_account or target_account.user_id != user_id:
+            if not target_account or target_account.workspace_id != workspace_id:
                 raise AccountNotFoundForTransactionException(
                     details={"target_account_id": target_account_id}
                 )
@@ -323,7 +334,8 @@ class TransactionService(BaseService):
                 update_data["converted_amount"] = amount * exchange_rate_override
             elif source_account.currency_code != target_account.currency_code:
                 exchange_rate = await ExchangeRateService().get_rate(
-                    source_account.currency_code, target_account.currency_code
+                    source_account.currency_code,
+                    target_account.currency_code,
                 )
                 update_data["exchange_rate"] = exchange_rate
                 update_data["converted_amount"] = amount * exchange_rate
@@ -332,12 +344,12 @@ class TransactionService(BaseService):
                 update_data["converted_amount"] = amount
 
         updated = await self.transaction_repository.update(transaction.id, update_data)
-        logger.info(f"Updated transaction {transaction_id}")
+        logger.info("Updated transaction %s", transaction_id)
         return updated
 
-    async def delete(self, transaction_id: int, user_id: int) -> bool:
+    async def delete(self, transaction_id: int, workspace_id: int) -> bool:
         """Удалить транзакцию."""
-        await self.get_by_id(transaction_id, user_id)
+        await self.get_by_id(transaction_id, workspace_id)
         result = await self.transaction_repository.delete(transaction_id)
-        logger.info(f"Deleted transaction {transaction_id}")
+        logger.info("Deleted transaction %s", transaction_id)
         return result

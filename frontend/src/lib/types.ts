@@ -18,6 +18,35 @@ export type UserUpdate = {
   name?: string;
 };
 
+export type WorkspaceKind = "personal" | "shared";
+
+export type WorkspaceRole = "owner" | "editor";
+
+export type WorkspaceResponse = {
+  id: number;
+  name: string;
+  kind: WorkspaceKind;
+  owner_user_id: number;
+  personal_for_user_id: number | null;
+  created_at: string;
+};
+
+export type WorkspaceMemberResponse = {
+  user_id: number;
+  email: string;
+  name: string;
+  role: WorkspaceRole;
+  joined_at: string;
+};
+
+export type WorkspaceCreate = {
+  name: string;
+};
+
+export type WorkspaceUpdate = {
+  name: string;
+};
+
 export type CurrencyResponse = {
   code: string;
   name: string;
@@ -27,7 +56,7 @@ export type CurrencyResponse = {
 
 export type AccountResponse = {
   id: number;
-  user_id: number;
+  workspace_id: number;
   name: string;
   color: string;
   icon: string;
@@ -48,7 +77,7 @@ export type AccountUpdate = Partial<AccountCreate>;
 
 export type CategoryResponse = {
   id: number;
-  user_id: number;
+  workspace_id: number;
   name: string;
   color: string;
   icon: string;
@@ -69,7 +98,7 @@ export type TransactionType = "income" | "expense" | "transfer";
 
 export type TransactionResponse = {
   id: number;
-  user_id: number;
+  workspace_id: number;
   type: TransactionType;
   account_id: number;
   target_account_id: number | null;
@@ -161,7 +190,7 @@ export type ShoppingItemUpdate = {
 
 export type ShoppingListResponse = {
   id: number;
-  user_id: number;
+  workspace_id: number;
   name: string;
   account_id: number;
   category_id: number;
@@ -209,7 +238,7 @@ export type ShoppingTemplateItemUpdate = {
 
 export type ShoppingTemplateResponse = {
   id: number;
-  user_id: number;
+  workspace_id: number;
   name: string;
   color: string;
   icon: string;
@@ -240,7 +269,7 @@ export type RecurringFrequency = "daily" | "weekly" | "monthly";
 
 export type RecurringTransactionResponse = {
   id: number;
-  user_id: number;
+  workspace_id: number;
   type: "income" | "expense";
   account_id: number;
   category_id: number;
