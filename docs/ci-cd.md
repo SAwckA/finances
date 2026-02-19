@@ -5,7 +5,6 @@
 Workflow: `.github/workflows/build-images.yml`
 
 Триггеры:
-- `push` в ветку `main`
 - `workflow_dispatch` (ручной запуск)
 
 На каждый запуск workflow:

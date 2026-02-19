@@ -23,8 +23,3 @@ services:
       replicas: 1
       restart_policy:
         condition: on-failure
-
-networks:
-  internal:
-    external: true
-    name: finances_internal
