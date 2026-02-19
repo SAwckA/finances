@@ -38,6 +38,7 @@ class Settings(BaseSettings):
         "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.xml"
     )
     cbr_dailyinfo_base_url: str = "https://www.cbr.ru/DailyInfoWebServ/DailyInfo.asmx"
+    sentry_dsn: str = ""
 
     @property
     def database_url(self) -> str:
