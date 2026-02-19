@@ -459,7 +459,7 @@ export default function ShoppingTemplatesPage() {
   if (isTemplateEditorOpen) {
     return (
       <section className="fixed inset-0 z-50 overscroll-contain bg-[var(--bg-app)]">
-        <div className="mx-auto flex h-full w-full max-w-[430px] md:max-w-[1100px] flex-col">
+        <div className="mx-auto flex h-full w-full max-w-[430px] flex-col">
           <UiTopBar
             title={editingTemplateId ? "Редактирование шаблона" : "Новый шаблон"}
             onBack={clearEditorParams}
@@ -544,7 +544,7 @@ export default function ShoppingTemplatesPage() {
   if (isCreateListEditorOpen) {
     return (
       <section className="fixed inset-0 z-50 overscroll-contain bg-[var(--bg-app)]">
-        <div className="mx-auto flex h-full w-full max-w-[430px] md:max-w-[1100px] flex-col">
+        <div className="mx-auto flex h-full w-full max-w-[430px] flex-col">
           <UiTopBar
             title="Создать список из шаблона"
             onBack={clearEditorParams}
@@ -624,7 +624,7 @@ export default function ShoppingTemplatesPage() {
           <Link
             href={buildHref("create", "1")}
             scroll={false}
-            className="inline-flex items-center gap-1 rounded-xl bg-[var(--accent-primary)] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[var(--accent-primary-strong)]"
+            className="inline-flex items-center gap-1 rounded-xl bg-[var(--accent-primary)] px-3 py-2 text-sm font-semibold text-[var(--text-primary)] transition hover:bg-[var(--accent-primary-strong)]"
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
             Новый шаблон

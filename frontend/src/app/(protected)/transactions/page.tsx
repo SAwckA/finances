@@ -535,7 +535,7 @@ export default function TransactionsPage() {
     <section className="space-y-3">
       {createMode ? (
         <section className="fixed inset-0 z-50 overscroll-contain bg-[var(--bg-app)]">
-          <div className="mx-auto flex h-full w-full max-w-[430px] md:max-w-[1100px] flex-col">
+          <div className="mx-auto flex h-full w-full max-w-[430px] flex-col">
             <UiTopBar
               title="Новая транзакция"
               onBack={() => router.back()}
@@ -660,7 +660,7 @@ export default function TransactionsPage() {
 
           <button
             type="submit"
-            className="w-full rounded-xl bg-[var(--accent-primary)] px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-primary-strong)] disabled:cursor-not-allowed disabled:opacity-70"
+            className="w-full rounded-xl bg-[var(--accent-primary)] px-3 py-2.5 text-sm font-semibold text-[var(--text-primary)] transition hover:bg-[var(--accent-primary-strong)] disabled:cursor-not-allowed disabled:opacity-70"
             disabled={isSubmitting}
           >
             {isSubmitting

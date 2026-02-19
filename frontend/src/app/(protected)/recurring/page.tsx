@@ -89,7 +89,7 @@ const DEFAULT_FORM: RecurringFormState = {
 };
 
 const FORM_FIELD_SHELL_CLASS =
-  "mt-1 flex items-center gap-2 rounded-2xl bg-gradient-to-br from-content2/82 to-content1 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_22px_rgba(2,6,23,0.18)] transition focus-within:shadow-[0_0_0_2px_var(--ring-primary),inset_0_1px_0_rgba(255,255,255,0.1),0_12px_24px_rgba(2,6,23,0.24)]";
+  "mt-1 flex items-center gap-2 rounded-2xl bg-gradient-to-br from-content2/82 to-content1 px-3 py-2.5 shadow-[var(--shadow-soft)] transition focus-within:shadow-[0_0_0_2px_var(--ring-primary),var(--shadow-strong)]";
 
 const FORM_FIELD_INPUT_CLASS =
   "w-full bg-transparent py-0.5 text-base font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none";
@@ -167,30 +167,15 @@ function frequencyLabel(frequency: RecurringFrequency): string {
   return "Ежемесячно";
 }
 
-function toSoftBackground(hexColor: string, alpha: number): string {
-  const hex = hexColor.replace("#", "");
-  const normalized =
-    hex.length === 3 ? hex.split("").map((char) => `${char}${char}`).join("") : hex;
-
-  if (normalized.length !== 6) {
-    return "rgba(148, 163, 184, 0.1)";
-  }
-
-  const value = Number.parseInt(normalized, 16);
-  if (Number.isNaN(value)) {
-    return "rgba(148, 163, 184, 0.1)";
-  }
-
-  const red = (value >> 16) & 255;
-  const green = (value >> 8) & 255;
-  const blue = value & 255;
-  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+function toSoftBackground(color: string, alpha: number): string {
+  const percentage = Math.max(0, Math.min(100, Math.round(alpha * 100)));
+  return `color-mix(in srgb, ${color} ${percentage}%, transparent)`;
 }
 
 function selectedGradientStyle(color: string): CSSProperties {
   return {
-    backgroundImage: `radial-gradient(circle at 10% 0%, ${color}3f 0%, transparent 48%), linear-gradient(135deg, ${color}30 0%, ${color}16 52%, transparent 100%), linear-gradient(135deg, color-mix(in srgb, var(--heroui-content2) 80%, transparent) 0%, color-mix(in srgb, var(--heroui-content1) 100%, transparent) 100%)`,
-    boxShadow: `0 0 0 2px ${color}66, 0 12px 24px rgba(2, 6, 23, 0.24)`,
+    backgroundImage: `radial-gradient(circle at 10% 0%, color-mix(in srgb, ${color} 24%, transparent) 0%, transparent 48%), linear-gradient(135deg, color-mix(in srgb, ${color} 20%, transparent) 0%, color-mix(in srgb, ${color} 10%, transparent) 52%, transparent 100%), linear-gradient(135deg, color-mix(in srgb, var(--heroui-content2) 80%, transparent) 0%, color-mix(in srgb, var(--heroui-content1) 100%, transparent) 100%)`,
+    boxShadow: `0 0 0 2px color-mix(in srgb, ${color} 40%, transparent), var(--shadow-soft)`,
   };
 }
 
@@ -557,7 +542,7 @@ export default function RecurringPage() {
   if (isEditorMode) {
     return (
       <section className="fixed inset-0 z-50 overscroll-contain bg-[var(--bg-app)]">
-        <div className="mx-auto flex h-full w-full max-w-[430px] md:max-w-[1100px] flex-col">
+        <div className="mx-auto flex h-full w-full max-w-[430px] flex-col">
           <UiTopBar
             title={editingId ? "Изменить регулярный платеж" : "Новый регулярный платеж"}
             onBack={closeEditor}
@@ -589,7 +574,7 @@ export default function RecurringPage() {
                       }
                     />
                   ) : (
-                    <p className="rounded-xl bg-gradient-to-br from-content2/82 to-content1 px-3 py-2 text-sm text-[var(--text-secondary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_16px_rgba(2,6,23,0.14)]">
+                    <p className="rounded-xl bg-gradient-to-br from-content2/82 to-content1 px-3 py-2 text-sm text-[var(--text-secondary)] shadow-[var(--shadow-soft)]">
                       Тип нельзя изменить в текущем API.
                     </p>
                   )}
@@ -609,7 +594,7 @@ export default function RecurringPage() {
                           className={`interactive-hover rounded-2xl px-2.5 py-2 text-left transition ${
                             active
                               ? "text-[var(--text-primary)]"
-                              : "bg-gradient-to-br from-content2/80 to-content1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_22px_rgba(2,6,23,0.18)]"
+                              : "bg-gradient-to-br from-content2/80 to-content1 shadow-[var(--shadow-soft)]"
                           } disabled:opacity-65`}
                           style={active ? selectedGradientStyle(account.color) : undefined}
                           onClick={() => setForm((prev) => ({ ...prev, accountId: String(account.id) }))}
@@ -655,7 +640,7 @@ export default function RecurringPage() {
                           className={`interactive-hover rounded-2xl px-2.5 py-2 text-left transition ${
                             active
                               ? "text-[var(--text-primary)]"
-                              : "bg-gradient-to-br from-content2/80 to-content1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_22px_rgba(2,6,23,0.18)]"
+                              : "bg-gradient-to-br from-content2/80 to-content1 shadow-[var(--shadow-soft)]"
                           }`}
                           style={active ? selectedGradientStyle(category.color) : undefined}
                           onClick={() => setForm((prev) => ({ ...prev, categoryId: String(category.id) }))}
@@ -679,7 +664,7 @@ export default function RecurringPage() {
 
                 <label className="block text-sm text-[var(--text-secondary)]">
                   Сумма
-                  <div className="mt-1 rounded-2xl bg-gradient-to-b from-content2/80 to-content1 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_24px_rgba(2,6,23,0.22)]">
+                  <div className="mt-1 rounded-2xl bg-gradient-to-b from-content2/80 to-content1 p-3 shadow-[var(--shadow-soft)]">
                     <div className="flex items-end gap-2">
                       <input
                         className="w-full bg-transparent text-3xl font-extrabold tracking-tight text-[var(--text-primary)] outline-none"

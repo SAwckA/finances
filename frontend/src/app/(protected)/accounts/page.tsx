@@ -7,6 +7,7 @@ import { Banknote, Check, ChevronDown, CreditCard, Landmark, Pencil, Trash2 } fr
 import { EmptyState, ErrorState, LoadingState } from "@/components/async-state";
 import { UiTopBar } from "@/components/ui/ui-top-bar";
 import { ApiError } from "@/lib/api-client";
+import { ACCOUNT_COLOR_OPTIONS, ACCOUNT_SOURCE_TYPE_TONE } from "@/lib/color-presets";
 import { getIconOption } from "@/lib/icon-catalog";
 import { useAuth } from "@/features/auth/auth-context";
 import type {
@@ -28,28 +29,9 @@ type AccountFormState = {
   currencyCode: string;
 };
 
-const SOURCE_TYPE_TONE: Record<SourceType, string> = {
-  bank: "#4F7EF6",
-  card: "#8E5BE8",
-  cash: "#1FA66A",
-};
+const SOURCE_TYPE_TONE: Record<SourceType, string> = ACCOUNT_SOURCE_TYPE_TONE;
 
 const FORM_ID = "account-editor-form";
-
-const ACCOUNT_COLOR_OPTIONS = [
-  "#4F7EF6",
-  "#5ABB66",
-  "#E0534A",
-  "#8E5BE8",
-  "#E77F2E",
-  "#D65497",
-  "#57B6AE",
-  "#5B62DC",
-  "#E0B43F",
-  "#56B883",
-  "#64748B",
-  "#DF4D5E",
-];
 
 const SOURCE_TYPE_OPTIONS: Array<{
   key: SourceType;
@@ -67,21 +49,28 @@ const DEFAULT_FORM: AccountFormState = {
   name: "",
   accountNumber: "",
   initialBalance: "",
-  color: "#4F7EF6",
+  color: ACCOUNT_COLOR_OPTIONS[0],
   currencyCode: "",
 };
 
 const FORM_FIELD_SHELL_CLASS =
-  "mt-1 flex items-center gap-2 rounded-2xl bg-gradient-to-br from-content2/82 to-content1 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_22px_rgba(2,6,23,0.18)] transition focus-within:shadow-[0_0_0_2px_var(--ring-primary),inset_0_1px_0_rgba(255,255,255,0.1),0_12px_24px_rgba(2,6,23,0.24)]";
+  "mt-1 flex items-center gap-2 rounded-2xl bg-gradient-to-br from-content2/82 to-content1 px-3 py-2.5 shadow-[var(--shadow-soft)] transition focus-within:shadow-[0_0_0_2px_var(--ring-primary),var(--shadow-strong)]";
 
 const FORM_FIELD_INPUT_CLASS =
   "w-full bg-transparent py-0.5 text-base font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none";
+const ACCENT_BUTTON_CLASS =
+  "rounded-xl bg-[linear-gradient(135deg,#22d3ee_0%,#06b6d4_55%,#0891b2_100%)] px-3 py-2 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(6,182,212,0.28),inset_0_1px_0_rgba(255,255,255,0.24)] transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]";
 
 function selectedGradientStyle(color: string): CSSProperties {
   return {
-    backgroundImage: `radial-gradient(circle at 10% 0%, ${color}3f 0%, transparent 48%), linear-gradient(135deg, ${color}30 0%, ${color}16 52%, transparent 100%), linear-gradient(135deg, color-mix(in srgb, var(--heroui-content2) 80%, transparent) 0%, color-mix(in srgb, var(--heroui-content1) 100%, transparent) 100%)`,
-    boxShadow: `0 0 0 2px ${color}66, 0 12px 24px rgba(2, 6, 23, 0.24)`,
+    backgroundImage: `radial-gradient(circle at 10% 0%, ${toAlphaColor(color, 24)} 0%, transparent 48%), linear-gradient(135deg, ${toAlphaColor(color, 20)} 0%, ${toAlphaColor(color, 10)} 52%, transparent 100%), linear-gradient(135deg, color-mix(in srgb, var(--heroui-content2) 80%, transparent) 0%, color-mix(in srgb, var(--heroui-content1) 100%, transparent) 100%)`,
+    boxShadow: `0 0 0 2px ${toAlphaColor(color, 40)}, var(--shadow-soft)`,
   };
+}
+
+function toAlphaColor(color: string, opacityPercent: number): string {
+  const normalized = Math.max(0, Math.min(100, Math.round(opacityPercent)));
+  return `color-mix(in srgb, ${color} ${normalized}%, transparent)`;
 }
 
 function getErrorMessage(error: unknown): string {
@@ -323,7 +312,7 @@ export default function AccountsPage() {
   if (isModalOpen) {
     return (
       <section className="fixed inset-0 z-50 overscroll-contain bg-[var(--bg-app)]">
-        <div className="mx-auto flex h-full w-full max-w-[430px] md:max-w-[1100px] flex-col">
+        <div className="mx-auto flex h-full w-full max-w-[430px] flex-col">
           <UiTopBar
             title={editingId ? "Редактирование счета" : "Новый счет"}
             onBack={closeModal}
@@ -346,7 +335,7 @@ export default function AccountsPage() {
                         className={`interactive-hover rounded-2xl px-2 py-2.5 text-center transition ${
                           active
                             ? "text-[var(--text-primary)]"
-                            : "bg-gradient-to-br from-content2/80 to-content1 text-[var(--text-secondary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_22px_rgba(2,6,23,0.18)]"
+                            : "bg-gradient-to-br from-content2/80 to-content1 text-[var(--text-secondary)] shadow-[var(--shadow-soft)]"
                         }`}
                         style={active ? selectedGradientStyle(tone) : undefined}
                         onClick={() =>
@@ -358,7 +347,7 @@ export default function AccountsPage() {
                       >
                         <span
                           className="mx-auto inline-flex h-8 w-8 items-center justify-center rounded-xl"
-                          style={{ backgroundColor: `${tone}22`, color: tone }}
+                          style={{ backgroundColor: toAlphaColor(tone, 14), color: tone }}
                         >
                           <option.Icon className="h-4.5 w-4.5" aria-hidden="true" />
                         </span>
@@ -401,7 +390,7 @@ export default function AccountsPage() {
               {!editingId ? (
                 <label className="block text-sm text-[var(--text-secondary)]">
                   Начальный баланс
-                  <div className="mt-1 flex items-center gap-2 rounded-2xl bg-gradient-to-b from-content2/80 to-content1 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_24px_rgba(2,6,23,0.2)]">
+                  <div className="mt-1 flex items-center gap-2 rounded-2xl bg-gradient-to-b from-content2/80 to-content1 px-3 py-2.5 shadow-[var(--shadow-soft)]">
                     <span className="text-lg font-semibold text-[var(--text-secondary)]">
                       {selectedCurrency?.symbol ?? "$"}
                     </span>
@@ -466,16 +455,16 @@ export default function AccountsPage() {
                           active ? "scale-[1.03]" : ""
                         }`}
                         style={{
-                          backgroundImage: `linear-gradient(135deg, ${color} 0%, ${color}dd 100%)`,
+                          backgroundColor: color,
                           boxShadow: active
-                            ? `0 0 0 2px ${color}88, 0 12px 24px rgba(2, 6, 23, 0.24)`
-                            : "inset 0 1px 0 rgba(255,255,255,0.2), 0 8px 16px rgba(2, 6, 23, 0.2)",
+                            ? `0 0 0 2px ${toAlphaColor(color, 52)}, var(--shadow-soft)`
+                            : "inset 0 1px 0 color-mix(in srgb, white 20%, transparent), var(--shadow-soft)",
                         }}
                         onClick={() => setForm((prev) => ({ ...prev, color }))}
                         aria-label={color}
                       >
                         {active ? (
-                          <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-black/20 text-white">
+                          <span className="absolute right-1.5 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-[color:color-mix(in_srgb,black_20%,transparent)] text-[var(--text-primary)]">
                             <Check className="h-3 w-3" aria-hidden="true" />
                           </span>
                         ) : null}
@@ -485,15 +474,15 @@ export default function AccountsPage() {
                 </div>
               </section>
 
-              <section className="rounded-2xl bg-gradient-to-br from-content2/82 to-content1 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_20px_rgba(2,6,23,0.18)]">
+              <section className="rounded-2xl bg-gradient-to-br from-content2/82 to-content1 p-3 shadow-[var(--shadow-soft)]">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-secondary)]">
                   Превью
                 </p>
-                <div className="rounded-2xl bg-gradient-to-br from-content2/75 to-content1 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+                <div className="rounded-2xl bg-gradient-to-br from-content2/75 to-content1 px-3 py-2.5 shadow-[var(--shadow-soft)]">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-2.5">
                       <span
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-white"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-[var(--text-primary)]"
                         style={{ backgroundColor: form.color }}
                       >
                         <PreviewIcon className="h-4.5 w-4.5" aria-hidden="true" />
@@ -523,7 +512,7 @@ export default function AccountsPage() {
 
               <button
                 type="submit"
-                className="w-full rounded-xl bg-[var(--accent-primary)] px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-primary-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)] disabled:cursor-not-allowed disabled:opacity-70"
+                className={`w-full ${ACCENT_BUTTON_CLASS} py-2.5 disabled:cursor-not-allowed disabled:opacity-70`}
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "Сохраняем…" : editingId ? "Сохранить изменения" : "Сохранить"}
@@ -553,7 +542,7 @@ export default function AccountsPage() {
           <h1 className="section-title text-[1.35rem] text-[var(--text-primary)]">Счета</h1>
           <Link
             href="#"
-            className="rounded-xl bg-[var(--accent-primary)] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[var(--accent-primary-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
+            className={ACCENT_BUTTON_CLASS}
             onClick={(event) => {
               event.preventDefault();
               void openCreateModal();
@@ -579,13 +568,13 @@ export default function AccountsPage() {
                   key={account.id}
                   className="app-panel interactive-hover p-3"
                   style={{
-                    backgroundImage: `radial-gradient(circle at 10% 0%, ${account.color}1f 0%, transparent 42%), linear-gradient(135deg, color-mix(in srgb, var(--bg-card) 96%, transparent) 0%, color-mix(in srgb, var(--bg-card) 100%, transparent) 100%)`,
+                    backgroundImage: `radial-gradient(circle at 10% 0%, ${toAlphaColor(account.color, 12)} 0%, transparent 42%), linear-gradient(135deg, color-mix(in srgb, var(--bg-card) 96%, transparent) 0%, color-mix(in srgb, var(--bg-card) 100%, transparent) 100%)`,
                   }}
                 >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-2.5">
                     <span
-                      className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-white"
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-[var(--text-primary)]"
                       style={{ backgroundColor: account.color }}
                     >
                       <AccountIcon className="h-4.5 w-4.5" aria-hidden="true" />
@@ -596,7 +585,7 @@ export default function AccountsPage() {
                         <span
                           className="mt-1 inline-flex max-w-full items-center rounded-lg bg-[var(--surface-hover)] px-2 py-0.5 text-xs font-semibold"
                           style={{
-                            backgroundColor: `${account.color}22`,
+                            backgroundColor: toAlphaColor(account.color, 14),
                             color: account.color,
                           }}
                         >
@@ -606,13 +595,13 @@ export default function AccountsPage() {
                     </div>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-2">
-                    <span className="rounded-lg bg-gradient-to-br from-content2/82 to-content1 px-2 py-1 text-xs font-semibold text-[var(--text-secondary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_6px_12px_rgba(2,6,23,0.14)]">
+                    <span className="rounded-lg bg-gradient-to-br from-content2/82 to-content1 px-2 py-1 text-xs font-semibold text-[var(--text-secondary)] shadow-[var(--shadow-soft)]">
                       {currency ? `${currency.code} (${currency.symbol})` : "Неизвестная валюта"}
                     </span>
                     <div className="flex gap-2">
                       <Link
                         href="#"
-                        className="surface-hover inline-flex items-center gap-1 rounded-lg bg-gradient-to-br from-content2/82 to-content1 px-2.5 py-1.5 text-xs font-semibold text-[var(--text-secondary)] transition shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_6px_12px_rgba(2,6,23,0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
+                        className="surface-hover inline-flex items-center gap-1 rounded-lg bg-gradient-to-br from-content2/82 to-content1 px-2.5 py-1.5 text-xs font-semibold text-[var(--text-secondary)] transition shadow-[var(--shadow-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-primary)]"
                         onClick={(event) => {
                           event.preventDefault();
                           void openEditModal(account.id);
