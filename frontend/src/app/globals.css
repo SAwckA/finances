@@ -140,6 +140,12 @@ body {
     background: transparent;
   }
 
+  @media (min-width: 768px) {
+    .mobile-page {
+      max-width: 1100px;
+    }
+  }
+
   .app-panel {
     border: 0;
     border-radius: var(--radius-lg);

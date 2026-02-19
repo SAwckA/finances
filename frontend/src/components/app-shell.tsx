@@ -67,7 +67,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {!isEditorScreen ? (
         <motion.nav
           animate={{ opacity: 1, y: 0 }}
-          className="fixed bottom-0 left-0 right-0 z-40 mx-auto w-full max-w-[430px] isolate rounded-t-[24px] bg-[#e3edf6] px-3 pb-[calc(env(safe-area-inset-bottom)+0.45rem)] pt-2.5 shadow-[0_-12px_28px_rgba(15,23,42,0.14),inset_0_1px_0_rgba(255,255,255,0.8)] dark:bg-[#0d1a2d] dark:shadow-[0_-16px_40px_rgba(2,6,23,0.45),inset_0_1px_0_rgba(255,255,255,0.12)]"
+          className="fixed bottom-0 left-0 right-0 z-40 mx-auto w-full max-w-[430px] md:max-w-[1100px] isolate rounded-t-[24px] bg-[#e3edf6] px-3 pb-[calc(env(safe-area-inset-bottom)+0.45rem)] pt-2.5 shadow-[0_-12px_28px_rgba(15,23,42,0.14),inset_0_1px_0_rgba(255,255,255,0.8)] dark:bg-[#0d1a2d] dark:shadow-[0_-16px_40px_rgba(2,6,23,0.45),inset_0_1px_0_rgba(255,255,255,0.12)]"
           initial={{ opacity: 0, y: 10 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
         >

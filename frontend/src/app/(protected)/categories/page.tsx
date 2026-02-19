@@ -281,7 +281,7 @@ export default function CategoriesPage() {
   if (isModalOpen) {
     return (
       <section className="fixed inset-0 z-50 overscroll-contain bg-[var(--bg-app)]">
-        <div className="mx-auto flex h-full w-full max-w-[430px] flex-col">
+        <div className="mx-auto flex h-full w-full max-w-[430px] md:max-w-[1100px] flex-col">
           <UiTopBar
             title={editingId ? "Редактирование категории" : "Новая категория"}
             onBack={closeModal}
