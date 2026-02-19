@@ -1,0 +1,9 @@
+.git
+.gitignore
+.DS_Store
+node_modules/
+.next/
+npm-debug.log*
+pnpm-lock.yaml
+README.md
+AGENTS.md

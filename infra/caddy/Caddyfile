@@ -1,0 +1,26 @@
+{
+	email {$ACME_EMAIL}
+}
+
+(cloudflare_tls) {
+	tls {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+	}
+}
+
+{$BASE_DOMAIN} {
+	import cloudflare_tls
+	encode gzip zstd
+	reverse_proxy frontend:3000
+}
+
+www.{$BASE_DOMAIN} {
+	import cloudflare_tls
+	redir https://{$BASE_DOMAIN}{uri} permanent
+}
+
+api.{$BASE_DOMAIN} {
+	import cloudflare_tls
+	encode gzip zstd
+	reverse_proxy backend:8000
+}

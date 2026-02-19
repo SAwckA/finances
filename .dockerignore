@@ -1,0 +1,14 @@
+.git
+.gitignore
+.DS_Store
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+.uv-cache/
+.cursor/
+.agents/
+frontend/
+docs/
+*.md

@@ -1,0 +1,158 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      restart_policy:
+        condition: on-failure
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      restart_policy:
+        condition: on-failure
+
+  backend:
+    image: ${IMAGE_PREFIX}/backend:${IMAGE_TAG}
+    environment:
+      DEBUG: "false"
+      SQLALCHEMY_ECHO: "false"
+      SECRET_KEY: ${SECRET_KEY}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      FRONTEND_BASE_URL: https://${BASE_DOMAIN}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI: https://api.${BASE_DOMAIN}/auth/google/callback
+      EXCHANGE_RATE_JOB_TIMEZONE: UTC
+    networks:
+      - internal
+      - edge
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        order: stop-first
+      restart_policy:
+        condition: on-failure
+
+  frontend:
+    image: ${IMAGE_PREFIX}/frontend:${IMAGE_TAG}
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NEXT_PUBLIC_API_BASE_URL: https://api.${BASE_DOMAIN}
+    networks:
+      - edge
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        order: stop-first
+      restart_policy:
+        condition: on-failure
+
+  caddy:
+    image: ${IMAGE_PREFIX}/caddy:${IMAGE_TAG}
+    environment:
+      BASE_DOMAIN: ${BASE_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    secrets:
+      - cloudflare_api_token
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    ports:
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: ingress
+      - target: 443
+        published: 443
+        protocol: tcp
+        mode: ingress
+    networks:
+      - edge
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        order: stop-first
+      restart_policy:
+        condition: on-failure
+
+  migrate:
+    image: ${IMAGE_PREFIX}/backend:${IMAGE_TAG}
+    command: ["uv", "run", "alembic", "upgrade", "head"]
+    environment:
+      DEBUG: "false"
+      SQLALCHEMY_ECHO: "false"
+      SECRET_KEY: ${SECRET_KEY}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+    networks:
+      - internal
+    deploy:
+      replicas: 0
+      restart_policy:
+        condition: none
+
+networks:
+  internal:
+    driver: overlay
+  edge:
+    driver: overlay
+
+volumes:
+  postgres_data:
+  redis_data:
+  caddy_data:
+  caddy_config:
+
+secrets:
+  cloudflare_api_token:
+    external: true

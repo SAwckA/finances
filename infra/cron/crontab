@@ -1,0 +1,2 @@
+@hourly uv run python cronjobs/execute_recurring_transactions.py
+10 3 * * * uv run python cronjobs/collect_exchange_rates.py
