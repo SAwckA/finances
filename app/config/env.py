@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     google_client_secret: str = ""
     google_redirect_uri: str = "http://localhost:8000/auth/google/callback"
     frontend_base_url: str = "http://localhost:3000"
+    cors_allow_origins: str = "http://localhost:3000,http://192.168.1.135:3000"
     google_oauth_state_expire_seconds: int = 600
     auth_exchange_code_ttl_seconds: int = 90
     exchange_rate_job_timezone: str = "UTC"
@@ -45,6 +46,15 @@ class Settings(BaseSettings):
             f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
+
+    @property
+    def cors_origins(self) -> list[str]:
+        """Список разрешенных origins для CORS."""
+        return [
+            origin.strip()
+            for origin in self.cors_allow_origins.split(",")
+            if origin.strip()
+        ]
 
 
 settings = Settings()

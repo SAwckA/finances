@@ -64,6 +64,7 @@ cp infra/swarm/.env.example infra/swarm/.env
 - `BASE_DOMAIN` (например, `finances.sawcka.ru`)
 - `API_DOMAIN` (например, `api-finances.sawcka.ru`)
 - `ACME_EMAIL`
+- `CORS_ALLOW_ORIGINS` (например, `https://finances.sawcka.ru,http://localhost:3000`)
 - DB/Redis credentials
 - `SECRET_KEY`, `JWT_SECRET_KEY`
 - OAuth credentials (если используются)

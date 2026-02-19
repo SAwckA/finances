@@ -11,6 +11,7 @@ Workflow: `.github/workflows/build-images.yml`
 - собирает образы `backend`, `frontend`, `caddy`, `scheduler`
 - пушит их в GHCR
 - ставит тег образа, равный SHA коммита (`${{ github.sha }}`)
+- для `frontend` использует обязательный input `frontend_api_base_url`
 
 ## Формат имен образов
 
