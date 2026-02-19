@@ -43,6 +43,11 @@ class BaseRepository(Generic[ModelType]):
     def _supports_soft_delete(self) -> bool:
         return issubclass(self.model, SoftDeleteMixin)
 
+    @staticmethod
+    def _has_affected_rows(result: object) -> bool:
+        rowcount = getattr(result, "rowcount", None)
+        return isinstance(rowcount, int) and rowcount > 0
+
     def _base_query(self, include_deleted: bool = False):
         query = select(self.model)
 
@@ -138,12 +143,12 @@ class BaseRepository(Generic[ModelType]):
             .values(deleted_at=datetime.now(timezone.utc))
         )
         result = await self.session.execute(query)
-        return result.rowcount > 0  # type: ignore[union-attr]
+        return self._has_affected_rows(result)
 
     async def hard_delete(self, id: int) -> bool:
         query = delete(self.model).where(self.model.id == id)
         result = await self.session.execute(query)
-        return result.rowcount > 0  # type: ignore[union-attr]
+        return self._has_affected_rows(result)
 
     async def restore(self, id: int) -> ModelType | None:
         if not self._supports_soft_delete:

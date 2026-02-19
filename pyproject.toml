@@ -19,6 +19,7 @@ dependencies = [
     "authlib>=1.6.7",
     "httpx>=0.28.1",
     "sentry-sdk>=2.53.0",
+    "ruff>=0.15.1",
 ]
 
 [dependency-groups]

@@ -1,6 +1,6 @@
 import logging
 from datetime import date, datetime, timezone
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from html import unescape
 from xml.etree import ElementTree
 from xml.etree.ElementTree import ParseError
@@ -33,7 +33,7 @@ class CBRClient:
             return datetime.combine(
                 on_date, datetime.min.time(), tzinfo=timezone.utc
             ), rates
-        except Exception as exc:
+        except (httpx.HTTPError, ParseError, ValueError, InvalidOperation) as exc:
             parse_errors.append(f"DailyInfo SOAP error: {exc}")
 
         # 2) Резервный канал: XML_daily.asp (официальный XML ЦБ РФ).
@@ -43,7 +43,7 @@ class CBRClient:
             return datetime.combine(
                 on_date, datetime.min.time(), tzinfo=timezone.utc
             ), rates
-        except Exception as exc:
+        except (httpx.HTTPError, ParseError, ValueError, InvalidOperation) as exc:
             parse_errors.append(f"XML_daily error: {exc}")
 
         raise ValueError(

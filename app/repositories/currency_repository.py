@@ -31,7 +31,7 @@ class CurrencyRepository(BaseRepository[Currency]):
         result = await self.session.execute(
             delete(Currency).where(Currency.code == code)
         )
-        return result.rowcount > 0  # type: ignore[union-attr]
+        return self._has_affected_rows(result)
 
     async def get_all_codes(self) -> list[str]:
         """Получить список кодов валют."""

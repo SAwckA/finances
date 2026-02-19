@@ -4,12 +4,13 @@ from dataclasses import dataclass
 from fastapi import Depends, Header
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.auth.jwt import InvalidTokenException, decode_token
+from app.auth.jwt import InvalidTokenException, TokenExpiredException, decode_token
 from app.exceptions import ForbiddenException
 from app.models.user import User
 from app.models.workspace import Workspace, WorkspaceMembership, WorkspaceRole
 from app.services.workspace_service import WorkspaceService
 from app.services.user_service import UserService
+from app.services.user_service import UserNotFoundException
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,8 @@ async def get_current_user_optional(
         payload = decode_token(credentials.credentials)
         async with UserService() as service:
             return await service.get_user_by_id(payload.user_id)
-    except Exception:
+    except (InvalidTokenException, TokenExpiredException, UserNotFoundException):
+        logger.debug("Optional auth failed: token is invalid or user is unavailable")
         return None
 
 

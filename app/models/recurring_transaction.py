@@ -3,7 +3,7 @@ from decimal import Decimal
 from enum import Enum
 
 from pydantic import BaseModel, Field
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Date, DateTime, ForeignKey, Integer, Numeric, Text
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 

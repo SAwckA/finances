@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 from authlib.integrations.httpx_client import AsyncOAuth2Client
+from authlib.integrations.base_client.errors import OAuthError
+import httpx
 from jose import JWTError
 from jose import jwt as jose_jwt
 from jose.exceptions import ExpiredSignatureError
@@ -162,11 +164,16 @@ class AuthService(BaseService):
                     headers={"Authorization": f"Bearer {access_token}"},
                 )
                 profile_response.raise_for_status()
-        except Exception as exc:
+        except (OAuthError, httpx.HTTPError) as exc:
             logger.warning("Google OAuth exchange failed: %s", exc)
             raise GoogleAuthExchangeException() from exc
 
-        payload = profile_response.json()
+        try:
+            payload = profile_response.json()
+        except ValueError as exc:
+            raise GoogleAuthExchangeException(
+                message="Google вернул некорректный профиль пользователя"
+            ) from exc
         sub = payload.get("sub")
         email = payload.get("email")
 

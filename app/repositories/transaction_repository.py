@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Sequence
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, case, func, or_, select
 
 from app.models.transaction import Transaction, TransactionType
 from app.repositories.base_repository import BaseRepository
@@ -68,47 +68,89 @@ class TransactionRepository(BaseRepository[Transaction]):
 
     async def get_account_balance(self, workspace_id: int, account_id: int) -> Decimal:
         """Вычислить баланс счёта на основе транзакций."""
-        income_query = (
-            select(func.coalesce(func.sum(Transaction.amount), 0))
+        aggregate_query = (
+            select(
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (
+                                and_(
+                                    Transaction.account_id == account_id,
+                                    Transaction.type == TransactionType.INCOME,
+                                ),
+                                Transaction.amount,
+                            ),
+                            else_=0,
+                        )
+                    ),
+                    0,
+                ).label("income"),
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (
+                                and_(
+                                    Transaction.account_id == account_id,
+                                    Transaction.type == TransactionType.EXPENSE,
+                                ),
+                                Transaction.amount,
+                            ),
+                            else_=0,
+                        )
+                    ),
+                    0,
+                ).label("expense"),
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (
+                                and_(
+                                    Transaction.account_id == account_id,
+                                    Transaction.type == TransactionType.TRANSFER,
+                                ),
+                                Transaction.amount,
+                            ),
+                            else_=0,
+                        )
+                    ),
+                    0,
+                ).label("transfer_out"),
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (
+                                and_(
+                                    Transaction.target_account_id == account_id,
+                                    Transaction.type == TransactionType.TRANSFER,
+                                ),
+                                func.coalesce(
+                                    Transaction.converted_amount,
+                                    Transaction.amount,
+                                ),
+                            ),
+                            else_=0,
+                        )
+                    ),
+                    0,
+                ).label("transfer_in"),
+            )
             .where(Transaction.deleted_at.is_(None))
             .where(Transaction.workspace_id == workspace_id)
-            .where(Transaction.account_id == account_id)
-            .where(Transaction.type == TransactionType.INCOME)
+            .where(
+                or_(
+                    Transaction.account_id == account_id,
+                    Transaction.target_account_id == account_id,
+                )
+            )
         )
 
-        expense_query = (
-            select(func.coalesce(func.sum(Transaction.amount), 0))
-            .where(Transaction.deleted_at.is_(None))
-            .where(Transaction.workspace_id == workspace_id)
-            .where(Transaction.account_id == account_id)
-            .where(Transaction.type == TransactionType.EXPENSE)
-        )
+        aggregate_result = await self.session.execute(aggregate_query)
+        row = aggregate_result.one()
 
-        transfer_out_query = (
-            select(func.coalesce(func.sum(Transaction.amount), 0))
-            .where(Transaction.deleted_at.is_(None))
-            .where(Transaction.workspace_id == workspace_id)
-            .where(Transaction.account_id == account_id)
-            .where(Transaction.type == TransactionType.TRANSFER)
-        )
-
-        transfer_in_query = (
-            select(func.coalesce(func.sum(Transaction.converted_amount), 0))
-            .where(Transaction.deleted_at.is_(None))
-            .where(Transaction.workspace_id == workspace_id)
-            .where(Transaction.target_account_id == account_id)
-            .where(Transaction.type == TransactionType.TRANSFER)
-        )
-
-        income_result = await self.session.execute(income_query)
-        expense_result = await self.session.execute(expense_query)
-        transfer_out_result = await self.session.execute(transfer_out_query)
-        transfer_in_result = await self.session.execute(transfer_in_query)
-
-        income = income_result.scalar() or Decimal("0")
-        expense = expense_result.scalar() or Decimal("0")
-        transfer_out = transfer_out_result.scalar() or Decimal("0")
-        transfer_in = transfer_in_result.scalar() or Decimal("0")
+        income = row.income or Decimal("0")
+        expense = row.expense or Decimal("0")
+        transfer_out = row.transfer_out or Decimal("0")
+        transfer_in = row.transfer_in or Decimal("0")
 
         return income - expense - transfer_out + transfer_in
 

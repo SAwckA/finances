@@ -28,7 +28,7 @@ if settings.sentry_dsn != "":
         send_default_pii=True,
         traces_sample_rate=1 if settings.debug else 0.1,
         profile_session_sample_rate=1 if settings.debug else 0.1,
-        profile_lifecycle='trace',
+        profile_lifecycle="trace",
         enable_logs=True,
         environment="development" if settings.debug else "production",
     )
@@ -76,10 +76,15 @@ async def health_check():
     return {"status": "ok"}
 
 
-uvicorn.run(
-    app,
-    port=8000,
-    host="0.0.0.0",
-    log_config=None,
-    access_log=True,
-)
+def run() -> None:
+    uvicorn.run(
+        app,
+        port=8000,
+        host="0.0.0.0",
+        log_config=None,
+        access_log=True,
+    )
+
+
+if __name__ == "__main__":
+    run()
