@@ -67,6 +67,7 @@ cp infra/swarm/.env.example infra/swarm/.env
 - `CORS_ALLOW_ORIGINS` (например, `https://finances.sawcka.ru,http://localhost:3000`)
 - DB/Redis credentials
 - `SECRET_KEY`, `JWT_SECRET_KEY`
+- `SENTRY_DSN` (опционально, для отправки ошибок в Sentry)
 - OAuth credentials (если используются)
 
 ## Подготовка Cloudflare token secret
